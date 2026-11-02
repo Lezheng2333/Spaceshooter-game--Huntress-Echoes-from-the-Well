@@ -318,6 +318,9 @@ static void usage() {
 }
 
 int main(int argc, char** argv) {
+    // 软件渲染器不需要显示器或声音设备，默认使用 dummy，保留显式驱动覆盖。
+    SDL_setenv("SDL_VIDEODRIVER", "dummy", 0);
+    SDL_setenv("SDL_AUDIODRIVER", "dummy", 0);
     Options o;
 
     if (argc < 2) { usage(); return 1; }

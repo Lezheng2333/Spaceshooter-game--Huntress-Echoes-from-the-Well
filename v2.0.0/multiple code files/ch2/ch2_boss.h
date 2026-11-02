@@ -128,6 +128,7 @@ public:
         switch (state) {
         case ENTERING: {
             y += 3.0;
+            x = 760.0 - 160.0 * std::min(1.0, (y + 120.0) / 290.0);
             if (y >= 170) {
                 y = 170;
                 state = FIGHT; timer = 0; pattern = 0; patternTimer = 0;
@@ -239,7 +240,7 @@ public:
     }
 
     void draw(SDL_Renderer* r) const {
-        if (state == INACTIVE || state == DYING) return;
+        if (state == INACTIVE || defeated) return;
         int cx = (int)x, cy = (int)y;
         bool enraged = (state == ENRAGED);
 
@@ -247,6 +248,11 @@ public:
         if (enraged)      { br = 255; bg = 110; bb = 110; }
         else              { br = 120; bg = 210; bb = 255; }
         if (flashTimer > 0) { br = 255; bg = 230; bb = 210; }
+        if (state == DYING) {
+            // 机体随连锁爆炸衰暗，而不是进入 DYING 的第一帧直接消失。
+            double fade = 1.0 - deathTimer / 200.0;
+            br = (int)(255 * fade); bg = (int)(180 * fade); bb = (int)(140 * fade);
+        }
 
         // ---- 4 rotating blades ----
         for (int k = 0; k < 4; ++k) {
@@ -348,11 +354,11 @@ public:
         const char* name = "MOONWELL WARDEN";
         int nameLen = (int)strlen(name);
         int namePxW = nameLen * 12;  // scale 2, char width 12
-        int nameX = BAR_X - namePxW - 8;
+        int nameX = BAR_X + (BAR_W - namePxW) / 2;
         if (nameX < 4) nameX = 4;
         for (int i = 0; name[i]; ++i) {
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            font.drawChar(renderer, name[i], nameX + i * 12, BAR_Y + 1, 2);
+            font.drawChar(renderer, name[i], nameX + i * 12, BAR_Y + BAR_H + 5, 2);
         }
     }
 };

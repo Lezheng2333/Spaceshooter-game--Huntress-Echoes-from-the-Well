@@ -185,7 +185,7 @@ public:
     }
 
     int getGunCount() const override { return 1; }
-    void getGunOffset(int idx, int& ox, int& oy) const override {
+    void getGunOffset(int, int& ox, int& oy) const override {
         ox = 12; oy = 0;
     }
     int getNoseOffset() const override { return 12; }
@@ -201,6 +201,7 @@ public:
     void reset() {
         x = 100; y = WIN_HEIGHT / 2;
         resetState();
+        tripleFire = false;
     }
 
     void setTripleFire(bool t) { tripleFire = t; }

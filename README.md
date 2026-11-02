@@ -21,11 +21,40 @@ Control your starfighter in a massive space, shoot down alien ships, survive wav
 
 Save at any moment from the pause menu, then pick `LOAD GAME` from the main menu next time — the game resumes on the exact frame you saved (bullets in flight included).
 
+## Asset Studio / 素材工坊 v0.1.3
+
+素材工坊用于浏览游戏美术、切换状态、调整参数、预览动画、派生草稿和保存草稿参数。源码随本仓库提供。
+
+macOS 先安装 Xcode Command Line Tools、SDL2 和 Python 3：
+
+```bash
+xcode-select --install
+brew install sdl2
+```
+
+在终端进入你下载或克隆的项目根目录，执行：
+
+```bash
+bash tools/asset_studio/studio.sh
+```
+
+脚本会自动编译、启动本地服务并打开浏览器。若未自动打开，请访问 [http://127.0.0.1:8791/](http://127.0.0.1:8791/)。
+**使用期间保留终端窗口，结束时按 Control + C；下次重新执行启动命令。**
+
+动画 GIF 需要启动服务的 Python 环境安装 Pillow（`python3 -m pip install Pillow`）；缺少时自动使用 PNG 预览。
+点击素材卡片可切换状态和调参数；草稿素材的「保存草稿参数」会保存参数与状态，下次打开恢复。
+端口冲突可运行 `bash tools/asset_studio/studio.sh --port 8792`，然后访问相应端口。
+
+QA：游戏 `--selftest` 包含第二章 18 项回归与七段流程检查（战斗注入命中、维持玩家存活）；
+工坊运行 `python3 -m unittest discover -s tools/asset_studio/tests -v`。
+
 ## Download / 下载
 
 > macOS 11.0+
 
-[Download v1.2.23](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.23) (latest)
+[Download v1.2.24](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.24) (latest)
+
+[Download v1.2.23](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.23)
 
 [Download v1.2.21](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.21)
 
@@ -41,14 +70,14 @@ Download the `.zip`, unzip, and run `Shooter.app`.
 
 下载 `.zip` 后解压，直接运行 `Shooter.app`。
 
-## What's New / 最近更新 (v1.2.23)
+## What's New / 最近更新 (v1.2.24)
 
-- **存档功能上线！** 以前想接着玩只能用测试模式跳关，现在随时 ESC 暂停 → `SAVE GAME` 存档，关掉游戏下次从主菜单 `LOAD GAME` 读档，回到你存档的那一瞬间——画面就是你按下暂停时的那一帧，连满天飞的弹幕、敌人位置、粒子特效、正在播放的对话都原样恢复，按 `RESUME` 倒计时 3-2-1 后继续战斗。
-- 存档槽位：`AUTO` 自动槽 + `SLOT 1-6`（列出章节/流程段落/分数/血量/时间）。每章开始与第二章每次段落切换会自动存档，忘了手动存也不会丢进度。
-- 还能用内置文件浏览器**自由读档**（浏览电脑上任意 `.sav`），或把存档**另存到任意文件夹**，方便备份某个精彩瞬间。
-- 原 `TEST` 测试模式从主菜单退役（保留为开发参数 `./shooter --test`），位置让给 `LOAD GAME`。
-- `OPTIONS` 里的瞄准辅助、语音语言、音量与 EQ 现在会被记住。
-- 本版同时包含上一版未发布的**第二章完整流程**（门禁真空门序列、中央研究室、章节 Boss「MOONWELL WARDEN」、结局旁白）与**中英双语配音功能**（`OPTIONS → VOICE LANG` 切换；本发布包暂未内置音频文件，运行时自动降级为字母弹出音效）。
+- 修复第二章球体 Boss 碎裂卡关、追逐战增援转场和暂停时背景仍滚动的问题。
+- 门禁阶段 **ESC 暂停／恢复，TAB 跳过演出**；改善 Warden 入场、死亡演出及血条标题排版。
+- 修复飞机越界、NightElf 重开状态残留、瞄准辅助重绘改变状态和技能球颜色溢出。
+- 本次 macOS 游戏包内置第一、二章 182 个中英语音文件，OPTIONS → VOICE LANG 切换语言。
+- 配套 Asset Studio v0.1.3：修复状态切换、参数分析和 GIF 缓存，新增草稿参数与状态保存恢复；启动方法见上方。
+- 保留完整状态存档及 AUTO + 六个手动槽；存档格式未变，可读取 v1.2.23 存档。
 
 ## Build from Source / 从源码编译
 
@@ -81,10 +110,10 @@ Requires SDL2: `brew install sdl2`
 │   ├── space_shooting ver1.0.0.cpp
 │   ├── Shooter ver1.0.0.app/
 │   └── Shooter ver1.0.0.zip
-└── v2.0.0/                                            # 当前开发主线 (v1.2.23)
+└── v2.0.0/                                            # 当前开发主线 (v1.2.24)
     ├── multiple code files/                            # ★ 当前开发源码（多文件架构）
     │   ├── main.cpp                                    # 入口 + #include 所有头文件
-    │   ├── game.h                                      # Game 类 (3607 行)
+    │   ├── game.h                                      # Game 类与流程/存档/QA
     │   ├── save_system.h  save_menu.h                  # 存档格式/IO + 存读档界面
     │   ├── types.h  constants.h                        # 数据结构和常量
     │   ├── font.h  renderer.h  audio.h                 # 共享基础设施
@@ -121,7 +150,8 @@ Requires SDL2: `brew install sdl2`
         ├── Shooter ver1.2.19.app/ + .zip                # v1.2.19
         ├── Shooter ver1.2.20.app/ + .zip                # v1.2.20
         ├── Shooter ver1.2.21.app/ + .zip                # v1.2.21
-        └── Shooter ver1.2.23.app/ + .zip                # v1.2.23 (最新)
+        ├── Shooter ver1.2.23.app/ + .zip                # v1.2.23
+        └── Shooter ver1.2.24.app/ + .zip                # v1.2.24 (最新)
 ```
 
 ## License

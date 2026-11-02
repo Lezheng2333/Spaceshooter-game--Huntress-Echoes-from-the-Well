@@ -1,0 +1,938 @@
+[
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Stellar Calendar 24th.\nIn the deep space.\nThe \"Life\" base.",
+  "hash": "7db8e0a5",
+  "zh": "星海历24年。\n宇宙深处。\n\"生命\"基地。",
+  "name": "ch1/nar_01.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Martha aces her final test.\nShe's now a member of \"Huntress\".",
+  "hash": "0541c96d",
+  "zh": "玛莎以全优成绩通过最终考核。\n她正式成为\"Huntress\"中队的一员。",
+  "name": "ch1/nar_02.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "When she is just off the plane.\nHeading for the rest area.\nAnnouncement sounds.",
+  "hash": "8f538827",
+  "zh": "她刚走下飞机。\n正走向休息区。\n警报骤然响起。",
+  "name": "ch1/nar_03.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Tower: \"Hostile objects approaching!\nAll fighters scramble!\"",
+  "hash": "7459f8ef",
+  "zh": "塔台:\"检测到大量不明飞行物!\n所有战机紧急升空!\"",
+  "name": "ch1/nar_04.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "\"Repeat: Scramble! Scramble!\"",
+  "hash": "908d594c",
+  "zh": "\"重复:紧急升空!紧急升空!\"",
+  "name": "ch1/nar_05.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "At the same moment,\na series of massive explosions behind her.\nShe turns --",
+  "hash": "f8066f5e",
+  "zh": "与此同时,\n身后传来一连串巨大的爆炸。\n她猛地回头——",
+  "name": "ch1/nar_06.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "All fighters become wreckage...",
+  "hash": "90e0582e",
+  "zh": "所有战机,皆成残骸……",
+  "name": "ch1/nar_07.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Martha runs back to the hangar.\nOnly one old trainer left.",
+  "hash": "f52e2e55",
+  "zh": "玛莎冲回机库。\n只剩一架老旧的教练机。",
+  "name": "ch1/nar_08.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Into the cockpit. Engines up.\nShe reports:\n\"I'm taking off. Flight code:21395\"",
+  "hash": "21acc939",
+  "zh": "她登上座舱,引擎启动。\n她向塔台汇报:\n\"我准备起飞。飞行代码21395\"",
+  "name": "ch1/nar_09.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "No response from the tower.\nOnly a sharp, harsh noise.",
+  "hash": "8f86cc4d",
+  "zh": "塔台没有回应。\n只有一阵刺耳的噪声。",
+  "name": "ch1/nar_10.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 1,
+  "speaker": "NARRATOR",
+  "en": "Martha heads into space.\nAgain and alone.",
+  "hash": "7ec4b158",
+  "zh": "玛莎飞向太空。\n再一次,孤身一人。",
+  "name": "ch1/nar_11.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "A hard-won victory. But the cost is plain.\nThe \"Life\" base lies scarred and broken.\nRepairs will take weeks.",
+  "hash": "1c204bd2",
+  "zh": "一场艰难的胜利。代价却清晰可见。\n\"生命\"基地满目疮痍。\n修复工作将持续数周。",
+  "name": "ch2/nar_01.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "The shockwave defense system,\npushed far beyond its limits,\nneeds a full overhaul\nbefore it can fire again.",
+  "hash": "45350508",
+  "zh": "冲击波防御系统,\n被推至极限之外,\n需要彻底的检修\n才能再次开火。",
+  "name": "ch2/nar_02.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "The base's long-range comms array\nis destroyed.\nMartha must fly to the\n\"Moonwell\" R&D center,\nwith Bryssa in her backseat,\nto bring home new equipment.",
+  "hash": "a6d2b88a",
+  "zh": "基地的大功率通讯设备\n已被摧毁。\n玛莎必须飞往\n\"月井\"研发中心,\n后座载着Bryssa,\n运回新的设备。",
+  "name": "ch2/nar_03.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Ally enters its standby mode.\nBryssa, exhausted, drifts off.\nThe old trainer's engine hums\na tired, weary vibration.",
+  "hash": "a71b2899",
+  "zh": "Ally进入待机状态。\n精疲力竭的Bryssa沉沉睡去。\n老旧教练机的引擎\n发出疲惫的震动。",
+  "name": "ch2/nar_04.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Space is terribly quiet...",
+  "hash": "48fb0ec5",
+  "zh": "宇宙安静得可怕……",
+  "name": "ch2/nar_05.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "......",
+  "hash": "577ae384",
+  "zh": "……",
+  "name": "ch2/nar_06.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "............",
+  "hash": "d05e7088",
+  "zh": "…………",
+  "name": "ch2/nar_07.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "After an eternity in the void,\nthe R&D center finally\ndrifts into Martha's comms range.",
+  "hash": "dc1cf540",
+  "zh": "在虚空中度过漫长的时光后,\n研发中心终于\n进入了玛莎的通讯范围。",
+  "name": "ch2/nar_08.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Martha opens the channel.\n\"Moonwell, Moonwell, this is Martha\nfrom 'Life' base. Flight code 21395.\"",
+  "hash": "2195f98e",
+  "zh": "玛莎尝试建立通讯。\n\"月井,月井,这里是'生命'基地的玛莎。\n飞行代码21395。\"",
+  "name": "ch2/nar_09.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "\"......\"",
+  "hash": "aefdf68f",
+  "zh": "\"……\"",
+  "name": "ch2/nar_10.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Silence.",
+  "hash": "db757202",
+  "zh": "没有回应。",
+  "name": "ch2/nar_11.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "\"Moonwell, Moonwell, 21395.\nRequesting landing clearance.\"",
+  "hash": "ff58fa6e",
+  "zh": "\"月井,月井,这里是21395。\n申请飞机停泊。\"",
+  "name": "ch2/nar_12.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Nothing but still silence.",
+  "hash": "691aac64",
+  "zh": "依旧毫无回应。",
+  "name": "ch2/nar_13.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Martha has already flown to the center's gate.\nA massive vacuum door blocks her way.",
+  "hash": "d9e60d4c",
+  "zh": "玛莎已经飞到了研究中心的门前。\n巨大的真空门将她挡在外面。",
+  "name": "ch2/nar_14.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 3,
+  "speaker": "NARRATOR",
+  "en": "CH.3  ENEMY FORTRESS",
+  "hash": "358cafdd",
+  "zh": "第三章  敌人要塞",
+  "name": "ch3/nar_01.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 3,
+  "speaker": "NARRATOR",
+  "en": "We have located the enemy stronghold.",
+  "hash": "e8a71293",
+  "zh": "我们已定位敌人的据点。",
+  "name": "ch3/nar_02.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 3,
+  "speaker": "NARRATOR",
+  "en": "Break through their defense line!",
+  "hash": "1c277343",
+  "zh": "突破他们的防线!",
+  "name": "ch3/nar_03.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 4,
+  "speaker": "NARRATOR",
+  "en": "CH.4  ASTEROID BELT",
+  "hash": "528bfe40",
+  "zh": "第四章  小行星带",
+  "name": "ch4/nar_01.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 4,
+  "speaker": "NARRATOR",
+  "en": "Danger lurks among the asteroids.",
+  "hash": "a10ef4e2",
+  "zh": "危险潜伏在小行星之间。",
+  "name": "ch4/nar_02.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 4,
+  "speaker": "NARRATOR",
+  "en": "Fly carefully and stay alert.",
+  "hash": "dfdf440a",
+  "zh": "小心飞行,保持警惕。",
+  "name": "ch4/nar_03.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 5,
+  "speaker": "NARRATOR",
+  "en": "CH.5  FINAL ASSAULT",
+  "hash": "d2199110",
+  "zh": "第五章  最终突击",
+  "name": "ch5/nar_01.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 5,
+  "speaker": "NARRATOR",
+  "en": "This is the final battle.",
+  "hash": "443d3485",
+  "zh": "这是最后的战役。",
+  "name": "ch5/nar_02.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 5,
+  "speaker": "NARRATOR",
+  "en": "Give it everything you've got!",
+  "hash": "e67b45a2",
+  "zh": "倾尽全力!",
+  "name": "ch5/nar_03.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "The Warden falls.\nThe lab falls silent.",
+  "hash": "4a258586",
+  "zh": "守护者倒下了。\n实验室归于寂静。",
+  "name": "ch2/nar_15.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "The long-range comms unit is found intact.\nBryssa loads it into the trainer's hold.",
+  "hash": "256f4792",
+  "zh": "大功率通讯设备完好无损。\nBryssa将它装入教练机的货舱。",
+  "name": "ch2/nar_16.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Martha takes one last look at Moonwell.\nThe engines roar to life.",
+  "hash": "c2f4faf5",
+  "zh": "玛莎最后看了一眼月井。\n引擎轰鸣着苏醒。",
+  "name": "ch2/nar_17.wav"
+ },
+ {
+  "kind": "narration",
+  "chapter": 2,
+  "speaker": "NARRATOR",
+  "en": "Home. The \"Life\" base is waiting.",
+  "hash": "fd76a45b",
+  "zh": "回家。\n\"生命\"基地正在等待。",
+  "name": "ch2/nar_18.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Martha, you're the only one in the air.",
+  "hash": "4dce431a",
+  "zh": "玛莎,现在只有你起飞了。",
+  "name": "ch1/dlg_ally_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Hold on as long as you can. The base shockwave cannon is charging.",
+  "hash": "91a0731e",
+  "zh": "你尽可能撑住,基地的冲击波防御炮正在准备。",
+  "name": "ch1/dlg_ally_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "These enemies are made of energy.",
+  "hash": "5914ce88",
+  "zh": "这些敌人都是能量体构成的。",
+  "name": "ch1/dlg_ally_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Destroy them. We can collect the energy.",
+  "hash": "87ca816f",
+  "zh": "击碎他们,我们可以得到能量。",
+  "name": "ch1/dlg_ally_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "",
+  "en": "Tower communication restored.",
+  "hash": "048362f8",
+  "zh": "塔台恢复通讯。",
+  "name": "ch1/dlg_system_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Shockwave cannon ready.",
+  "hash": "c4b9a79a",
+  "zh": "防御炮已经准备好了。",
+  "name": "ch1/dlg_tower_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "A little more energy!",
+  "hash": "e8193f9b",
+  "zh": "还需要一点点能量!",
+  "name": "ch1/dlg_bryssa_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Defense system charged.",
+  "hash": "c4b35c2e",
+  "zh": "防御体系充能成功。",
+  "name": "ch1/dlg_tower_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "More enemies incoming. Keep gathering energy.",
+  "hash": "c172a851",
+  "zh": "敌人越来越多,请继续积攒能量。",
+  "name": "ch1/dlg_tower_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "The trainer shares energy with the base.",
+  "hash": "c0d0596f",
+  "zh": "训练机和基地共享能量系统。",
+  "name": "ch1/dlg_bryssa_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "You and the base will upgrade together.",
+  "hash": "ab715ef6",
+  "zh": "你会和基地同步升级!",
+  "name": "ch1/dlg_bryssa_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Keep gathering energy.",
+  "hash": "30e33d18",
+  "zh": "请继续积攒能量。",
+  "name": "ch1/dlg_tower_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "System checking.",
+  "hash": "d84a49f2",
+  "zh": "系统自检。",
+  "name": "ch1/dlg_ally_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Done.",
+  "hash": "8e019ac6",
+  "zh": "自检完成。",
+  "name": "ch1/dlg_ally_06.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Base upgraded again.",
+  "hash": "546228e0",
+  "zh": "基地已再次获得升级。",
+  "name": "ch1/dlg_tower_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "Radar shows even more enemies! Watch out!",
+  "hash": "f9c27938",
+  "zh": "雷达上显示的敌人越来越多了,小心!",
+  "name": "ch1/dlg_bryssa_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "System checking result:",
+  "hash": "af3caed8",
+  "zh": "系统自检结果:",
+  "name": "ch1/dlg_ally_07.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Aim assist system on this plane.",
+  "hash": "c839fd7b",
+  "zh": "本机搭载了瞄准辅助系统。",
+  "name": "ch1/dlg_ally_08.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "You shall find it somewhere.",
+  "hash": "a8ee0b5f",
+  "zh": "你应该能在某处找到它。",
+  "name": "ch1/dlg_ally_09.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "I've lost contact with the tower!",
+  "hash": "65a93c06",
+  "zh": "我和塔台失去通讯了!",
+  "name": "ch1/dlg_ally_10.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "But you and the base can upgrade again soon.",
+  "hash": "a7bcd7f6",
+  "zh": "不过你和基地很快又可以进行一次升级。",
+  "name": "ch1/dlg_ally_11.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Massive energy signature detected.",
+  "hash": "9c4b118a",
+  "zh": "检测到巨大能量信号。",
+  "name": "ch1/dlg_tower_06.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Analyzing source...",
+  "hash": "edd28df6",
+  "zh": "正在分析来源……",
+  "name": "ch1/dlg_tower_07.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "It's a capital ship.",
+  "hash": "244afb36",
+  "zh": "是一艘主力舰。",
+  "name": "ch1/dlg_bryssa_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "Telamondo-class. Martha, this is what the defense system was built for.",
+  "hash": "f145d5a3",
+  "zh": "Telamondo级。玛莎,这就是防御体系存在的意义。",
+  "name": "ch1/dlg_bryssa_06.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Enemy capital ship approaching.",
+  "hash": "122b7c9d",
+  "zh": "敌方主力舰正在逼近。",
+  "name": "ch1/dlg_tower_08.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Tower (ai)",
+  "en": "Entering weapons range in 40 seconds.",
+  "hash": "31c90f31",
+  "zh": "预计40秒后进入射程。",
+  "name": "ch1/dlg_tower_09.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "Shockwave Defense System is fully charged",
+  "hash": "f2bd09c8",
+  "zh": "冲击波防御系统已完全充能。",
+  "name": "ch1/dlg_bryssa_07.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "Martha, just keep them off us!",
+  "hash": "6bfe85ce",
+  "zh": "玛莎,守住防线!",
+  "name": "ch1/dlg_bryssa_08.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Here it comes...!",
+  "hash": "c579b2c2",
+  "zh": "它来了……!",
+  "name": "ch1/dlg_ally_12.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Bryssa from Tower",
+  "en": "Base defense systems are strengthening.",
+  "hash": "c03ff533",
+  "zh": "基地防御体系正在加强。",
+  "name": "ch1/dlg_bryssa_09.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Firepower systems being enhanced.",
+  "hash": "fcccd520",
+  "zh": "正在加强火力体系。",
+  "name": "ch1/dlg_ally_13.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Telamondo can absorb energy!",
+  "hash": "1fd71bd0",
+  "zh": "Telamondo能够吸收能量!",
+  "name": "ch1/dlg_ally_14.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 1,
+  "speaker": "Ally (ai copilot)",
+  "en": "Our firepower can match it!",
+  "hash": "598ba439",
+  "zh": "我们的火力足够应对!",
+  "name": "ch1/dlg_ally_15.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Bryssa",
+  "en": "Are we there? ... Why did we stop?",
+  "hash": "7c64f56f",
+  "zh": "到了?……怎么停了?",
+  "name": "ch2/dlg_bryssa_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "'Moonwell' ... no response at all.",
+  "hash": "19e97497",
+  "zh": "\"月井\"……完全没有反应。",
+  "name": "ch2/dlg_martha_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Bryssa",
+  "en": "So we can't get in?",
+  "hash": "cdc3531d",
+  "zh": "那我们进不去了?",
+  "name": "ch2/dlg_bryssa_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "Hold on. I'll have Ally try to link into their system.",
+  "hash": "b4cf5380",
+  "zh": "别急,我让Ally试试能不能接入研究中心的系统。",
+  "name": "ch2/dlg_martha_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "... ?",
+  "hash": "e90fdc00",
+  "zh": "……          ?",
+  "name": "ch2/dlg_ally_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Accessing Moonwell system.",
+  "hash": "203d7326",
+  "zh": "接入研究中心中。",
+  "name": "ch2/dlg_ally_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Connecting. Please wait.",
+  "hash": "02661cfe",
+  "zh": "接入中,请稍等。",
+  "name": "ch2/dlg_ally_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "All their devices are offline. But the facility still has power.",
+  "hash": "1b360c0a",
+  "zh": "他们的设备都是关机状态。但是建筑内依旧有电力。",
+  "name": "ch2/dlg_ally_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "... Preparing to emit a strong pulse signal. Forcefully waking up nearby hardware.",
+  "hash": "ffb18fdb",
+  "zh": "……准备发射强力脉冲信号,强行启动周围硬件设备。",
+  "name": "ch2/dlg_ally_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Moonwell (ai)",
+  "en": "Scanning code. Verifying ID.",
+  "hash": "aa6ad10f",
+  "zh": "正在扫描代码。验证身份。",
+  "name": "ch2/dlg_moonwell_01.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Moonwell (ai)",
+  "en": "Flight code verified, 21395. Cargo confirmed. No obvious threats. You may proceed.",
+  "hash": "4f0550c4",
+  "zh": "飞行代码已验证,21395。内容物确认,无明显威胁。请通行。",
+  "name": "ch2/dlg_moonwell_02.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Moonwell (ai)",
+  "en": "Welcome, Martha. Ally.",
+  "hash": "43e3e024",
+  "zh": "欢迎,玛莎。Ally。",
+  "name": "ch2/dlg_moonwell_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "We're in. The whole facility is silent.",
+  "hash": "747cd0a9",
+  "zh": "我们进来了。整座设施寂静无声。",
+  "name": "ch2/dlg_martha_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Bryssa",
+  "en": "It feels like no one has been here for years.",
+  "hash": "f7f9377e",
+  "zh": "感觉这里已经好几年没人来过了。",
+  "name": "ch2/dlg_bryssa_03.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Main power is online. No life signs detected.",
+  "hash": "c4732c0b",
+  "zh": "主电源在线。未检测到生命信号。",
+  "name": "ch2/dlg_ally_06.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "Stay sharp. We came here for the comms equipment.",
+  "hash": "7105902d",
+  "zh": "保持警惕。我们来这里是为了通讯设备。",
+  "name": "ch2/dlg_martha_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Bryssa",
+  "en": "Martha... what is THAT?",
+  "hash": "f4fd7a49",
+  "zh": "玛莎……那是什么?",
+  "name": "ch2/dlg_bryssa_04.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Massive object ahead! Slowing down!",
+  "hash": "7960189d",
+  "zh": "前方发现巨大物体!正在减速!",
+  "name": "ch2/dlg_ally_07.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "Brace yourselves.",
+  "hash": "e8f22826",
+  "zh": "大家做好心理准备。",
+  "name": "ch2/dlg_martha_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Its surface is shifting. Blue to orange!",
+  "hash": "3a84ff38",
+  "zh": "它的表面在变化。蓝色变成橙色了!",
+  "name": "ch2/dlg_ally_08.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "Orange means vulnerable. Open fire!",
+  "hash": "db99025a",
+  "zh": "橙色代表可以攻击。开火!",
+  "name": "ch2/dlg_martha_06.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Energy constructs! We'll have to fight through!",
+  "hash": "ff5f902d",
+  "zh": "这些是能量构造体!我们只能一路打过去了!",
+  "name": "ch2/dlg_ally_09.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "That one dropped something! Break the shell, grab the core!",
+  "hash": "43dcd8d7",
+  "zh": "那个家伙掉了东西!打碎外壳,抓住核心!",
+  "name": "ch2/dlg_ally_10.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Pulse skill online! Full bar + SHIFT to release.",
+  "hash": "928c04ab",
+  "zh": "脉冲技能上线!能量满时按Shift释放。",
+  "name": "ch2/dlg_ally_11.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Bryssa",
+  "en": "Look! The center of the lab...",
+  "hash": "f571f818",
+  "zh": "快看!实验室中央……",
+  "name": "ch2/dlg_bryssa_05.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "A fighter. A real one.",
+  "hash": "279a3844",
+  "zh": "一架战斗机。一架真正的战斗机。",
+  "name": "ch2/dlg_martha_07.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Prototype identified: NightElf. Touch it to transfer control.",
+  "hash": "3cf4983f",
+  "zh": "原型机确认:暗夜精灵号。触碰以接管控制权。",
+  "name": "ch2/dlg_ally_12.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "NightElf online. Welcome aboard, Martha.",
+  "hash": "ab1e2bee",
+  "zh": "暗夜精灵号上线。欢迎登机,玛莎。",
+  "name": "ch2/dlg_ally_13.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Chain hits to charge white energy. Full bar = triple fire!",
+  "hash": "3b2230bd",
+  "zh": "连续命中积攒白色能量。满格即可三炮齐发!",
+  "name": "ch2/dlg_ally_14.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "Massive energy signature! It's blocking the exit!",
+  "hash": "3fd8a08f",
+  "zh": "巨大能量信号!它挡住了出口!",
+  "name": "ch2/dlg_ally_15.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Martha",
+  "en": "Then we go through it.",
+  "hash": "098d3d13",
+  "zh": "那就从它身上碾过去。",
+  "name": "ch2/dlg_martha_08.wav"
+ },
+ {
+  "kind": "dialogue",
+  "chapter": 2,
+  "speaker": "Ally (ai copilot)",
+  "en": "It's enraged! Watch the patterns!",
+  "hash": "6668344e",
+  "zh": "它狂暴了!小心弹幕!",
+  "name": "ch2/dlg_ally_16.wav"
+ }
+]

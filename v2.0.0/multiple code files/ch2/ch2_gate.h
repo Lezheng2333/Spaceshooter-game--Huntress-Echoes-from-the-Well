@@ -54,7 +54,7 @@ public:
 
     void startPulsing() { if (stage == DIALOGUE) { stage = PULSING; timer = 0; } }
 
-    // ESC skip: jump straight to the open door (no dialogue / pulses / scan)
+    // TAB skip: jump straight to the open door (no dialogue / pulses / scan)
     void skipToOpen() {
         stage = OPEN; doorOpen = 1.0; groups.clear();
         beamActive = false; lightsOn = true; pulseCount = 5;
@@ -69,7 +69,7 @@ public:
     }
 
     // Returns 1 if a pulse group was emitted this frame (Game drains the energy bar)
-    int update(double px, double py, AudioEngine& audio) {
+    int update(double, double, AudioEngine& audio) {
         justEmitted = false;
         timer++;
 

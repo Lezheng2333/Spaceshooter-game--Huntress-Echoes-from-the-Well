@@ -3,7 +3,7 @@
 ## 项目信息
 
 - **语言**：C++11, SDL2
-- **源码**：`v2.0.0/multiple code files/`（33 个头文件 + 1 个 main.cpp = 34 个文件）\
+- **源码**：`v2.0.0/multiple code files/`（32 个头文件 + 1 个 main.cpp = 33 个文件）\
   旧单文件存档：`v2.0.0/space_shooting ver1.2.20 single-file archive.cpp`
 - **编译命令**：
   ```bash
@@ -53,12 +53,16 @@
 ## 当前开发状态
 
 ### 当前焦点
+- **2026-11-02 发布版本：游戏 v1.2.24 / Asset Studio v0.1.3**
+- 本轮继续完善第二章与素材工坊；第三章暂不扩展。第二章门禁改为 ESC 暂停、TAB 跳过演出。
+- `--selftest` 新增第二章 18 项回归及门禁到结局顺序流程；阶段截图 `/tmp/sfss_ch2_qa/`。
+- 工坊后端回归：`python3 -m unittest discover -s tools/asset_studio/tests -v`（GIF/像素比较需 Pillow）。
 - **第二章已完整贯通** — 七段流程状态机：门禁GATE→廊桥CORRIDOR→球体SPHERE→追逐CHASE→研究室LAB→Boss BOSS→结局ENDED
 - Ch2 组件全貌：门禁真空门/扫描演出（ch2_gate.h）、圆形研究室（ch2_lab.h）、章节Boss Warden（ch2_boss.h）、球体Boss、自动出敌、pulse技能、技能球、NightElf升级+白色能量条三炮模式
 - Ch2 飞机切换：门禁/廊桥/球体/追逐段用 Ch2Trainer，研究室触碰暗夜精灵号后切换 NightElf
 - **存档系统已上线** — 测试模式退役为隐藏入口（--test），主菜单改为 LOAD GAME；
   暂停存档/读档回到存档瞬间同一帧 + AUTO 自动存档 + 存档界面 + 自由读档文件浏览器 + 设置持久化
-- **下一步：Chapter 3（敌人要塞）** — Druid 飞机激活、第三章敌人/Boss/剧情设计
+- **后续规划：Chapter 3（敌人要塞）** — 当前仍优先第二章与工坊 QA，第三章待本轮稳定后设计
 
 ### 开发路线
 ```
@@ -68,6 +72,9 @@
 ```
 
 ### 已知脆弱点（修改前必须理解上下文）
+- **球体碎裂**：数组顺序与 shatterOrder 不同，必须寻找仍在球体上的最小碎裂序号，不能用数组遍历配累加游标过滤，否则可能永久卡关。
+- **瞄准辅助**：吸附进度只在 updateGameplay 中推进；drawAimAssist/Side 默认只绘制，避免暂停与读档重绘改变状态。
+- **门禁按键**：ESC 统一暂停/倒计时，TAB 只在门禁实际游玩时跳过；菜单返回不能改变门禁状态。
 - **Ch1 子弹横飞 Bug**：`addBullet()` 中 `Ch1Bullet.sideScroll` 必须显式设 `false`，否则垃圾值会随机触发 Ch2 弹道
 - **对话级联触发**：每个分数触发的 dialogue 区块内必须同步设置 `lastScore = score`，帧级 `lastScore` 更新仅在 `!dialogueSys.isActive()` 时执行
 - **Ch1 移动速度缩放**：`TrainingPlane::handleInput` 中的 y 钳制顺序必须在 x 钳制之后（先夹 y 再夹 x），否则影响 `getT()` 返回的子弹方向
@@ -91,7 +98,7 @@
 
 ## 代码规范
 
-- 多文件架构：33 个头文件（全部 `#pragma once`）+ 1 个 `main.cpp`
+- 多文件架构：32 个头文件（全部 `#pragma once`）+ 1 个 `main.cpp`
 - 每个文件对应一个系统/类，文件即文档
 - 全部实现内联在头文件中（单翻译单元编译，无 .cpp 对应文件除了 main.cpp）
 - OOP 设计：组合优于继承，静态方法替代虚函数

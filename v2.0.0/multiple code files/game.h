@@ -294,6 +294,7 @@ public:
         } else {
             trainingPlane.reset(); player = &trainingPlane;
         }
+        nightElf.reset();
         bulletMgr.reset();
         alienMgr.reset();
         particleMgr.all().clear();
@@ -367,19 +368,11 @@ public:
             audio.setBgmOff(atStartScreen || atChapterSelect || atTestSelect || atOptionScreen || atSoundMenu || atSaveLoadScreen || paused || gameOver || missionComplete);
             audio.setCh2Bgm(chapterMgr.getConfig().isSideScrolling &&
                 !atStartScreen && !atChapterSelect && !atTestSelect && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver);
-            if (background) background->update();
-            if (sideBg) sideBg->update();
-
             // ======== Esc key global ========
             if (escPressed && inNarration) {
                 // ESC skips entire opening narration
                 narration.reset(); inNarration = false;
                 audio.stopVoice();
-            } else if (escPressed && chapterMgr.getConfig().isSideScrolling && ch2Flow == C2_GATE && !gameOver) {
-                // ESC skips the whole Ch2 gate sequence (jump straight to the open door)
-                dialogueSys.reset();
-                gateScene.skipToOpen();
-                dGateQueued = true; dMoonwellQueued = true;
             } else if (escPressed && !inNarration && !gameOver && !atStartScreen && !atTestSelect && !atChapterSelect
                 && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !missionComplete) {
                 if (paused && countdown == -1) {
@@ -392,6 +385,23 @@ public:
                         audio.stopVoice();
                     }
                 }
+            }
+
+            // 菜单、暂停和倒计时冻结世界；旁白由 updateNarration 单独推进背景。
+            bool gameplayScreen = !atStartScreen && !atTestSelect && !atChapterSelect &&
+                !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver && !inNarration;
+            if (!paused && !atSaveLoadScreen && !atOptionScreen && !atSoundMenu && !gameOver && !inNarration) {
+                if (background) background->update();
+                if (gameplayScreen && sideBg) sideBg->update();
+            }
+            // TAB 跳过门禁，ESC 始终保留暂停/恢复功能（包括门禁存档）。
+            if (gameplayScreen && !paused && chapterMgr.getConfig().isSideScrolling &&
+                ch2Flow == C2_GATE && !gateScene.isOpen() && keys[SDL_SCANCODE_TAB]) {
+                dialogueSys.reset(); audio.stopVoice();
+                gateScene.skipToOpen();
+                ch2GateInitDone = true;
+                pulseSystem.energy = 0;
+                dGateQueued = true; dMoonwellQueued = true;
             }
 
             // ======== Narrations ========
@@ -709,9 +719,128 @@ public:
 
         // ---- 场景 5：菜单接线（合成按键驱动真实 stepFrame）----
         failures += uiSelfTest();
+        failures += ch2QaSelfTest();
 
         printf("[selftest] RESULT: %s\n", failures == 0 ? "PASS" : "FAIL");
         return failures == 0 ? 0 : 1;
+    }
+
+    // 第二章回归：真实单帧菜单输入 + 顺序推进七段流程（战斗注入命中，保持玩家存活）。
+    int ch2QaSelfTest() {
+        int failures = 0;
+        auto check = [&failures](bool ok, const char* label) {
+            printf("[ch2-qa] %s: %s\n", label, ok ? "PASS" : "FAIL");
+            if (!ok) failures++;
+        };
+        std::vector<Uint8> k(SDL_NUM_SCANCODES, 0);
+        SaveSystem::ensureDir("/tmp/sfss_ch2_qa");
+        auto snap = [this](const char* name) {
+            if (!shotBegin()) return;
+            drawGameplayFrame();
+            if (missionComplete) drawMissionComplete();
+            captureBmp((std::string("/tmp/sfss_ch2_qa/") + name + ".bmp").c_str());
+            shotEnd();
+        };
+        bool running = true;
+        nodeResetCh2();
+        stepFrame(k.data(), false, running);
+        snap("01_gate");
+        stepFrame(k.data(), true, running);
+        check(paused && !gateScene.isOpen(), "gate ESC pauses without skipping");
+        SaveArchive before; sideBg->visit(before);
+        for (int i = 0; i < 20; ++i) stepFrame(k.data(), false, running);
+        SaveArchive after; sideBg->visit(after);
+        check(before.buf == after.buf, "pause freezes corridor background");
+        stepFrame(k.data(), true, running);
+        check(paused && countdown == 3 && !gateScene.isOpen(), "gate ESC resumes via countdown");
+        for (int i = 0; i < 185; ++i) stepFrame(k.data(), false, running);
+        check(!paused && !gateScene.isOpen(), "countdown returns to gate");
+        openLoadScreen(true);
+        k[SDL_SCANCODE_ESCAPE] = 1;
+        stepFrame(k.data(), true, running);
+        k[SDL_SCANCODE_ESCAPE] = 0;
+        check(!gateScene.isOpen(), "load menu ESC does not skip gate");
+        nodeResetCh2();
+        k[SDL_SCANCODE_TAB] = 1;
+        stepFrame(k.data(), false, running);
+        k[SDL_SCANCODE_TAB] = 0;
+        check(gateScene.isOpen() && pulseSystem.energy == 0, "TAB skips gate and consumes pulse energy");
+
+        // 待刷增援的空场不能被误判为追逐战结束。
+        nodeCh2ChaseBase(25);
+        autoSpawnPhase = 6; autoSpawnQueued = 10; autoSpawnTimer = 1000;
+        ch2PhaseTimer = 119;
+        updateGameplay(k.data());
+        check(ch2Flow == C2_CHASE, "queued reinforcements block lab transition");
+        player->setX(WIN_WIDTH + 100);
+        updateGameplay(k.data());
+        check(player->getX() + player->getNoseOffset() < WIN_WIDTH, "side-scroll stays on screen");
+        nightElf.setTripleFire(true); nightElf.setInvFrames(60);
+        resetGame();
+        check(!nightElf.isTripleFire() && nightElf.getInvFrames() == 0, "restart clears NightElf state");
+
+        // 完整顺序流程：门禁演出不跳过；模拟命中经过游戏现有碰撞逻辑。
+        nodeResetCh2();
+        bool gateReady = nodeRunUntil(k, 20000, [this]{ return gateScene.isFullyOpen() && !dialogueSys.isActive(); });
+        check(gateReady, "natural gate dialogue/pulse/scan/open sequence");
+        player->setX(660);
+        bool corridor = nodeRunUntil(k, 100, [this]{ return ch2Flow == C2_CORRIDOR; });
+        check(corridor && pendingAutoSave, "gate to corridor with autosave marker");
+        bool sphere = nodeRunUntil(k, 12000, [this]{ return ch2Flow == C2_SPHERE && sphereBoss.getState() == Ch2SphereBoss::FIGHT; });
+        check(sphere, "corridor to sphere fight");
+        snap("02_sphere");
+        sphereBoss.takeDamage(sphereBoss.getMaxHp());
+        bool chase = nodeRunUntil(k, 6000, [this]{ return ch2Flow == C2_CHASE; });
+        check(chase, "sphere shatter to chase");
+        snap("03_chase");
+        auto hitAt = [this](double x, double y) {
+            Ch1Bullet b = {};
+            b.x = x; b.y = y; b.startX = x; b.startY = y;
+            b.active = true; b.canDamage = true; b.sideScroll = true;
+            bulletMgr.all().push_back(b);
+        };
+        bool lab = false;
+        for (int i = 0; i < 18000 && ch2Flow == C2_CHASE; ++i) {
+            nodeHealCh2();
+            for (const auto& a : ch2AlienMgr.getAliens())
+                if (a.active && !a.entering) hitAt(a.x, a.y);
+            for (const auto& e : dmMgr.getEnemies())
+                if (e.active && !e.entering && !e.defeated) hitAt(e.x, e.y);
+            if (skillOrb.state == Ch2SkillOrb::FLOATING) hitAt(skillOrb.x, skillOrb.y);
+            if (skillOrb.isCore()) {
+                player->setX((int)skillOrb.x); player->setY((int)skillOrb.y);
+                k[SDL_SCANCODE_LSHIFT] = 1;
+            } else k[SDL_SCANCODE_LSHIFT] = 0;
+            nodeStep(k.data());
+        }
+        k[SDL_SCANCODE_LSHIFT] = 0;
+        lab = ch2Flow == C2_LAB;
+        check(lab && pulseSystem.unlocked && score >= 30, "waves/orb/absorption/reinforcements to lab");
+        if (lab) {
+            nodeStep(k.data());
+            snap("04_lab");
+            player->setX(Ch2LabScene::PARK_X); player->setY(Ch2LabScene::PARK_Y);
+            bool bossReady = nodeRunUntil(k, 12000, [this]{ return ch2Flow == C2_BOSS; });
+            check(bossReady && player == &nightElf, "lab upgrades to NightElf and starts Warden");
+            nodeRunUntil(k, 1000, [this]{ return wardenBoss.getState() == Ch2WardenBoss::FIGHT; });
+            snap("05_warden");
+            wardenBoss.takeDamage(Ch2WardenBoss::ENRAGE_HP);
+            check(wardenBoss.getState() == Ch2WardenBoss::ENRAGED, "Warden enrage threshold");
+            wardenBoss.takeDamage(Ch2WardenBoss::MAX_HP);
+            snap("06_warden_dying");
+            nodeRunUntil(k, 1000, [this]{ return ch2Flow == C2_ENDED; });
+            check(ch2Flow == C2_ENDED && inNarration && wardenBoss.isDefeated(), "Warden death enters epilogue");
+            for (int i = 0; i < 12000 && inNarration; ++i) {
+                k[SDL_SCANCODE_RETURN] = (i % 2 == 0);
+                updateNarration(k.data());
+            }
+            k[SDL_SCANCODE_RETURN] = 0;
+            nodeStep(k.data());
+            check(missionComplete, "epilogue reaches mission complete");
+            nodeRun(k, 80);
+            snap("07_ended");
+        }
+        return failures;
     }
 
     // 菜单流程自检：主菜单→LOAD GAME→AUTO 槽→确认→读档；暂停菜单→RESUME→倒计时；
@@ -1651,7 +1780,7 @@ private:
         }
         font.drawString(r, "W/S:select  ENTER:confirm", CENTER_X - 150, 500, 2);
         SDL_SetRenderDrawColor(r, 120, 120, 120, 255);
-        font.drawString(r, "Ver 1.2.23", 15, WIN_HEIGHT - 30, 2);
+        font.drawString(r, "Ver 1.2.24", 15, WIN_HEIGHT - 30, 2);
         // 存档目录提示（读档列表为空时方便排查）
         font.drawString(r, SaveSystem::baseDir().c_str(), 15, WIN_HEIGHT - 16, 1);
     }
@@ -2384,7 +2513,10 @@ private:
             if (moveDown)  py += 6;
             if (px < 10) px = 10;
             if (py < 10) py = 10;
-            if (py > WIN_HEIGHT - 10) py = WIN_HEIGHT - 10;
+            if (py > WIN_HEIGHT - 16) py = WIN_HEIGHT - 16;
+            if (py < 16) py = 16;
+            if (px > WIN_WIDTH - player->getNoseOffset() - 4)
+                px = WIN_WIDTH - player->getNoseOffset() - 4;
             // Gate scene: the closed door blocks the plane; once it opens,
             // the plane may fly right into the doorway
             if (ch2Flow == C2_GATE) {
@@ -2403,7 +2535,7 @@ private:
 
             // Shooting (disabled during the gate scene)
             if (dmFireCooldown > 0) dmFireCooldown--;
-            if (ch2Flow != C2_GATE && shoot && dmFireCooldown <= 0) {
+            if (ch2Flow != C2_GATE && ch2Flow != C2_ENDED && shoot && dmFireCooldown <= 0) {
                 int nGuns = player->getGunCount();
                 for (int g = 0; g < nGuns; ++g) {
                     int ox, oy;
@@ -2485,6 +2617,7 @@ private:
             floatingTextMgr.update();
             particleMgr.update();
             particleMgr.removeInactive();
+            if (aimAssistOn) drawAimAssistSide(true);
             return;
         }
 
@@ -2848,6 +2981,7 @@ private:
             // ======== PHASE_BOSS_DEFEAT ========
             updateBossDefeat(keys);
         }
+        if (aimAssistOn) drawAimAssist(true);
     }
 
     // ======== DIALOGUE COMMON (both chapters) ========
@@ -3177,13 +3311,14 @@ private:
         for (const auto& de : dmMgr.getEnemies())
             if (de.active || de.defeated) { danmakuGone = false; break; }
         if (pulseSystem.unlocked && autoSpawnPhase == 6
-            && ch2AlienMgr.countLiving() == 0 && danmakuGone
+            && autoSpawnQueued == 0 && ch2AlienMgr.countLiving() == 0 && danmakuGone
             && !dialogueSys.isActive()) {
             ch2PhaseTimer++;
             if (ch2PhaseTimer >= 120) {
                 enterCh2Flow(C2_LAB);
                 ch2PhaseTimer = 0;
                 ch2LabInitDone = false;
+                ch2AlienMgr.clearBullets(); dmMgr.clearBullets();
                 floatingTextMgr.spawn((float)CENTER_X + 1, 160.0f, "CENTRAL LAB", 0, 0, 0);
                 floatingTextMgr.spawn((float)CENTER_X, 159.0f, "CENTRAL LAB", 255, 255, 255);
             }
@@ -3395,6 +3530,7 @@ private:
 
     // ======== CH2 EPILOGUE (blocking narration after the Warden falls) ========
     void startCh2Epilogue() {
+        dialogueSys.reset(); audio.stopVoice();
         narration.reset();
         lastNarrationPage = -1;
         narration.queue("The Warden falls.\nThe lab falls silent.");
@@ -3547,8 +3683,8 @@ private:
                 for (const auto& sw : shockwaveMgr.all()) if (sw.active) shockwaveMgr.draw(renderer.get());
             }
             particleMgr.draw(renderer.get());
-            dialogueSys.draw(renderer.get(), font);
             if (!isSide) {
+                dialogueSys.draw(renderer.get(), font);
                 alienMgr.draw(renderer.get());
                 bulletMgr.draw(renderer.get());
             }
@@ -3561,6 +3697,9 @@ private:
                 if (ch2Flow == C2_GATE) {
                     gateScene.drawScanBeam(renderer.get(), player->getX(), player->getY());
                     gateScene.drawRings(renderer.get(), player->getX(), player->getY());
+                }
+                if (ch2Flow == C2_GATE) {
+                    font.drawString(renderer.get(), "TAB:skip gate  ESC:pause", 16, WIN_HEIGHT - 22, 2);
                 }
                 drawWallFlash();
                 ch2AlienMgr.drawEnemy(renderer.get());
@@ -3597,6 +3736,7 @@ private:
                 // Warden boss HP bar
                 if (ch2Flow == C2_BOSS) wardenBoss.drawHPBar(renderer.get(), font);
                 if (aimAssistOn) drawAimAssistSide();
+                dialogueSys.draw(renderer.get(), font);
                 // White scene-transition fade (gate → corridor)
                 if (ch2FadeTimer > 0 && ch2FadeTimer < 30) {
                     double ft = ch2FadeTimer / 30.0;
@@ -3745,7 +3885,7 @@ private:
         }
     }
 
-    void drawAimAssistSide() {
+    void drawAimAssistSide(bool updateOnly = false) {
         SDL_Renderer* r = renderer.get();
         int px = player->getX(), py = player->getY();
         // Default: 200px ahead along the horizontal shooting ray
@@ -3812,13 +3952,13 @@ private:
             }
         }
 
-        player->aimAssist.update(bestT < 999.0);
+        if (updateOnly) { player->aimAssist.update(bestT < 999.0); return; }
         double drawX = (bestT < 999.0) ? snapX : aimX;
         double drawY = (bestT < 999.0) ? snapY : aimY;
         player->aimAssist.draw(r, drawX, drawY, 3, 2);
     }
 
-    void drawAimAssist() {
+    void drawAimAssist(bool updateOnly = false) {
         SDL_Renderer* r = renderer.get();
         double tPlane = (player->getX() - perspLeft(player->getY())) / perspWidth(player->getY());
         if (tPlane < 0.0) tPlane = 0.0; if (tPlane > 1.0) tPlane = 1.0;
@@ -3861,7 +4001,7 @@ private:
             }
         }
 
-        player->aimAssist.update(bestT < 999.0);
+        if (updateOnly) { player->aimAssist.update(bestT < 999.0); return; }
         double drawX = (bestT < 999.0) ? snapX : ex;
         double drawY = (bestT < 999.0) ? snapY : ey;
         player->aimAssist.draw(r, drawX, drawY, 5, 3);

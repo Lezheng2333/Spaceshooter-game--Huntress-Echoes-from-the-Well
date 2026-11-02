@@ -22,7 +22,7 @@
 
 static const char SAVE_MAGIC[8] = {'S', 'F', 'S', 'S', 'A', 'V', 'E', '0'};
 static const uint32_t SAVE_FORMAT_VERSION = 1;    // 结构变更时 +1（旧存档自动判为不兼容）
-static const uint32_t SAVE_GAME_VERSION = 10223;  // 游戏版本：major*10000 + minor*100 + patch（Ver 1.2.23）
+static const uint32_t SAVE_GAME_VERSION = 10224;  // 游戏版本：major*10000 + minor*100 + patch（Ver 1.2.24）
 
 // ============== CRC32 ==============
 static inline uint32_t saveCrc32(const unsigned char* d, size_t n) {

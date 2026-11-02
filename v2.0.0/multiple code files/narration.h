@@ -122,7 +122,7 @@ public:
         if (!active && bgAlpha <= 0) return;
         if (lines.empty() || curLine >= (int)lines.size()) return;
         auto& cur = lines[curLine];
-        int textScale = 3, charW = 18, charH = 21, lineGap = 6;
+        int charW = 18, charH = 21, lineGap = 6;
         int maxLineLen = 0;
         for (auto& vl : cur.vlines)
             if ((int)vl.length() > maxLineLen) maxLineLen = (int)vl.length();

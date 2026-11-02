@@ -17,7 +17,7 @@ protected:
     bool& goRef;
 
     void updateBullets(BulletManager& bulletMgr, ParticleManager& particleMgr, AudioEngine& audio,
-                       Player& pl, FloatingTextManager& ftMgr, int* hitCount = nullptr) {
+                       Player& pl, FloatingTextManager& ftMgr, int* = nullptr) {
         for (auto& b : bullets) {
             if (!b.active) continue;
             b.x += b.dx; b.y += b.dy;
@@ -97,7 +97,7 @@ public:
     static const int COUNTDOWN_START = 180;  // last 3s countdown beeps
 
     NightElfEnergy() : energy(0), lastHitFrame(-999), frameCounter(0),
-        tripleActive(false), tripleTimer(0), tripleJustEntered(false) {}
+        tripleActive(false), tripleJustEntered(false), tripleTimer(0) {}
 
     void reset() {
         energy = 0; lastHitFrame = -999; frameCounter = 0;

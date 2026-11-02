@@ -26,6 +26,7 @@ import subprocess
 import threading
 import argparse
 import webbrowser
+import importlib.util
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -38,7 +39,7 @@ GAME_DIR = os.path.normpath(os.path.join(HERE, "..", "..", "v2.0.0", "multiple c
 
 _cache_lock = threading.Lock()
 _render_lock = threading.Lock()      # C++ 渲染器每次起进程，避免并发轰炸
-_assets_cache = {"t": 0, "data": None}
+_assets_cache = {"t": 0, "data": None, "build": None}
 
 
 # ============================================================
@@ -52,14 +53,17 @@ def run_renderer(args, timeout=60):
 def get_assets(force=False):
     """读取素材注册表（带 3 秒缓存，避免画廊频繁刷新时反复起进程）"""
     now = time.time()
-    if not force and _assets_cache["data"] and now - _assets_cache["t"] < 3:
+    build = os.stat(RENDERER).st_mtime_ns
+    if not force and _assets_cache["data"] and _assets_cache["build"] == build and now - _assets_cache["t"] < 3:
         return _assets_cache["data"]
     r = run_renderer(["--list"])
     if r.returncode != 0:
         raise RuntimeError(r.stderr or "渲染器 --list 失败")
     data = json.loads(r.stdout)
+    data["gifAvailable"] = importlib.util.find_spec("PIL") is not None
     _assets_cache["data"] = data
     _assets_cache["t"] = now
+    _assets_cache["build"] = build
     return data
 
 
@@ -189,7 +193,8 @@ def list_drafts():
         meta = {}
         if os.path.isfile(meta_path):
             try:
-                meta = json.load(open(meta_path, encoding="utf-8"))
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
             except (OSError, ValueError):
                 meta = {"error": "meta.json 解析失败"}
         meta.setdefault("id", name)
@@ -199,20 +204,38 @@ def list_drafts():
     return out
 
 
-def save_draft_params(draft_id, params):
-    d = os.path.join(DRAFTS_DIR, draft_id)
-    if not os.path.isdir(d):
+def save_draft_params(draft_id, params, state=None):
+    # 客户端传素材 id；按 meta.id 找目录，避免把 draft.xxx 当成目录名。
+    draft = next((d for d in list_drafts() if draft_id in (d["id"], d["dir"])), None)
+    if not draft:
         return False
+    d = os.path.join(DRAFTS_DIR, draft["dir"])
+    asset = next((a for a in get_assets()["assets"] if a["id"] == draft["id"]), None)
+    if not asset or not isinstance(params, dict):
+        raise ValueError("草稿尚未编译或参数格式错误")
+    specs = {p["key"]: p for p in asset.get("params", [])}
+    tuned = {}
+    import math
+    for key, value in params.items():
+        if key not in specs or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError("无效草稿参数: " + key)
+        p = specs[key]
+        tuned[key] = max(p["min"], min(p["max"], value))
+    if state is not None and state not in [s["key"] for s in asset.get("states", [])] + [""]:
+        raise ValueError("无效素材状态")
     meta_path = os.path.join(d, "meta.json")
-    try:
-        meta = json.load(open(meta_path, encoding="utf-8")) if os.path.isfile(meta_path) else {}
-    except (OSError, ValueError):
-        meta = {}
-    meta.setdefault("tuned", {})
-    meta["tuned"].update(params)
+    meta = {}
+    if os.path.isfile(meta_path):
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+    meta.setdefault("tuned", {}).update(tuned)
+    if state is not None:
+        meta["state"] = state
     meta["tunedAt"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    with open(meta_path, "w", encoding="utf-8") as f:
+    tmp = meta_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, meta_path)
     return True
 
 
@@ -231,9 +254,22 @@ def read_source(source_field, context=4):
                  os.path.join(root, rel.replace("multiple code files/", "v2.0.0/multiple code files/"))):
         if os.path.isfile(cand):
             try:
-                lines = open(cand, encoding="utf-8", errors="replace").read().split("\n")
+                with open(cand, encoding="utf-8", errors="replace") as f:
+                    lines = f.read().split("\n")
             except OSError:
                 continue
+            # 行号随源码改动会漂移；优先按注册表中的 Class::draw 名称重新定位。
+            token = re.search(r"\(([A-Za-z_]\w*)::(draw\w*)", source_field)
+            if token:
+                text = "\n".join(lines)
+                cls = re.search(r"\bclass\s+" + re.escape(token[1]) + r"\b[^;{]*\{", text)
+                if cls:
+                    method = re.search(r"^\s*(?:(?:static|virtual|inline)\s+)*void\s+" +
+                                       re.escape(token[2]) + r"\s*\(", text[cls.end():], re.M)
+                    if method:
+                        line = text.count("\n", 0, cls.end() + method.start()) + 1
+                        while line < len(lines) and not lines[line - 1].strip():
+                            line += 1
             start = max(0, line - 1 - 2)
             end = min(len(lines), line - 1 + context + 12)
             return {
@@ -335,8 +371,11 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, UnicodeDecodeError):
             return self.err("请求体不是合法 JSON")
         if u.path == "/api/draft/save":
-            ok = save_draft_params(body.get("draftId", ""), body.get("params", {}))
-            return self.send_json({"ok": ok})
+            try:
+                ok = save_draft_params(body.get("draftId", ""), body.get("params", {}), body.get("state"))
+            except ValueError as e:
+                return self.err(str(e))
+            return self.send_json({"ok": ok}, 200 if ok else 404)
         if u.path == "/api/clone":
             return self.api_clone(body)
         return self.err("未知路径", 404)
@@ -388,7 +427,10 @@ class Handler(BaseHTTPRequestHandler):
             "scene": q.get("scene", ["0"])[0],
             "scenedim": q.get("scenedim", [""])[0],
             "zoom": q.get("zoom", [""])[0],
-            "v": 3,     # 改这里可以强制刷新所有缓存
+            "frames": q.get("frames", [str(asset.get("frames") or 12)])[0],
+            "fps": q.get("fps", ["12"])[0],
+            "build": os.stat(RENDERER).st_mtime_ns,
+            "v": 4,     # 改这里可以强制刷新所有缓存
         }
         key = cache_key(key_parts)
         ext = "png" if kind == "png" else "gif"
@@ -404,7 +446,7 @@ class Handler(BaseHTTPRequestHandler):
 
         frames = None
         if kind == "gif":
-            frames = int(q.get("frames", [str(asset.get("frames") or 12)])[0])
+            frames = max(2, min(120, int(q.get("frames", [str(asset.get("frames") or 12)])[0])))
         else:
             # 静态图固定 1 帧：否则默认帧数 >1 的素材（如背景）会被当目录输出
             frames = 1
@@ -428,9 +470,8 @@ class Handler(BaseHTTPRequestHandler):
                 r = run_renderer(args)
                 if r.returncode != 0:
                     raise RuntimeError(r.stderr or "渲染失败")
-                fps = int(q.get("fps", ["12"])[0])
-                zoom = int(q.get("zoom", ["1"])[0])
-                if not make_gif(frame_dir, cache_path, fps=fps, zoom=max(1, zoom)):
+                fps = max(1, min(60, int(q.get("fps", ["12"])[0])))
+                if not make_gif(frame_dir, cache_path, fps=fps, zoom=1):
                     raise RuntimeError("GIF 合成失败（PIL 缺失或帧数不足）")
         return cache_path, asset
 

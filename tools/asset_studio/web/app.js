@@ -6,6 +6,9 @@ const $  = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
 const S = {
+  gifAvailable: true,
+  analysisRequest: 0,
+  analysisTimer: null,
   assets: [],
   drafts: [],
   filters: { chapter: null, category: null, tag: null, q: "" },
@@ -48,10 +51,10 @@ function buildQuery(asset, { state, params, overlays, gif } = {}) {
 }
 
 function cardImageUrl(asset) {
-  const animated = (asset.frames || 1) > 1;
+  const animated = (asset.frames || 1) > 1 && S.gifAvailable;
   const kind = animated ? "gif" : "png";
-  const q = buildQuery(asset, { overlays: {} });
-  if (animated) q2set(q, "frames", Math.min(asset.frames, 16));
+  let q = buildQuery(asset, { overlays: {} });
+  if (animated) q = q2set(q, "frames", Math.min(asset.frames, 16));
   return `/api/${kind}?${q}`;
 }
 function q2set(qs, k, v) { return qs + "&" + k + "=" + encodeURIComponent(v); }
@@ -63,10 +66,11 @@ async function loadAssets(force) {
     const r = await fetch("/api/assets" + (force ? "?force=1" : ""));
     const data = await r.json();
     if (data.error) throw new Error(data.error);
+    S.gifAvailable = data.gifAvailable !== false;
     S.assets = data.assets || [];
     renderFacets();
     renderGrid();
-    loadDrafts();
+    await loadDrafts();
     checkScanBadge();
   } catch (e) {
     $("#status").innerHTML = `<span class="hint">读取失败：${esc(e.message)}</span>`;
@@ -81,8 +85,12 @@ async function loadDrafts() {
     const box = $("#f-drafts");
     $("#drafts-section").hidden = S.drafts.length === 0;
     box.innerHTML = S.drafts.map(x =>
-      `<div class="facet-item" title="${esc(x.dir)}">${esc(x.title || x.id)}
+      `<div class="facet-item" data-draft="${esc(x.id)}" title="${esc(x.dir)}">${esc(x.title || x.id)}
          <span class="cnt">${x.status === "promoted" ? "已转正" : "草稿"}</span></div>`).join("");
+    $$("[data-draft]").forEach(el => el.onclick = () => {
+      if (S.assets.some(a => a.id === el.dataset.draft)) openDetail(el.dataset.draft);
+      else msg("草稿代码尚未编译，请重新构建工坊后刷新素材。", true);
+    });
   } catch (e) { /* 草稿目录为空时静默 */ }
 }
 
@@ -179,13 +187,22 @@ function renderGrid() {
 }
 
 /* ---------------- 详情 ---------------- */
-function openDetail(id) {
+function openDetail(id, preserve = false) {
   const a = S.assets.find(x => x.id === id);
   if (!a) return;
   S.detail = a;
-  S.detailState = a.states[0] ? a.states[0].key : "";
-  S.detailParams = {};
-  (a.params || []).forEach(p => S.detailParams[p.key] = p.def);
+  if (!preserve) {
+    const draft = S.drafts.find(d => d.id === a.id);
+    const savedState = draft && draft.state;
+    S.detailState = (a.states || []).some(s => s.key === savedState)
+      ? savedState : (a.states[0] ? a.states[0].key : "");
+    S.detailParams = {};
+    (a.params || []).forEach(p => {
+      const saved = draft && draft.tuned && draft.tuned[p.key];
+      S.detailParams[p.key] = Number.isFinite(saved) ? Math.max(p.min, Math.min(p.max, saved)) : p.def;
+    });
+    S.overlays.anim = (a.frames || 1) > 1 && S.gifAvailable;
+  }
 
   $("#detail-name").textContent = a.name;
   $("#detail-id").textContent = a.id + "   ·   " + (CHAPTER_LABEL[a.chapter] || a.chapter)
@@ -199,7 +216,7 @@ function openDetail(id) {
   $("#detail-states").innerHTML = (a.states || []).map(s =>
     `<button class="state-btn ${s.key === S.detailState ? "on" : ""}" data-state="${esc(s.key)}">${esc(s.label)}</button>`).join("");
   $$("#detail-states .state-btn").forEach(b => b.onclick = () => {
-    S.detailState = b.dataset.state; openDetail(id);
+    S.detailState = b.dataset.state; openDetail(id, true);
   });
 
   // 参数滑块
@@ -216,7 +233,7 @@ function openDetail(id) {
       S.detailParams[r.dataset.pk] = parseFloat(r.value);
       $("#pv-" + r.dataset.pk).textContent = r.value;
       clearTimeout(r._t);
-      r._t = setTimeout(refreshPreview, 60);   // 节流，避免拖动时疯狂请求
+      r._t = setTimeout(() => { refreshPreview(); scheduleAnalysis(); }, 60);   // 节流，避免拖动时疯狂请求
     };
   });
 
@@ -233,11 +250,13 @@ function openDetail(id) {
 
   // 动画开关：只有多帧素材才可用
   const animChk = $("#t-anim");
-  const animated = (a.frames || 1) > 1;
+  const animated = (a.frames || 1) > 1 && S.gifAvailable;
+  animChk.title = S.gifAvailable ? "" : "当前 Python 未安装 Pillow，已使用 PNG 预览";
   animChk.disabled = !animated;
   animChk.parentElement.style.opacity = animated ? "1" : "0.35";
-  animChk.checked = animated;
+  animChk.checked = animated && S.overlays.anim;
 
+  $("#btn-save-draft").hidden = !a.id.startsWith("draft.");
   syncToolCheckboxes();
   refreshPreview();
   loadAnalysis();
@@ -246,6 +265,8 @@ function openDetail(id) {
 }
 
 function closeDetail() {
+  S.analysisRequest++;
+  clearTimeout(S.analysisTimer);
   $("#detail").hidden = true;
   document.body.style.overflow = "";
 }
@@ -275,9 +296,17 @@ function refreshPreview() {
   if (!S.detail) return;
   const img = $("#detail-img");
   img.src = detailImageUrl();
+  $("#btn-download").textContent = (S.detail.frames > 1 && S.overlays.anim) ? "下载 GIF" : "下载 PNG";
+}
+
+function scheduleAnalysis() {
+  S.analysisRequest++;
+  clearTimeout(S.analysisTimer);
+  S.analysisTimer = setTimeout(loadAnalysis, 180);
 }
 
 async function loadAnalysis() {
+  const request = ++S.analysisRequest;
   const a = S.detail;
   const box = $("#detail-analysis");
   box.textContent = "正在分析…";
@@ -285,13 +314,26 @@ async function loadAnalysis() {
     let q = buildQuery(a, { state: S.detailState, params: S.detailParams });
     const r = await fetch("/api/analysis?" + q);
     const d = await r.json();
-    box.textContent = d.text || d.error || "（无结果）";
+    if (request === S.analysisRequest) box.textContent = d.text || d.error || "（无结果）";
   } catch (e) {
-    box.textContent = "分析失败：" + e.message;
+    if (request === S.analysisRequest) box.textContent = "分析失败：" + e.message;
   }
 }
 
 /* ---------------- 操作 ---------------- */
+async function saveDraft() {
+  try {
+    const r = await fetch("/api/draft/save", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ draftId: S.detail.id, params: S.detailParams, state: S.detailState }),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || "保存失败");
+    await loadDrafts();
+    msg("草稿参数与状态已保存，下次打开会恢复。");
+  } catch (e) { msg("保存失败：" + e.message, true); }
+}
+
 async function copyCode() {
   const a = S.detail;
   let q = buildQuery(a, { state: S.detailState, params: S.detailParams });
@@ -406,8 +448,9 @@ function bind() {
 
   $("#btn-reset-params").onclick = () => {
     (S.detail.params || []).forEach(p => S.detailParams[p.key] = p.def);
-    openDetail(S.detail.id);
+    openDetail(S.detail.id, true);
   };
+  $("#btn-save-draft").onclick = saveDraft;
   $("#btn-copy-code").onclick = copyCode;
   $("#btn-source").onclick = () => showSource(null, "源码");
   $("#btn-source-hide").onclick = () => $("#source-wrap").hidden = true;

@@ -197,10 +197,9 @@ public:
     AudioEngine() : audioDev(0), bgmVolume(7), sfxVolume(7),
                     eqLow(0), eqMid(0), eqHigh(0), bossMusicOn(false),
                     ch2Bgm(false), bgmOff(false),
-                    bgmPhase(0), bgmPulsePhase(0), bgmStepCounter(0),
+                    voiceGain(0.9f), bgmPhase(0), bgmPulsePhase(0), bgmStepCounter(0),
                     bgmNoteIndex(0), bgmNoteFreq(0), bgmNoteLen(0),
-                    ch2BassIdx(0), ch2BassLen(0), ch2BassFreq(0), ch2BassPhase(0),
-                    voiceGain(0.9f) {
+                    ch2BassIdx(0), ch2BassLen(0), ch2BassFreq(0), ch2BassPhase(0) {
         SDL_AudioSpec want;
         SDL_memset(&want, 0, sizeof(want));
         want.freq = 44100;

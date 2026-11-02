@@ -168,15 +168,7 @@ public:
         case SHATTERING: {
             // Pop remaining cells rapidly
             int perFrame = (int)cells.size() / 60 + 1;
-            int popped = 0;
-            for (auto& c : cells) {
-                if (!c.onSphere) continue;
-                if (c.shatterOrder >= shatterIdx && popped < perFrame) {
-                    popSingleCell(c);
-                    popped++;
-                }
-            }
-            shatterIdx += popped;
+            popDiamonds(perFrame);
             updateDebrisPhysics();
             bool allOff = true;
             for (auto& c : cells) if (c.onSphere) { allOff = false; break; }
@@ -277,15 +269,16 @@ public:
 
     // Pop diamonds off the sphere (called on bullet hit)
     void popDiamonds(int count) {
-        int popped = 0;
-        for (auto& c : cells) {
-            if (popped >= count) break;
-            if (!c.onSphere) continue;
-            if (c.shatterOrder == shatterIdx + popped) {
-                popSingleCell(c); popped++;
-            }
+        // 数组顺序与随机碎裂顺序不同；每次寻找仍在球体上的最小序号，
+        // 避免游标越过尚未处理的低序号单元后永远卡在 SHATTERING。
+        for (int i = 0; i < count; ++i) {
+            Cell* next = nullptr;
+            for (auto& c : cells)
+                if (c.onSphere && (!next || c.shatterOrder < next->shatterOrder)) next = &c;
+            if (!next) break;
+            popSingleCell(*next);
+            shatterIdx++;
         }
-        shatterIdx += popped;
     }
 
     void draw(SDL_Renderer* r) const {
@@ -313,7 +306,7 @@ public:
                 rCol = 255; gCol = 255; bCol = 240;
             }
             // Top-down lighting: brighter at top, darker at bottom
-            double ny = cell.relY / dist; // upward normal component
+            double ny = cell.relY / std::max(1.0, dist); // upward normal component
             double bright = 0.35 + 0.65 * (-ny * 0.55 + 0.45);
             rCol = (int)(rCol * bright); gCol = (int)(gCol * bright); bCol = (int)(bCol * bright);
             if (rCol > 255) rCol = 255; if (gCol > 255) gCol = 255; if (bCol > 255) bCol = 255;

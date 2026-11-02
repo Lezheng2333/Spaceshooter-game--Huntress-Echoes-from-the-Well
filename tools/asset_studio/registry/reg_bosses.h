@@ -139,22 +139,32 @@ static void drawSphereBoss(DrawCtx& c) {
             // 注意：update() 只设置背景滚动速度，球体的实际位移由外部
             // syncScreenPos(scrollX) 完成（游戏主循环里做的）。
             // 预览里必须自己驱动 scroll，否则球体永远停在屏幕外。
-            double scroll = 0.0;
             for (int i = 0; i < 3000 && st->boss.getCx() > 640; ++i) {
+                st->bg.update();
+                st->boss.syncScreenPos(st->bg.getScrollX());
                 st->boss.update();
                 double sp = st->boss.getBgTargetSpeed();
-                if (sp > 0) scroll += sp;
-                st->boss.syncScreenPos(scroll);
+                if (sp >= 0) st->bg.setSpeed(sp);
             }
         } else if (c.S("shatter")) {
             st->boss.startAtCenter();
-            advanceToSphereState(st->boss, Ch2SphereBoss::SHATTERING, 20000);
+            st->boss.takeDamage(st->boss.getMaxHp());
+            advanceToSphereState(st->boss, Ch2SphereBoss::SHATTERING, 2);
+            st->boss.update();
         } else {
             st->boss.startAtCenter();      // FIGHT 态：直接摆在屏幕中央，单元全激活
         }
     }
     int frames = (int)c.P("advance", 0);
-    for (int i = 0; i < frames; ++i) st->boss.update();
+    int steps = c.frame == 0 ? frames : 1;
+    for (int i = 0; i < steps; ++i) {
+        st->bg.update();
+        if (st->boss.getState() == Ch2SphereBoss::ENTERING)
+            st->boss.syncScreenPos(st->bg.getScrollX());
+        st->boss.update();
+        double speed = st->boss.getBgTargetSpeed();
+        if (speed >= 0) st->bg.setSpeed(speed);
+    }
 
     // 注意：这里不自己画背景。背景交给"真实场景"开关统一处理，
     // 否则基础渲染里已经含走廊，场景开关叠加前后就没有差异了。
@@ -170,7 +180,7 @@ inline void registerSphereBoss() {
         .from("v2.0.0/multiple code files/ch2/ch2_sphere_boss.h:291 (Ch2SphereBoss::draw)")
         .tag("Boss").tag("第二章").tag("多阶段").tag("动画").tag("线稿复杂")
         .state_("fight",    "战斗（球体完整）")
-        .state_("entering", "入场（从右侧滚入，背景滚动未同步）")
+        .state_("entering", "入场（随廊桥滚入）")
         .state_("shatter",  "碎裂")
         .param("advance", "推进帧数", 0, 900, 0, 10)
         .withScene("ch2.bg.corridor")
@@ -209,7 +219,7 @@ static void drawWarden(DrawCtx& c) {
         st = new WardenHost();
         c.priv = st;
         st->boss.startEntering();            // reset() 后进入 ENTERING
-        advanceToWardenState(st, Ch2WardenBoss::FIGHT, 600);
+        if (!c.S("entering")) advanceToWardenState(st, Ch2WardenBoss::FIGHT, 600);
 
         if (c.S("enraged")) {
             st->boss.takeDamage(Ch2WardenBoss::MAX_HP - Ch2WardenBoss::ENRAGE_HP + 1);
@@ -220,8 +230,11 @@ static void drawWarden(DrawCtx& c) {
         }
     }
     int frames = (int)c.P("advance", 90);
-    for (int i = 0; i < frames; ++i)
+    int steps = c.frame == 0 ? frames : 1;
+    for (int i = 0; i < steps; ++i) {
         st->boss.update(st->pl, st->hp, st->go, st->pm, st->audio, st->ft);
+        st->pm.update(); st->pm.removeInactive();
+    }
 
     st->pm.draw(c.r);
     st->boss.draw(c.r);

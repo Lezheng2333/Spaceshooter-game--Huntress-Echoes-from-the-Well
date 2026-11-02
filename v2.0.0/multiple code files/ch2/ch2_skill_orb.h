@@ -187,7 +187,8 @@ public:
             int gv = (int)(br - edgeFrac * 60 + 40);
             int bv = (int)(std::max(20, br/3 - (int)(edgeFrac * 30)));
             int al = (int)(240 - edgeFrac * 80);
-            SDL_SetRenderDrawColor(r, (Uint8)rv, (Uint8)gv, (Uint8)bv, (Uint8)al);
+            SDL_SetRenderDrawColor(r, (Uint8)std::min(255, std::max(0, rv)),
+                (Uint8)std::min(255, std::max(0, gv)), (Uint8)std::min(255, std::max(0, bv)), (Uint8)al);
             SDL_RenderDrawLine(r, cx-dx, cy+dy, cx+dx, cy+dy);
         }
         // Central hot dot
