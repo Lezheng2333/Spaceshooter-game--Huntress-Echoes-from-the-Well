@@ -34,12 +34,13 @@ SRC_SUBDIR="multiple code files"
 SDL_TEMP=$(mktemp -d)
 trap 'rm -rf "$SDL_TEMP"' EXIT
 SDL_LIB="$SDL_TEMP/libSDL2-2.0.0.dylib"
+RELEASE_BIN="$SDL_TEMP/shooter"
 unzip -p "$PROJECT_ROOT/v1.0.0/Shooter ver1.0.0.zip" \
     'Shooter ver1.0.0.app/Contents/Frameworks/libSDL2-2.0.0.dylib' > "$SDL_LIB"
 echo "=== Step 1: Compile ==="
 cd "$SRC_DIR/$SRC_SUBDIR"
 clang++ -std=c++11 -I/opt/homebrew/include -I/opt/homebrew/include/SDL2 \
-    -D_THREAD_SAFE -mmacosx-version-min=11.0 "$SRC_FILE" -o shooter \
+    -D_THREAD_SAFE -mmacosx-version-min=11.0 "$SRC_FILE" -o "$RELEASE_BIN" \
     "$SDL_LIB"
 echo "Compile OK"
 
@@ -50,7 +51,7 @@ mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Frameworks"
 mkdir -p "$APP_DIR/Contents/Resources"
 
-cp shooter "$APP_DIR/Contents/MacOS/shooter"
+cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/shooter"
 # Finder 启动时 cwd 不固定：启动器进入 Resources，语音相对路径保持有效；存档放用户目录。
 cat > "$APP_DIR/Contents/MacOS/launch" <<'LAUNCH'
 #!/bin/bash

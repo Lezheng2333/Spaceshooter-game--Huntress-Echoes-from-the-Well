@@ -1,16 +1,19 @@
 #pragma once
 
+#include <atomic>
+
 #include "player.h"
 #include "types.h"
 
 
 // ============== AudioEngine 类 ==============
 class AudioEngine {
+    enum MusicMode { MUSIC_SILENT, MUSIC_CH1, MUSIC_CH2, MUSIC_BOSS };
+
     SDL_AudioDeviceID audioDev;
-    int bgmVolume, sfxVolume, eqLow, eqMid, eqHigh;
-    bool bossMusicOn;
-    volatile bool ch2Bgm;
-    volatile bool bgmOff;       // silence BGM on start/pause screens
+    std::atomic<int> bgmVolume, sfxVolume, eqLow, eqMid, eqHigh;
+    std::atomic<bool> bossMusicOn, ch2Bgm, bgmOff;
+    std::atomic<int> musicIntensity;
     std::vector<ActiveSound> activeSnd;
 
     // Voice channel (narration / dialogue WAV clips, normalized mono 44.1k)
@@ -23,10 +26,13 @@ class AudioEngine {
     float voiceGain;
 
     // BGM state
-    float bgmPhase, bgmPulsePhase;
+    int currentMusicMode;
+    float musicGain;
+    float bgmPhase, bgmPulsePhase, bgmHarmonyPhase, bgmDrumPhase;
     int bgmStepCounter, bgmNoteIndex;
     float bgmNoteFreq;
     int bgmNoteLen;
+    uint32_t noiseState;
 
     // Ch2 BGM bass melody state
     int ch2BassIdx, ch2BassLen;
@@ -45,109 +51,139 @@ class AudioEngine {
         ((AudioEngine*)userdata)->audioCB(stream, len);
     }
 
+    static float advancePhase(float& phase, float freq) {
+        phase += freq / 44100.0f;
+        if (phase >= 1.0f) phase -= 1.0f;
+        return sinf(phase * 2.0f * (float)M_PI);
+    }
+
+    float noiseSample() {
+        noiseState ^= noiseState << 13;
+        noiseState ^= noiseState >> 17;
+        noiseState ^= noiseState << 5;
+        return ((noiseState & 0xFFFFu) / 32767.5f) - 1.0f;
+    }
+
+    void resetMusicState(int mode) {
+        currentMusicMode = mode;
+        bgmPhase = bgmPulsePhase = bgmHarmonyPhase = bgmDrumPhase = 0.0f;
+        bgmStepCounter = 0;
+        bgmNoteIndex = -1;
+        bgmNoteFreq = 0.0f;
+        bgmNoteLen = 0;
+        ch2BassIdx = -1;
+        ch2BassLen = 0;
+        ch2BassFreq = 0.0f;
+        ch2BassPhase = 0.0f;
+    }
+
+    float renderMusicSample(int mode, int intensity) {
+        if (mode == MUSIC_CH2) {
+            const int tick = 700;
+            if (bgmNoteLen <= 0) {
+                bgmNoteIndex = (bgmNoteIndex + 1) % 126;
+                bgmNoteLen = CH2_MEL_DUR[bgmNoteIndex] * tick;
+                bgmNoteFreq = CH2_MELODY[bgmNoteIndex];
+            }
+            bgmNoteLen--;
+            float total = (float)(CH2_MEL_DUR[bgmNoteIndex] * tick);
+            float t = (float)bgmNoteLen / total;
+            float env = t < 0.12f ? t / 0.12f : (t > 0.85f ? (1.0f - t) / 0.15f : 0.80f);
+            float melody = advancePhase(bgmPhase, bgmNoteFreq) * env * 0.044f;
+
+            if (ch2BassLen <= 0) {
+                ch2BassIdx = (ch2BassIdx + 1) % 64;
+                ch2BassLen = CH2_BASS_DUR[ch2BassIdx] * tick;
+                ch2BassFreq = CH2_BASS[ch2BassIdx];
+            }
+            ch2BassLen--;
+            float bassTotal = (float)(CH2_BASS_DUR[ch2BassIdx] * tick);
+            float bassT = (float)ch2BassLen / bassTotal;
+            float bassEnv = bassT < 0.10f ? bassT / 0.10f
+                : (bassT > 0.80f ? 0.40f + 0.60f * (1.0f - bassT) / 0.20f : 0.85f);
+            float bass = advancePhase(ch2BassPhase, ch2BassFreq) * bassEnv * 0.050f;
+
+            // 战斗时逐层加入高八度星光与低频推进，不改变既有 32 秒主题旋律。
+            float shimmer = 0.0f, drive = 0.0f;
+            if (intensity > 0 && bgmNoteFreq > 0.0f)
+                shimmer = advancePhase(bgmHarmonyPhase, bgmNoteFreq * 2.0f) * env * 0.010f * intensity;
+            if (intensity > 1) {
+                int beat = bgmStepCounter % 22050;
+                float beatEnv = beat < 2205 ? 1.0f - beat / 2205.0f : 0.0f;
+                drive = advancePhase(bgmDrumPhase, 52.0f + 35.0f * beatEnv) * beatEnv * 0.025f;
+            }
+            bgmStepCounter++;
+            return melody + bass + shimmer + drive;
+        }
+
+        const bool boss = mode == MUSIC_BOSS;
+        const float* notes = boss ? BOSS_MELODY : BGM_MELODY;
+        const int* durations = boss ? BOSS_DUR : BGM_NOTE_DUR;
+        const int count = boss ? 16 : 32;
+        const int tick = boss ? 450 : 800;
+        if (bgmNoteLen <= 0) {
+            bgmNoteIndex = (bgmNoteIndex + 1) % count;
+            bgmNoteLen = durations[bgmNoteIndex] * tick;
+            bgmNoteFreq = notes[bgmNoteIndex];
+        }
+        bgmNoteLen--;
+        float total = (float)(durations[bgmNoteIndex] * tick);
+        float t = (float)bgmNoteLen / total;
+        float env = t < 0.06f ? t / 0.06f : (t > 0.78f ? (1.0f - t) / 0.22f : 1.0f);
+        float melody = advancePhase(bgmPhase, bgmNoteFreq) * env * (boss ? 0.050f : 0.041f);
+        float bassFreq = boss ? 65.0f : 55.0f;
+        float pulse = 0.55f + 0.45f * sinf(bgmStepCounter * (boss ? 0.0015f : 0.0005f));
+        float bass = advancePhase(bgmPulsePhase, bassFreq) * pulse * (boss ? 0.034f : 0.027f);
+
+        float harmony = 0.0f, drum = 0.0f;
+        if (boss || intensity > 0)
+            harmony = advancePhase(bgmHarmonyPhase, bgmNoteFreq * (boss ? 1.5f : 2.0f)) * env * 0.012f;
+        if (boss || intensity > 1) {
+            const int beatLen = boss ? 11025 : 22050;
+            int beat = bgmStepCounter % beatLen;
+            float beatEnv = beat < 1800 ? 1.0f - beat / 1800.0f : 0.0f;
+            drum = advancePhase(bgmDrumPhase, 48.0f + 55.0f * beatEnv) * beatEnv * (boss ? 0.034f : 0.020f);
+            if (boss && beat > beatLen / 2 && beat < beatLen / 2 + 600)
+                drum += noiseSample() * (1.0f - (beat - beatLen / 2) / 600.0f) * 0.010f;
+        }
+        bgmStepCounter++;
+        return melody + bass + harmony + drum;
+    }
+
     void audioCB(Uint8* stream, int len) {
         float* buf = (float*)stream;
         int n = len / (int)sizeof(float);
         memset(buf, 0, len);
 
-        bool bossFight = bossMusicOn;
-        bool isCh2 = ch2Bgm && !bossFight;
-
-        if (!bgmOff) {
-        if (isCh2) {
-            // ======== Chapter 2 BGM: Ambient pad style, ~60 BPM, C# major ========
-            const int CH2_TICK = 700;
-            const int CH2_NOTE_COUNT = 126;
-            const int CH2_BASS_COUNT = 64;
-
-            for (int i = 0; i < n; ++i) {
-                // Melody: soft pad envelope (slow attack, full sustain, slow release)
-                if (bgmNoteLen <= 0) {
-                    bgmNoteIndex = (bgmNoteIndex + 1) % CH2_NOTE_COUNT;
-                    bgmNoteLen = CH2_MEL_DUR[bgmNoteIndex] * CH2_TICK;
-                    bgmNoteFreq = CH2_MELODY[bgmNoteIndex];
+        int desiredMode = bossMusicOn.load() ? MUSIC_BOSS : (ch2Bgm.load() ? MUSIC_CH2 : MUSIC_CH1);
+        int intensity = musicIntensity.load();
+        int bgmVol = bgmVolume.load();
+        float voiceDuck = voiceClips.empty() ? 1.0f : 0.38f;
+        float bgmScale = bgmVol * bgmVol / 70.0f * voiceDuck;
+        const float fadeStep = 1.0f / 8820.0f; // 200 ms fade, avoids pause/phase hard cuts
+        for (int i = 0; i < n; ++i) {
+            if (desiredMode != currentMusicMode) {
+                musicGain -= fadeStep;
+                if (musicGain <= 0.0f) {
+                    musicGain = 0.0f;
+                    resetMusicState(desiredMode); // also prevents cross-score index overrun
                 }
-                bgmNoteLen--;
-                float melTotalLen = (float)(CH2_MEL_DUR[bgmNoteIndex] * CH2_TICK);
-                float melT = (float)bgmNoteLen / melTotalLen;
-                float melEnv;
-                if (melT < 0.12f)
-                    melEnv = melT / 0.12f;                      // soft release
-                else if (melT > 0.85f)
-                    melEnv = (1.0f - melT) / 0.15f;             // slow attack
-                else
-                    melEnv = 0.80f;                              // full gentle sustain
-
-                bgmPhase += bgmNoteFreq / 44100.0f;
-                if (bgmPhase > 1.0f) bgmPhase -= 2.0f;
-                float melody = sinf(bgmPhase * 2.0f * M_PI) * melEnv * 0.050f;
-
-                // Bass: deep ambient pad (smooth attack, long sustain)
-                if (ch2BassLen <= 0) {
-                    ch2BassIdx = (ch2BassIdx + 1) % CH2_BASS_COUNT;
-                    ch2BassLen = CH2_BASS_DUR[ch2BassIdx] * CH2_TICK;
-                    ch2BassFreq = CH2_BASS[ch2BassIdx];
-                }
-                ch2BassLen--;
-                float bassTotalLen = (float)(CH2_BASS_DUR[ch2BassIdx] * CH2_TICK);
-                float bassT = (float)ch2BassLen / bassTotalLen;
-                float bassEnv;
-                if (bassT < 0.10f)
-                    bassEnv = bassT / 0.10f;                    // gentle release
-                else if (bassT > 0.80f)
-                    bassEnv = 0.40f + 0.60f * (1.0f - bassT) / 0.20f;  // smooth attack
-                else
-                    bassEnv = 0.85f;                             // warm sustain
-
-                ch2BassPhase += ch2BassFreq / 44100.0f;
-                if (ch2BassPhase > 2.0f) ch2BassPhase -= 2.0f;
-                float bass = sinf(ch2BassPhase * 2.0f * M_PI) * bassEnv * 0.055f;
-
-                buf[i] = (melody + bass) * (bgmVolume * bgmVolume / 70.0f);
-                bgmStepCounter++;
+            } else if (bgmOff.load()) {
+                if (musicGain > 0.0f) musicGain -= fadeStep;
+                if (musicGain < 0.0f) musicGain = 0.0f;
+            } else if (musicGain < 1.0f) {
+                musicGain += fadeStep;
+                if (musicGain > 1.0f) musicGain = 1.0f;
             }
-        } else {
-            const float* melodyTbl = bossFight ? BOSS_MELODY : BGM_MELODY;
-            const int*   durTbl    = bossFight ? BOSS_DUR    : BGM_NOTE_DUR;
-            int noteCount = bossFight ? 16 : 32;
-            int tickLen   = bossFight ? 450 : 800;
-
-            for (int i = 0; i < n; ++i) {
-                if (bgmNoteLen <= 0) {
-                    bgmNoteIndex = (bgmNoteIndex + 1) % noteCount;
-                    bgmNoteLen = durTbl[bgmNoteIndex] * tickLen;
-                    bgmNoteFreq = melodyTbl[bgmNoteIndex];
-                }
-                bgmNoteLen--;
-                float totalLen = (float)(durTbl[bgmNoteIndex] * tickLen);
-                float t = (float)bgmNoteLen / totalLen;
-                float env = 1.0f;
-                if (t < 0.05f) env = t / 0.05f;
-                else if (t > 0.75f) env = (1.0f - t) / 0.25f;
-
-                bgmPhase += bgmNoteFreq / 44100.0f;
-                if (bgmPhase > 1.0f) bgmPhase -= 2.0f;
-                float melodyVol = bossFight ? 0.055f : 0.045f;
-                float melody = sinf(bgmPhase * 2.0f * M_PI) * env * melodyVol;
-
-                float bassFreq = bossFight ? 65.0f : 55.0f;
-                float pulseSpeed = bossFight ? 0.0015f : 0.0005f;
-                bgmPulsePhase += bassFreq / 44100.0f;
-                if (bgmPulsePhase > 2.0f) bgmPulsePhase -= 2.0f;
-                float pulse = 0.5f + 0.5f * sinf(bgmStepCounter * pulseSpeed);
-                float bassVol = bossFight ? 0.038f : 0.030f;
-                float bass = sinf(bgmPulsePhase * 2.0f * M_PI) * pulse * bassVol;
-
-                buf[i] = (melody + bass) * (bgmVolume * bgmVolume / 70.0f);
-                bgmStepCounter++;
-            }
+            if (currentMusicMode != MUSIC_SILENT && musicGain > 0.0f)
+                buf[i] = renderMusicSample(currentMusicMode, intensity) * bgmScale * musicGain;
         }
-        } // !bgmOff
 
         float eqGain[3];
-        eqGain[0] = std::pow(10.0f, eqLow  / 20.0f);
-        eqGain[1] = std::pow(10.0f, eqMid  / 20.0f);
-        eqGain[2] = std::pow(10.0f, eqHigh / 20.0f);
+        eqGain[0] = std::pow(10.0f, eqLow.load()  / 20.0f);
+        eqGain[1] = std::pow(10.0f, eqMid.load()  / 20.0f);
+        eqGain[2] = std::pow(10.0f, eqHigh.load() / 20.0f);
+        float sfxScale = sfxVolume.load() * sfxVolume.load() / 70.0f;
 
         for (auto& s : activeSnd) {
             if (s.samplesLeft <= 0) continue;
@@ -166,13 +202,13 @@ class AudioEngine {
 
                 float smp = 0.0f;
                 if (s.type == 2)
-                    smp = ((rand() % 2000) / 1000.0f - 1.0f);
+                    smp = noiseSample();
                 else if (s.type == 1)
                     smp = (sinf(s.phase * 2.0f * M_PI) > 0.0f ? 1.0f : -1.0f) * 0.5f;
                 else
                     smp = sinf(s.phase * 2.0f * M_PI);
 
-                buf[i] += smp * env * s.volume * (sfxVolume * sfxVolume / 70.0f) * eqGain[s.band];
+                buf[i] += smp * env * s.volume * sfxScale * eqGain[s.band];
                 s.samplesLeft--;
             }
         }
@@ -185,10 +221,9 @@ class AudioEngine {
         }
         voiceClips.erase(std::remove_if(voiceClips.begin(), voiceClips.end(),
             [](const VoiceClip& v){ return v.pos >= v.samples.size(); }), voiceClips.end());
-        for (int i = 0; i < n; ++i) {
-            if (buf[i] > 0.9f) buf[i] = 0.9f;
-            if (buf[i] < -0.9f) buf[i] = -0.9f;
-        }
+        // Smooth master limiter: retains impact detail where the old hard clip flattened peaks.
+        for (int i = 0; i < n; ++i)
+            buf[i] = 0.96f * tanhf(buf[i] / 0.96f);
         activeSnd.erase(std::remove_if(activeSnd.begin(), activeSnd.end(),
             [](const ActiveSound& s){ return s.samplesLeft <= 0; }), activeSnd.end());
     }
@@ -196,10 +231,13 @@ class AudioEngine {
 public:
     AudioEngine() : audioDev(0), bgmVolume(7), sfxVolume(7),
                     eqLow(0), eqMid(0), eqHigh(0), bossMusicOn(false),
-                    ch2Bgm(false), bgmOff(false),
-                    voiceGain(0.9f), bgmPhase(0), bgmPulsePhase(0), bgmStepCounter(0),
-                    bgmNoteIndex(0), bgmNoteFreq(0), bgmNoteLen(0),
-                    ch2BassIdx(0), ch2BassLen(0), ch2BassFreq(0), ch2BassPhase(0) {
+                    ch2Bgm(false), bgmOff(false), musicIntensity(0),
+                    voiceGain(0.9f), currentMusicMode(MUSIC_CH1), musicGain(0.0f),
+                    bgmPhase(0), bgmPulsePhase(0), bgmHarmonyPhase(0), bgmDrumPhase(0),
+                    bgmStepCounter(0), bgmNoteIndex(-1), bgmNoteFreq(0), bgmNoteLen(0),
+                    noiseState(0x9E3779B9u), ch2BassIdx(-1), ch2BassLen(0),
+                    ch2BassFreq(0), ch2BassPhase(0) {
+        activeSnd.reserve(48);
         SDL_AudioSpec want;
         SDL_memset(&want, 0, sizeof(want));
         want.freq = 44100;
@@ -250,9 +288,12 @@ public:
         if (audioDev) SDL_UnlockAudioDevice(audioDev);
     }
     bool voicePlaying() const {
+        if (audioDev) SDL_LockAudioDevice(audioDev);
+        bool playing = false;
         for (const auto& v : voiceClips)
-            if (v.pos < v.samples.size()) return true;
-        return false;
+            if (v.pos < v.samples.size()) { playing = true; break; }
+        if (audioDev) SDL_UnlockAudioDevice(audioDev);
+        return playing;
     }
 
 private:
@@ -329,6 +370,11 @@ public:
     void setBossMusic(bool on) { bossMusicOn = on; }
     void setCh2Bgm(bool on) { ch2Bgm = on; }
     void setBgmOff(bool off) { bgmOff = off; }
+    void setMusicIntensity(int level) {
+        if (level < 0) level = 0;
+        if (level > 2) level = 2;
+        musicIntensity = level;
+    }
     void setStartBgm(bool on) { /* [DORMANT] — placeholder: start screen BGM interface */ (void)on; }
 
     void playSound(float freq, float sweepEnd, int durMs, float vol, int type, int band) {
@@ -340,12 +386,21 @@ public:
         s.samplesLeft = s.totalSamples;
         s.volume = vol; s.type = type; s.phase = 0.0f;
         s.band = band;
-        activeSnd.push_back(s);
+        if (activeSnd.size() < 48) {
+            activeSnd.push_back(s);
+        } else {
+            // Preserve loud gameplay cues when a collision burst fills the SFX bus.
+            size_t quietest = 0;
+            for (size_t i = 1; i < activeSnd.size(); ++i)
+                if (activeSnd[i].volume < activeSnd[quietest].volume) quietest = i;
+            if (s.volume > activeSnd[quietest].volume) activeSnd[quietest] = s;
+        }
         SDL_UnlockAudioDevice(audioDev);
     }
 
     // 预定义 SFX
     void sndShoot()     { playSound(1200, 600, 28, 0.20f, 3, 2); }
+    void sndEnemyShoot(){ playSound(520, 260, 34, 0.09f, 3, 1); }
     void sndHit()       { playSound(350, 0, 35, 0.22f, 1, 1); }
     void sndExplosionSmall() {
         playSound(600, 0, 35, 0.16f, 2, 2);    // high crisp noise crack
@@ -398,26 +453,104 @@ public:
         playSound(40, 0, 70, 0.18f, 2, 0);    // deep rumble
     }
 
-    int getBgmVolume() const { return bgmVolume; }
-    int getSfxVolume() const { return sfxVolume; }
-    int getEqLow() const { return eqLow; }
-    int getEqMid() const { return eqMid; }
-    int getEqHigh() const { return eqHigh; }
+    // 纯代码离线渲染巡检：覆盖三套乐谱切换与 48 声部压力混音。
+    bool runSynthesisSelfTest() {
+        if (!audioDev) {
+            printf("[audio] synthesis test: SKIP (no SDL audio device)\n");
+            return true;
+        }
+        SDL_PauseAudioDevice(audioDev, 1);
+        SDL_LockAudioDevice(audioDev);
+        bool oldBoss = bossMusicOn.load(), oldCh2 = ch2Bgm.load(), oldOff = bgmOff.load();
+        int oldIntensity = musicIntensity.load();
+        int oldBgmVol = bgmVolume.load(), oldSfxVol = sfxVolume.load();
+        int oldLow = eqLow.load(), oldMid = eqMid.load(), oldHigh = eqHigh.load();
+        voiceClips.clear();
+        activeSnd.clear();
+        bgmOff = false;
+        musicIntensity = 2;
+        bgmVolume = 7; sfxVolume = 7;
+        eqLow = 0; eqMid = 0; eqHigh = 0;
 
-    void adjBgmVolume(int d) { bgmVolume += d; if (bgmVolume < 1) bgmVolume = 1; if (bgmVolume > 10) bgmVolume = 10; }
-    void adjSfxVolume(int d) { sfxVolume += d; if (sfxVolume < 1) sfxVolume = 1; if (sfxVolume > 10) sfxVolume = 10; }
-    void adjEqLow(int d) { eqLow += d; if (eqLow < -5) eqLow = -5; if (eqLow > 5) eqLow = 5; }
-    void adjEqMid(int d) { eqMid += d; if (eqMid < -5) eqMid = -5; if (eqMid > 5) eqMid = 5; }
-    void adjEqHigh(int d) { eqHigh += d; if (eqHigh < -5) eqHigh = -5; if (eqHigh > 5) eqHigh = 5; }
+        bool ok = true;
+        float modeRms[3] = {0.0f, 0.0f, 0.0f};
+        std::vector<float> block(1024);
+        for (int mode = MUSIC_CH1; mode <= MUSIC_BOSS; ++mode) {
+            bossMusicOn = (mode == MUSIC_BOSS);
+            ch2Bgm = (mode == MUSIC_CH2);
+            double energy = 0.0;
+            float peak = 0.0f;
+            int measured = 0;
+            for (int b = 0; b < 24; ++b) {
+                audioCB((Uint8*)block.data(), (int)(block.size() * sizeof(float)));
+                if (b >= 20) for (float sample : block) {
+                    if (!std::isfinite(sample)) ok = false;
+                    float a = fabsf(sample);
+                    if (a > peak) peak = a;
+                    energy += sample * sample;
+                    measured++;
+                }
+            }
+            modeRms[mode - 1] = measured ? sqrtf((float)(energy / measured)) : 0.0f;
+            if (modeRms[mode - 1] < 0.005f || peak > 0.961f) ok = false;
+            printf("[audio] mode=%s rms=%.4f peak=%.4f\n",
+                   mode == MUSIC_CH1 ? "ch1" : (mode == MUSIC_CH2 ? "ch2" : "boss"),
+                   modeRms[mode - 1], peak);
+        }
+
+        for (int i = 0; i < 48; ++i) {
+            ActiveSound s;
+            s.freq = 70.0f + i * 31.0f; s.sweepEnd = s.freq * 0.55f;
+            s.totalSamples = s.samplesLeft = 8820;
+            s.volume = 0.12f + (i % 4) * 0.03f;
+            s.type = i % 4; s.band = i % 3; s.phase = 0.0f;
+            activeSnd.push_back(s);
+        }
+        float stressPeak = 0.0f;
+        for (int b = 0; b < 4; ++b) {
+            audioCB((Uint8*)block.data(), (int)(block.size() * sizeof(float)));
+            for (float sample : block) {
+                if (!std::isfinite(sample)) ok = false;
+                stressPeak = std::max(stressPeak, fabsf(sample));
+            }
+        }
+        if (stressPeak > 0.961f || stressPeak < 0.05f) ok = false;
+        printf("[audio] 48-voice stress peak=%.4f limiter=%s\n", stressPeak, ok ? "PASS" : "FAIL");
+
+        activeSnd.clear();
+        bossMusicOn = oldBoss; ch2Bgm = oldCh2; bgmOff = oldOff;
+        musicIntensity = oldIntensity;
+        bgmVolume = oldBgmVol; sfxVolume = oldSfxVol;
+        eqLow = oldLow; eqMid = oldMid; eqHigh = oldHigh;
+        resetMusicState(MUSIC_CH1);
+        musicGain = 0.0f;
+        SDL_UnlockAudioDevice(audioDev);
+        SDL_PauseAudioDevice(audioDev, 0);
+        return ok;
+    }
+
+    int getBgmVolume() const { return bgmVolume.load(); }
+    int getSfxVolume() const { return sfxVolume.load(); }
+    int getEqLow() const { return eqLow.load(); }
+    int getEqMid() const { return eqMid.load(); }
+    int getEqHigh() const { return eqHigh.load(); }
+
+    static int clampSetting(int value, int low, int high) {
+        return value < low ? low : (value > high ? high : value);
+    }
+    void adjBgmVolume(int d) { bgmVolume = clampSetting(bgmVolume.load() + d, 1, 10); }
+    void adjSfxVolume(int d) { sfxVolume = clampSetting(sfxVolume.load() + d, 1, 10); }
+    void adjEqLow(int d) { eqLow = clampSetting(eqLow.load() + d, -5, 5); }
+    void adjEqMid(int d) { eqMid = clampSetting(eqMid.load() + d, -5, 5); }
+    void adjEqHigh(int d) { eqHigh = clampSetting(eqHigh.load() + d, -5, 5); }
 
     // 设置持久化恢复用（范围与 adj* 相同，越界自动夹紧）
     void setSoundState(int bgm, int sfx, int low, int mid, int high) {
-        bgmVolume = bgm; sfxVolume = sfx; eqLow = low; eqMid = mid; eqHigh = high;
-        if (bgmVolume < 1) bgmVolume = 1; if (bgmVolume > 10) bgmVolume = 10;
-        if (sfxVolume < 1) sfxVolume = 1; if (sfxVolume > 10) sfxVolume = 10;
-        if (eqLow < -5) eqLow = -5; if (eqLow > 5) eqLow = 5;
-        if (eqMid < -5) eqMid = -5; if (eqMid > 5) eqMid = 5;
-        if (eqHigh < -5) eqHigh = -5; if (eqHigh > 5) eqHigh = 5;
+        bgmVolume = clampSetting(bgm, 1, 10);
+        sfxVolume = clampSetting(sfx, 1, 10);
+        eqLow = clampSetting(low, -5, 5);
+        eqMid = clampSetting(mid, -5, 5);
+        eqHigh = clampSetting(high, -5, 5);
     }
 };
 

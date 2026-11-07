@@ -150,7 +150,7 @@ public:
             case 0: {   // Radial burst
                 if (patternTimer >= cycle) {
                     fireRadial(enraged ? 20 : 14, enraged ? 1.9 : 1.5, spinAngle * 0.5);
-                    audio.sndShoot();
+                    audio.sndEnemyShoot();
                     pattern = 1; patternTimer = 0;
                 }
                 break;
@@ -162,7 +162,7 @@ public:
                         fireAimed(pl, 2.2, 0.22);
                         fireAimed(pl, 2.2, -0.22);
                     }
-                    audio.sndShoot();
+                    audio.sndEnemyShoot();
                     volleyCount++;
                     if (volleyCount >= 3) { volleyCount = 0; pattern = 2; patternTimer = 0; }
                 }

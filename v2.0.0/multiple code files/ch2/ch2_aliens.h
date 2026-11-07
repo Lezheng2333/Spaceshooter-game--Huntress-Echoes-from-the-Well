@@ -101,7 +101,7 @@ public:
                     a.fireBurstTimer--;
                     if (a.fireBurstTimer <= 0) {
                         a.fireBurstTimer = BURST_INTERVAL;
-                        fireBullet(pl, a); audio.sndShoot();
+                        fireBullet(pl, a); audio.sndEnemyShoot();
                         a.fireBurstCount--;
                         if (a.fireBurstCount <= 0) a.fireVolleyTimer = VOLNEY_COOLDOWN;
                     }

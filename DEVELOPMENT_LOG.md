@@ -1,8 +1,10 @@
 ================================================================
   SPACE SHOOTER — 开发日志
+
 ================================================================
 
 Ver 0.0.1 | 2026-05-06
+
 ----------------------------------------------------------------
 
   Ver 0.0.1 | 项目初始化 + 透视优化
@@ -158,6 +160,7 @@ Ver 0.0.1 | 2026-05-06
 
     - 测试模式后续新增：分数 200（直达 Boss）、Boss 二阶段、
       Boss 1HP，默认创建 5 个测试敌人
+
     - OPTIONS 菜单：AIM ASSIST 开关（绿色 ON/红色 OFF）
 
     - 暂停菜单增加 OPTIONS 和"BACK TO MAIN MENU"
@@ -308,9 +311,11 @@ Ver 0.0.1 | 2026-05-06
   源代码：space_shooting ver1.0.0.cpp
   封装：Shooter ver1.0.0.app / Shooter ver1.0.0.zip
   最低系统要求：macOS 11.0
+
 ================================================================
 
 Ver 1.0.1 | 2026-05-08
+
 ----------------------------------------------------------------
 
   Ver 1.0.1 | CHAPTER 篇章选择系统
@@ -355,18 +360,45 @@ Ver 1.0.1 | 2026-05-08
     - 核心类：Renderer / AudioEngine / Player / BulletManager / AlienManager /
       ParticleManager / ShockwaveManager / Boss+BossConfig / ChapterConfig+
       ChapterManager+Background / Font+UIRenderer+MenuStateMachine / Game
+
     - Boss 吸收状态机去重：Intro 和 Phase2 共享 updateAbsorbStateMachine()
       和 updateAbsorbAnimations()
+
     - Alien 多态：int alienType tag + 函数指针，不引入虚函数
 
     - ChapterConfig 数据驱动：5 个章节预配置差异化参数（生成速度/血量/Boss
       属性/背景色/星星数量），Chapter 2-5 预留解锁机制
+
     - 7-Phase 渐进重构：Phase 1-2 基础提取 → Phase 3 Boss去重 → Phase 4
       章节系统 → Phase 5 UI整合 → Phase 6 Game主控 → Phase 7 调试
+
     - main() 从 ~800行缩减至 15行
 
     - 编译修复：static const double→constexpr / AbsorbState 提升 public /
       Background 成员指针化 / soundCursor 同步 / ESC 事件边沿触发
+
+    - 当前状态：22 个 bug 全部修复，编译零错误零警告，运行正常
+
+    - 待验证：全流程功能测试（Play/Boss/Test/菜单/暂停/GameOver）
+
+    - 全量设计审计 (2026-05-10): 对照开发日志 v0.0.1 至 v1.0.4 全部版本，
+      逐项比对原始代码与重构代码的游戏设计要素，确认以下全部一致：
+      透视系统(3函数) / 星空闪烁 / WASD+翻滚 / 外星缩放 / 菱形外形 /
+      圆拱基地 / 爆炸粒子 / 10HP星号 / 子弹85%失效 / 暂停+倒计时碎裂 /
+      蓝无敌红受击 / 绿色冲击波渐隐 / Alien HP 3-5 / per-frame唯一命中 /
+      Boss 200分触发 / 五阶段状态机(INTRO→FIGHT→PHASE2→DEFEAT) /
+      HP 1000 / ∞形移动 / 蓝色光束吸收+螺旋收缩 / 治疗红波420帧30HP /
+      血条400px / 5项开始菜单 / 黄色光标 / 9项测试模式 / 瞄准辅助 /
+      44100Hz音频+全部SFX / BGM 32+16音符Boss切换 / 音量EQ滑条 /
+      Boss 5秒爆炸+链式清场 / MISSION COMPLETE / smoothstep回中 /
+      烟花2秒淡入 / 飞机上翻修复 / 方向改变翻滚 / 机头对齐消失点 /
+      治疗红波+Phase2冲击波透视圆形 / 12新增字符 / 能量条得分驱动 /
+      180分常绿 / Chapter 1-5选择 / 碰撞半径28*scale+12
+
+    - 重构转正确认：OOP 重构版（Ver 1.0.4-refactored）经过 22 个 bug 修复
+      及全量设计审计，已与原始版功能完全一致。后续所有开发将基于重构版进行，
+      原始代码保留为历史参考
+
     - BUGFIX: 逐行比对原始代码，共发现并修复 22 个 bug
         Bug 1  星空不更新 (background->update 未调用)
         Bug 2  冲击波缺绿色粒子 (spawn 未生成拱顶特效)
@@ -401,26 +433,6 @@ Ver 1.0.1 | 2026-05-08
         Bug 22 Boss动画阶段外星飞船未全部变蓝 — alienMgr.update() 在入场
           完成时将 invincibleFrames 从 -1 覆盖为 3，3帧后 decrement 到 0
           变红；修复为 update() 后重新 setAllInvincible()
-    - 当前状态：22 个 bug 全部修复，编译零错误零警告，运行正常
-
-    - 待验证：全流程功能测试（Play/Boss/Test/菜单/暂停/GameOver）
-
-    - 全量设计审计 (2026-05-10): 对照开发日志 v0.0.1 至 v1.0.4 全部版本，
-      逐项比对原始代码与重构代码的游戏设计要素，确认以下全部一致：
-      透视系统(3函数) / 星空闪烁 / WASD+翻滚 / 外星缩放 / 菱形外形 /
-      圆拱基地 / 爆炸粒子 / 10HP星号 / 子弹85%失效 / 暂停+倒计时碎裂 /
-      蓝无敌红受击 / 绿色冲击波渐隐 / Alien HP 3-5 / per-frame唯一命中 /
-      Boss 200分触发 / 五阶段状态机(INTRO→FIGHT→PHASE2→DEFEAT) /
-      HP 1000 / ∞形移动 / 蓝色光束吸收+螺旋收缩 / 治疗红波420帧30HP /
-      血条400px / 5项开始菜单 / 黄色光标 / 9项测试模式 / 瞄准辅助 /
-      44100Hz音频+全部SFX / BGM 32+16音符Boss切换 / 音量EQ滑条 /
-      Boss 5秒爆炸+链式清场 / MISSION COMPLETE / smoothstep回中 /
-      烟花2秒淡入 / 飞机上翻修复 / 方向改变翻滚 / 机头对齐消失点 /
-      治疗红波+Phase2冲击波透视圆形 / 12新增字符 / 能量条得分驱动 /
-      180分常绿 / Chapter 1-5选择 / 碰撞半径28*scale+12
-    - 重构转正确认：OOP 重构版（Ver 1.0.4-refactored）经过 22 个 bug 修复
-      及全量设计审计，已与原始版功能完全一致。后续所有开发将基于重构版进行，
-      原始代码保留为历史参考
 
 ----------------------------------------------------------------
 
@@ -446,6 +458,7 @@ Ver 1.0.1 | 2026-05-08
       Chapter 1 开放全部 9 项测试（30/60/90/120/150/180/200BOSS/
       BOSS PH.2/BOSS 1HP），Chapter 2-5 灰色锁定预留；ESC 从分数
       选择层返回 Chapter 选择层，再按 ESC 返回开始界面
+
     - BUGFIX: 边沿检测变量 upWas/downWas/enterWas/escWas 被错误
       放在 else 分支内部，Chapter 选择层从不更新导致光标乱跑并无法
       点击进入 Chapter 1；移到方法作用域层级修复
@@ -463,8 +476,10 @@ Ver 1.0.1 | 2026-05-08
 
     - 非洲草原地形：橙黄暖色天空，起伏丘陵，猴面包树（粗干+分枝+叶簇）、
       金合欢树
+
     - 赛博都市地形：深紫暗色天空，三层矩形建筑剪影，霓虹窗户灯光
       （青/洋红/黄/绿/橙），近处高楼霓虹边框+屋顶天线/水塔
+
     - 地形自动轮转：每约 18 秒切换一种，切换时天空 200px 渐变过渡
 
     - 数字键 1/2/3 手动锁定地形，0 恢复自动循环，左上角显示地形名称和模式
@@ -480,71 +495,94 @@ Ver 1.0.1 | 2026-05-08
 
     - 天空改为黑色布满闪烁星空（400 颗，12% 十字芒星），三层地形共享星
       空背景，星空以极慢视差（0.06x）独立滚动
+
     - 飞机恢复第一章三角形+机翼+尾翼形状，中心线改水平（机头朝右），
       无透视效果；侧滚模式暂时移除射击系统
+
     - 山峰改为独立三角形轮廓：清晰尖峰+凹曲线边坡（t^1.8），边缘分形噪
       声（±2px），内部等高线纹理（2-3 条水平弧形），水墨画风格疏密有致
+
     - 山峰生成改为簇群式：每簇 1-3 座，22% 概率主峰（高度×1.5），簇间距
       240-380 单位留白；远山淡灰绿（g=110）雾状隐现，中山中绿（g=75），
       近山深绿（g=48）带松树
+
     - 草原草地改为世界坐标定位的淡黄色细线，以 0.30x 慢速视差滚动；
       灌木用放射状短弧线，猴面包树用粗干轮廓+分枝+横纹纹理
+
     - 赛博都市重构为"呼吸方块"：浮动于画面底部 20% 区域，非线性 cubic
       sin 缩放（±15%），方块内部 2×2/3×3/4×4 霓虹方格矩阵（五色+
       白晕双线），光源般闪烁
+
     - 场景过渡重设计（400 单位过渡带）：山脉→草原时山峰逐级缩小变缓
       （密度²），草原从小草(d>0.05)→灌木(d>0.35)→猴面包树(d>0.65)
       梯次出现；城市呼吸方块从 d>0.1 逐渐成长，举一反三
+
     - 草原地面细草线和城市地面霓虹光晕短线均受密度控制，过渡带边缘自然
       稀疏
+
     - 修复山脊连续性（sampleRidge 自动 wrap）、草原草地视差滚动、呼吸方
       块底部定位等多项问题
 
   Ver 1.2.2 | 廊桥背景系统重设计 + OOP 代码优化
     - 删除全部山峰/草原/霓虹方块随机地形代码（~450 行），SideScrolling-
       Background 类完全重写为廊桥背景
+
     - 星空系统保留：400 颗闪烁星+十字芒星，视差降至 0.015（几乎静止）
 
     - 金属地面：深灰底色(22,24,30)，5 条纵向接缝轨道以二次方透视间距排列
       （近疏远密），每条接缝为固定 y 位置的短横线，随廊桥同步向左滚动
+
     - 金属支柱：世界坐标等距排列（间距 330 单位），深灰主体(55,55,65)+
       两侧亮边(蓝灰 80/90/120)+底部三角支撑，每 5 根一根加粗主支柱，顶部
       向消失点 VP(CENTER_X, -60) 略微倾斜（0.85 系数）
+
     - 玻璃面板：每对支柱之间一面大型玻璃，Minecraft 风格设计——四边淡蓝白
       边框+四个角 L 形高光+内部横纵纹理线+中央微光对角线，无外边框，玻璃
       边缘贴合支柱倾斜角度呈梯形，完整出画后才消失
+
     - 地面与玻璃墙呈 120° 夹角，地板接缝消失点 VP_FLOOR_X 与支柱消失点
       VP_X 分属不同平面
+
     - 廊桥以 3.5 px/帧快速左移，支柱约 1.5 秒出现一根
 
     - OOP 优化：移除空 public:/private: 声明，移除地形系统遗留的三个 stub
       方法（setForcedTerrain/getForcedTerrain/getCurrentTerrain），提取
       pruneDoubleVec 模板消除接缝裁剪重复代码
+
     - 删除地形切换数字键控制（1/2/3/0）和 HUD 地形名称显示
 
     - BUGFIX: 修复支柱/玻璃在画面左端提前消失问题（裁剪边界从 -200 扩至
       -500，绘制边界扩至 ±100-120px）
+
     - BUGFIX: 修复地面接缝"桌面弹球"式上下弹跳问题（改为固定 y 位置的水平
       滚动短横线，不再根据屏幕 x 动态计算 y）
+
     - BUGFIX: 修复玻璃面板依赖的支柱被提前清理导致玻璃半途消失的问题
 
   Ver 1.2.3 | 章节解锁系统 + Chapter 2 程序化 BGM
     - 新增章节顺序解锁机制：正常游玩模式下，通关当前章节自动解锁下一章
       （第一章默认解锁，依次解锁至第五章），TEST 模式不受此限制
+
     - Chapter 2 专属程序化背景音乐系统：在 AudioEngine 中新增独立的 BGM
       模式，通过 volatile bool ch2Bgm 标志在主线程和音频线程间同步状态
+
     - 进入 Chapter 2（侧滚廊桥）时自动切换 Ch2 BGM，返回菜单/退出时切回
       普通 BGM；Boss 战时自动切回 Boss BGM（ch2Bgm && !bossFight）
+
     - Ch2 BGM 基于用户提供的 32-bit WAV 音频文件进行 FFT 频谱分析后手工
       转录：126 个旋律音符（16 分音符精度，250ms/音符）+ 64 个 Bass 音符
       （8 分音符精度），形成 32 秒循环
+
     - 音乐特征：C# 大调，~60 BPM，缓慢空灵的 Pad 质感；和弦进行 C#→A#m
       →F→C#→D#m→F→D→C# 循环；旋律以高音"闪烁"音色（G#4/A#5/C6）交
       替和弦内声部；Bass 以低音和声基础（C#2/A#1/F2/D#2/G#2）跟随和弦
+
     - 旋律使用 Pad 包络（柔起音 15%、满延留 80%、缓释放 12%），Bass 使
       用温暖延留包络（平滑起音、85%延留、缓释放 10%），模拟氛围持续音
+
     - 章节选择画面光标优化：W/S 上下移动时自动跳过未解锁的灰色章节，仅在
       已解锁章节之间循环
+
     - BUGFIX: ch2Bgm 标志加 volatile 关键字解决音频线程读到主线程旧缓存
       值的问题（导致进入 Chapter 2 后仍然播放普通 BGM）
 
@@ -552,22 +590,28 @@ Ver 1.0.1 | 2026-05-08
     - 外星飞船爆炸音效重设计：从低频轰鸣改为高频短促碎裂感——小爆炸用
       600Hz 噪声(35ms)+1400Hz 正弦"啪"声(16ms)，大爆炸分层叠加
       （500+200Hz 噪声 + 1800→400Hz 扫频 22ms），模拟碾碎芝麻的脆裂声
+
     - 碰撞箱深度自适应优化：alienScale 从 0.17+0.83*depth 改回 v1.0.0
       的 0.08+0.92*depth，hitRadius=28*scale+10，远处从 ~17px 缩至 ~12px
       （接近 v1.0.0 手感），近处保持 ~38px；瞄准辅助吸附半径与子弹碰撞
       半径完全同步，确保子弹能打中的敌人一定被瞄准辅助锁定
+
     - 第二章飞机可飞行范围扩大至全屏（仅留 10px 四周边距），右侧限制在
       x≤630（HUD 左侧边缘），避免遮挡分数显示
+
     - 第二章飞机造型重设计：上翼完整（远侧，透视缩窄至 55%）、下翼带可
       见缺口（内段+分离翼尖）；机身远侧透视缩窄（上腰 6px vs 下腰 10px），
       飞机平面与廊桥地面平行
+
     - 新增右侧能量罩隐形墙系统（x=642，机头尖端最右位置）：飞机触碰时触发
       持续动画特效——屏障核心白热线（青白辉光，上下衰减）+ 5 层青蓝渐变
       内层辉光向右释放 + 锯齿状闪电分支动态闪烁 + 22 个白色能量火花粒子；
       wallAnimFrame 帧计数器驱动动画持续播放，wallContactY 跟随飞机 y 坐标
+
     - Boss 名称系统：BossConfig 新增 name 字段，第一章 Boss 更名为
       TELAMONDO，显示在血量条左侧（自适应名称长度）；第二至五章 Boss 配置
       暂用 Ch1 占位，待后续各章专属设计
+
     - 开始画面版本号同步至 Ver 1.2.4
 
     - BUGFIX: 子弹命中后未消失问题——碰撞时同时设置 active=false 和
@@ -577,24 +621,31 @@ Ver 1.0.1 | 2026-05-08
     - 新增 DanmakuManager 类（OOP 封装）：弹幕敌人状态机（入场→无敌射击→
       可受击→循环），螺旋弹幕图案（参考尼尔机械纪元），入场蓝色残影特效，
       受击/击败动画（震动+爆炸粒子），紫色弹幕子弹可被玩家子弹击碎
+
     - Chapter 2 玩家子弹系统：新增 Bullet::sideScroll 标志，侧滚模式子弹
       恒定速度向右飞行（dx=10），不受 Chapter 1 射程衰减限制；轻微散射偏移
       (±0.16) 提升射击手感但不失精准度
+
     - Chapter 2 瞄准辅助系统：drawAimAssistSide() 水平射线投射+十字准星，
       敌人吸附半径 24px、子弹吸附半径 16px，与碰撞判定完全同步；无射程限制
       （区别于 Chapter 1 的 85% 射程限制）
+
     - 第二章 HUD：右上角 3 颗心心显示玩家 HP（初始 3），复用第一章基地受击
       减血逻辑；能级条与第一章样式一致；HUD 元素不重叠
+
     - 弹幕敌人透视绘制：根据摄像机位置进行深度透视变换（远小近大），菱形/
       楔形线框造型，与第一章敌机风格统一
+
     - 音效系统优化：
       - 新增 sndCrystalCrush()：方波扫频 2200→500Hz(24ms) + 噪音冲击 800Hz
         (18ms) + 高频正弦闪光 3600→1200Hz(10ms)，与 sndShoot/sndHit 的
         电子游戏风格统一（方波 8-bit 感+噪音纹理+水晶玻璃顶端）
       - 新增 sndPlayerHit()：三层沉重受击音效（低频 80Hz+中频 200Hz 方波+
         超低频 40Hz 轰鸣），表现玩家机体受损的重量感
+
     - 视觉特效：玩家受伤时头顶飘出红色立体 "HP -1" 字样（带阴影深度感），
       浮动上升后渐隐消失
+
     - 弹幕敌人击败后现存弹幕继续飞行（仍可被玩家击碎），不受敌人消失影响
 
     - BUGFIX: Chapter 2 子弹不可见（dx 过大导致一帧飞出屏幕）
@@ -615,12 +666,15 @@ Ver 1.0.1 | 2026-05-08
         一轮；水晶子弹速度 1.5、hp=3（与弹幕敌人子弹参数一致）
       - 血量 10，无血条；被击败触发第一章爆炸特效；离开画面左边界后直接消失
       - 子弹继承 Ch2ShooterBase 特性：敌人离场/被击败后子弹继续飞行直至出画
+
     - 玩家无敌帧系统：PlayerBase 新增 invFrames 字段（所有章节通用）
       - 受伤后 1 秒（60 帧）无敌，期间飞机闪烁（每 4 帧切换可见/不可见）
       - 无敌期间玩家飞机与敌人子弹不发生碰撞
+
     - HUD 系统重构：提取 HUDBase 类（静态 drawScore/drawHPHearts/drawEnergyBar）
       - SCORE 右对齐到画面右边缘，格式 "SCORE:%-4d"，数字后补空格保持定宽
       - SCORE / HP 心心 / 能量条三者右端对齐（rightEdge = WIN_WIDTH - 10）
+
     - 优化：Chapter 2 玩家子弹缩短拖尾（12px→6px），飞行速度增加 10%（dx: 10→11）
 
     - 优化：弹幕敌人前后移动速度降低 42%，登场拖尾改为 5 个小型蓝色粒子点
@@ -634,6 +688,7 @@ Ver 1.0.1 | 2026-05-08
   Ver 1.2.7 | 代码重构：全量命名规范化 + 继承体系 + 文件编排
     - 全量类命名规范化：Chapter 1 专用类加 Ch1 前缀（12 个），Chapter 2 专用类加
       Ch2 前缀（7 个），两章共享基础设施保持无前缀（14 个）
+
     - 继承体系设计（消除重复代码）：
       - BulletBase（x,y,dx,dy,active）→ Ch1Bullet（+透视射程衰减字段）
       - EnemyData（active,entering,defeated,hp,maxHp,enterFrame,enterDuration,
@@ -643,8 +698,10 @@ Ver 1.0.1 | 2026-05-08
       - PlayerBase（x,y,rollAngle,rollTarget,invFrames）→ Ch1Player
         （+handleInput/getT），invFrames 所有后续章节通用
       - HUDBase（drawScore/drawHPHearts/drawEnergyBar）→ Ch1/Ch2 统一调用
+
     - 文件结构重编排：共享数据 → Ch1 数据 → Ch2 数据 → 共享基础设施 → Ch1 系统
       → Ch2 系统 → 游戏框架（Game/main），父类在前子类在后
+
     - 移除 Ch2ShooterBase 中的 drawHUD（HUD 不属于敌人系统，已移至 HUDBase）
 
     - 禁用弹幕敌人（DanmakuManager）为 Ch2 普敌测试让路，代码保留后续恢复
@@ -655,16 +712,21 @@ Ver 1.0.1 | 2026-05-08
       - 按 2：刷新一个弹幕敌人（入场 x 随机范围 400-630，画面中央到隐形墙之间）
       - 画面左上角显示 "press 1/2" 提示文字
       - 能量条暂时冻结（细节后续设计），分数正常累计（普敌 1 分，弹幕 5 分）
+
     - Ch2AlienManager 向量化重构：单敌人 → std::vector<Ch2Alien>，支持多个普敌同屏
 
     - Ch2DanmakuManager 向量化重构：单敌人 → std::vector<Ch2DanmakuEnemy>，
       支持多个弹幕敌人同屏，重新启用 update/draw
+
     - 瞄准辅助组件化（AimAssist）：合并为单一类嵌入 PlayerBase，每个玩家实例自带
       瞄准辅助状态（snapProgress + update + draw），后续章节直接复用
+
     - PlayerBase 提取：x/y/rollAngle/rollTarget/lastMoveDir/invFrames/aimAssist，
       Ch1Player 继承后添加 handleInput/getT
+
     - 优化 Ch2 普敌入场：只会从画面四条边刷新（startX/y 均在边缘外），突袭到隐形墙
       右侧空间（targetX: 640-780）；右侧入口修正为 x=810（真正画面外）
+
     - 优化 Ch2 弹幕敌人入场：增加右下角刷新位置，随机从右上角或右下角入场
 
     - BUGFIX: 按键 1/2 每帧重复触发 → 添加边沿检测（keyNow && !keyWas）
@@ -674,19 +736,26 @@ Ver 1.0.1 | 2026-05-08
   Ver 1.2.9 | 玩家飞机继承体系 + NightElf 三炮战机 + 多枪系统
     - Player 基类虚方法体系：draw / handleInput / getGunCount / getGunOffset，
       每种飞机子类自行实现绘制、操控和枪口布局
+
     - TrainingPlane（Chapter 1 训练机，原 Ch1Player）：透视三角机身 + 机翼线 +
       尾翼，单炮布局，保留 getT() 透视定位能力
+
     - NightElf（Chapter 2 暗夜精灵）：30° 锐角机头 + 120° 内凹燕尾（以机翼线
       为对称轴翻转），上半机身扫描线填充，3 炮布局（机头尖端 + 上/下翼尖平行
       线前端），侧滚模式火力三倍
+
     - Druid（第三章备用设计）：双尾翼 boomerang 造型 + 中心导航线，代码已预留，
       后续章节激活
+
     - 多枪射击系统：getGunCount() 返回枪数，getGunOffset(idx) 返回每把枪相对
       坐标，射击循环遍历所有枪口，addBulletSideScrollAt 支持任意枪位发射
+
     - Game 类重构：player 从具体子类改为 Player* 指针，根据章节动态切换
       TrainingPlane/NightElf；drawPlane()/drawPlaneFlat() 移入各子类 draw()
+
     - Ch2ShooterBase/enemy manager 参数泛化：Ch1Player& → Player&，任意飞机
       均可与第二章敌人系统交互
+
     - 无敌闪烁逻辑下沉：从 Game::drawPlaneFlat 移入各子类 draw()，每架飞机自
       行处理 invFrames 闪烁遮蔽
 
@@ -694,22 +763,30 @@ Ver 1.0.1 | 2026-05-08
     - 代码重构：MenuKeys 辅助结构消除 4 个屏幕处理器的按键读取样板代码；
       Player::resetState() 消除三架子机 reset() 重复；Ch2ShooterBase::
       computeHPColor() 消除两处 HP 颜色计算重复；消除全部 11 个编译器 warning
+
     - 敌人互斥系统：弹幕敌人 baseY 垂直分散(200-360)；入场目标间距检测(≥80px，
       最多5次重试)；per-enemy moveSpeed 错开振荡节奏
+
     - 玩家受击优化：同一帧只扣一滴血（命中后 break），触发无敌闪烁
 
     - 隐形墙碰撞优化：机头位置检测（Player::getNoseOffset()虚方法），NightElf
       机头不再越过隐形墙
+
     - Game Over 界面重构：删除 EXIT，新增 BACK TO MAIN MENU，PLAY AGAIN 改为
       重新进入当前章节
+
     - BUGFIX: 瞄准辅助遗漏弹幕敌人 — drawAimAssistSide() 新增 dmMgr 敌人本体
       和子弹检测
+
     - BUGFIX: 玩家受伤 HUD 心心不减少 — Ch2ShooterBase 的 playerHP/gameOver
       改为引用，两个 enemy manager 共享同一份状态
+
     - BUGFIX: 暂停倒计时粒子/数字错位 — spawnDigitShatter 从切换帧改到每数字
       第一帧触发
+
     - BUGFIX: 弹幕敌人入场后瞬移 — 用 per-enemy moveSpeed(0.005~0.009)替代
       随机 movePhase，入场结束从 0 开始平滑振荡
+
     - BUGFIX: 倒计时结束暂停菜单闪一帧 — drawPauseMenu 加 paused 条件
 
     - BUGFIX: 测试模式 Chapter 1 显示飞机2 — 分数选择确认时加 resetGame()调用
@@ -718,60 +795,76 @@ Ver 1.0.1 | 2026-05-08
     - 旁白系统（NarrationSystem）：章节开场/结尾剧情讲解，文本框暗绿配色
       （夜精灵色系），打字机逐字出现 + Mario easeOutBack 弹出特效，按 ENTER
       逐行推进，结束后自动进入游戏。PLAY/CHAPTER SELECT 触发，测试模式跳过
+
     - 队友对话子系统：游戏内画面左侧弹出，打字机出现 + 停留 3.3 秒 +
       easeOut 非线性上浮渐隐消失，自动提行（38字符/行），弹出时电报音效
       （sndTeletype: 2400→1800Hz 科幻终端提示音；sndVillainTalk 反派音效保留）
+
     - 对话绘制层级：置于粒子层之后、敌人/子弹层之前，可被敌人遮挡
 
     - 对话位置位于 Chapter 1 地平线（HORIZON_Y=200）
 
     - 字体库扩充：新增 24 个键盘可打符号（逗号、撇号、引号、问号、括号、
       比较符、数学符号等），消除旁白中标点乱码
+
     - 字体渲染升级：drawChar/drawString 支持浮点缩放（SDL_FRect+
       SDL_RenderFillRectF），新增 mul 参数支持整数倍像素渲染（1x/2x/3x等）
+
     - 星空全屏优化：菜单/旁白界面星空布满全屏（drawStarsFullscreen），
       游戏场景保持天空区域限定绘制
+
     - 第一章 30 分时触发队友对话测试（三句 + 一句长句验证自动提行）
 
   Ver 1.2.12 | 第一章剧情旁白 + 对话系统完善 + 代码质量
     - 第一章开幕旁白剧本：Martha 故事线（Stellar Calendar 24th / Life 基地
       遇袭 / 塔台通讯中断），9 个文本框，支持 \n 换行+自动折行(36字符/行)，
       文本框高度随行数动态增加
+
     - 中心旁白增加多行渲染：Line 结构改为 vlines 向量，按 \n 拆分后每行
       独立折行，draw() 根据 maxLineLen 和 numLines 计算动态框尺寸
+
     - 对话系统增加说话人标签（speaker 字段）：Ally / Tower，名字用浅黄绿色
       (180,200,160) 渲染于内容上方，同一说话人连续发言时名字保持不动仅内容切换，
       说完后名字+内容一起上浮消失
+
     - 对话触发改为分数跨阈值检测（lastScore < 阈值 && score >= 阈值），
       测试模式选高分不会触发之前所有对话；得分 15 新增塔台通讯恢复提示
+
     - 对话显示停留时间缩短至约 2 秒（200→120 帧）
 
     - 章节旁白打字机增加电报音效（popCTicks + sndTeletype）
 
     - 基地燃烧特效：每 4 帧随机位置橙黄火焰粒子，每 30 帧大型爆燃，
       每 6 帧白色烟雾上升，贴合剧情中基地遇袭残骸场景
+
     - 字体 g 字型优化：碗部扩至 4 行(0x0E/11/11/0E)，降部保持右缘单像素，
       底部 2 像素钩脚(0x06)
+
     - 代码质量优化：
       - Game 增加 ~Game() 析构函数释放 background/sideBg 堆内存
       - FloatingTextManager::clear() / Ch1AlienManager::pushAlien() 封装
       - Ch1Boss::triggerPhase2() 封装 Phase2 状态切换（替代 10 行 Ref 操作）
       - Ch1ParticleManager → ParticleManager / Ch1BulletManager → BulletManager
         重命名（Ch1/Ch2 共享去掉 Ch1 前缀）
+
     - BUGFIX: 测试模式任意分数选入皆为 30 分 — resetGame() 清零
       testScoreSelection，修复为先保存 savedSel 再取分
+
     - BUGFIX: 对话队列重复触发 — startDialogue() 增加 erase 已播放条目逻辑
 
   Ver 1.2.13 | 暂停页对话历史 + 对话系统完善 + 开场流程优化
     - 暂停页面重新设计：左半菜单左对齐，A/D 切换焦点；右半对话历史日志，
       默认显示最近 3 条（100%-50%-30% 透明度），焦点移动→边界滚动，
       每次打开自动刷新至最新，自动折行（30字符/行）
+
     - 对话系统完善：说话人更新为 Ally / Bryssa / Tower，
       新增 8 个分数触发点（0/3/15/20/30/40/50/61），13 条对话内容
+
     - 对话历史记录：每条对话上浮消失后写入 history，pauseHistoryFocused 切换
 
     - 开场流程优化：旁白结束后立即弹出 0 分对话，敌人等对话结束后才刷新
       （enemiesEnabled 门控）；ESC 跳过全部开幕旁白直接进入游戏
+
     - ENTER 不再跳过游戏内对话（仅旁白可用 ENTER 推进）
 
     - SPACE 键仅用于射击，所有确认/跳过操作改为纯 ENTER
@@ -782,6 +875,7 @@ Ver 1.0.1 | 2026-05-08
 
     - 字体优化：双引号收紧(0x0A)、小写 g 多轮调整定型
       (0x00/0E/11/0F/01/11/1F)
+
     - BUGFIX: 历史对话 DLine::historyRecorded 未初始化导致记录丢失
 
     - BUGFIX: 历史对话符号错误（idx 上下索引反号）
@@ -792,8 +886,10 @@ Ver 1.0.1 | 2026-05-08
     - OOP 重构：NarrationSystem 拆分为 3 个独立类
       （NarrationSystem 中心旁白 / DialogueSystem 游戏对话 / DialogueHistory 历史记录），
       DialogueSystem 组合 DialogueHistory，职责清晰
+
     - 对话触发标志优化：8 个 dTrigXX 布尔值替换为 triggeredScores[64] 数组，
       新增对话只需添加对应分数索引
+
     - 提取共享绘制函数 drawTextLine()，消除中心旁白/对话/历史三处重复绘制代码
 
     - 暂停页历史滚动逻辑封装至 DialogueHistory::moveUp()/moveDown()/resetView()
@@ -811,14 +907,18 @@ Ver 1.0.1 | 2026-05-08
       - Boss 半血进入二阶段时触发新对话：
         "Telamondo can absorb energy!" 三句
       - 开幕旁白 Flight code B295 → 21395
+
     - 第一章章节守卫：所有 Ch1 对话触发包裹在 chapterNumber==1 检查中，
       第二章 score 从 0 重新计数不会触发第一章对话；
       enemiesEnabled 在非第一章直接启用
+
     - 测试模式历史预填充：从任意分数进入测试，低于该分数的所有对话
       直接写入暂停页历史日志，方便回顾完整对话链；
       PH() 宏精简重复代码
+
     - Boss Phase2 对话触发统一：新增 bossPhase2DialogueTriggered 标志，
       非分数触发归入统一对话区块，所有对话代码集中管理
+
     - triggeredScores 数组扩容：64 → 256，支持 200+ 分数对话
 
     - 字体 g 字型重新设计：(0x00/0F/11/0F/01/19/0F) 顶部留空、碗部饱满、降部左勾
@@ -831,10 +931,13 @@ Ver 1.0.1 | 2026-05-08
       - 系统消息 (空 speaker): 纯正弦 ping（1000Hz），系统提示
       - 开幕旁白保持原 sndTeletype() 音效不受影响
       - DialogueSystem 新增 currentSpeaker() 方法，按角色名自动匹配音效
+
     - 对话历史即时写入：pop-in 动画结束后立即写入 history，
       不再等到整条对话上浮消失才记录
+
     - BUGFIX: Bryssa 对话匹配到 Tower 音效 — "Bryssa from Tower" 包含 "Tower"
       导致 Bryssa 优先匹配错误，调整 if-else 顺序修复
+
     - BUGFIX: Boss 二阶段震动/爆炸音效过大、不受音量控制 —
       sndShake 音量 0.22→0.12、时长 100→80ms、触发间隔放宽；
       sndExplosionBig 三层音量分别降低（0.19/0.14/0.10 → 0.12/0.09/0.07）
@@ -844,9 +947,11 @@ Ver 1.0.1 | 2026-05-08
       - MISSION COMPLETE 用旁白风格墨绿文本框展示
       - 两个菜单选项居中显示：NEXT CHAPTER / BACK TO MAIN MENU
       - 光标改为黄色下划线；NEXT CHAPTER 直接进入下一章开幕旁白
+
     - 第一章透视移动优化：
       - 移动速度随高度缩放（speedFactor = perspWidth(y)/perspWidth(400)）
       - 靠近地平线速度慢（~0.7x），靠近下端速度快（~1.3x），中间保持默认
+
     - 暂停页面优化：右半区域新增 "HISTORY DIALOGUE" 白色标题，与 PAUSED 同高
 
     - 开始页面和暂停页面取消 BGM；预留 setStartBgm() 接口
@@ -861,6 +966,7 @@ Ver 1.0.1 | 2026-05-08
 
     - BUGFIX: 第一章子弹横飞 — 透视移动中 x 重赋值与 getT() 不一致，
       简化为独立 x/y 移动+速度缩放，移除透视线保持逻辑
+
     - BUGFIX: 第二章背景玻璃在画面内刷新 — genAhead 预生成边距 300→600，
       星点 wrap 边距 200→400
 
@@ -868,6 +974,7 @@ Ver 1.0.1 | 2026-05-08
     - 新增 Ch2SphereBoss 球体Boss类：蓝色六角密铺菱形球体，7 状态机
       （入场→激活→战斗→碎裂→震动→突袭飞散→结束），固定种子乱序碎裂，
       菱形碎片物理（重力/落地/透视散落），碰撞检测（圆形判定）
+
     - 球体入场动画：右侧滚动入场，背景随距离减速至静止
 
     - 激活动画：菱形从下到上蓝→橙随机窗口逐个激活，~160 帧完成
@@ -876,10 +983,12 @@ Ver 1.0.1 | 2026-05-08
 
     - 碎裂→震动→突袭全流程：全菱形碎裂弹出后连锁震动传播(fade-in振幅→飞出)，
       碎片向随机方向飞散消失
+
     - 测试模式 Chapter 2 直接进入球体 Boss 入场流程（替代手动刷怪）
 
     - 新增 NightElfEnergy 白色能量条系统：50 次命中蓄满，0.5s 无命中衰减，
       蓄满触发 15 秒 triple-fire 三炮模式，最后 3 秒加速倒计时提示音
+
     - 新增 sndTripleOn(crisp metallic ping) / sndTripleCountdown(short beep)
 
     - 白色能量条 HUD 绘制在绿色能量条下方，triple 脉冲/充能/衰减三色态
@@ -898,6 +1007,7 @@ Ver 1.0.1 | 2026-05-08
 
     - BUGFIX: 历史焦点需按两次上键 — focusSlot 在 resetView/moveUp/moveDown
       中钳制至 maxSlot
+
     - BUGFIX: NEXT CHAPTER 回到开始画面 — resetGame()后设置 atStartScreen=false
 
     - BUGFIX: 部分菜单未静音 — BGM off 条件覆盖全部非游戏界面
@@ -907,22 +1017,27 @@ Ver 1.0.1 | 2026-05-08
       - Wave 1: 3只普敌，全部消灭+score≥3→Wave 2
       - Wave 2: 5只普敌，全部消灭+score≥8→Wave 3
       - Wave 3: 初始5只+4轮增援（每消灭3只补3只）+飞出即补→弹幕敌人
+
     - 全部波次统一逃逸检测（帧间delta公式）：敌人飞出画面立刻补充，
       aliveLast/aliveKills last快照+queued计入防重复检测
+
     - 统一spawn pump：queue-driven，不限phase，逃逸替补和增援均在0.2s间隔生成
 
     - 波次过渡使用分数门槛（真实击杀），飞出≠击杀不推进波次
 
     - 新增 Ch2Trainer 横版训练机（与Ch1 TrainingPlane同一飞机侧视角度，1:1尺寸），
       Ch2当前使用trainer单发基础射击，NightElf类和NightElfEnergy系统搁置保留
+
     - 第二章测试模式双入口：SPHERE BOSS FULL（完整Boss入场+动画+战斗）/
       COMBAT ONLY（跳过Boss直接进入自动出敌波次）
+
     - 删除 press 1/2 手动刷怪代码和key1Was/key2Was边沿检测变量
 
     - 新增 Ch2AlienManager::countLiving() 统计存活普敌数
 
     - BUGFIX: autoSpawnPhase=2/4逃逸替补入队后spawn pump未执行 —
       将spawn pump从phase-gated改为queue-driven（if autoSpawnQueued>0）
+
     - BUGFIX: Wave 3逃逸检测无限刷新 — expectedAlive公式累积重复计算，
       改为帧间delta（aliveLost-killsGained）
 
@@ -932,6 +1047,7 @@ Ver 1.0.1 | 2026-05-08
       - 能量满后HUD呼吸动画（亮绿↔暗绿），按一次Shift即释放全屏白色冲击波
       - 冲击波双层同心圆扩散（8px/帧），碰撞清屏弹幕+对敌人1伤害
       - 碰撞ID机制（Ch1Shockwave同款）：每波唯一ID，lastHitByPulse防重复伤害
+
     - 新增 Ch2SkillOrb 技能球获取流程：
       - 击败第一个弹幕敌人→动画结束后原地生成漂浮技能球
       - 技能球缓慢漂浮（边界反弹），包裹18边形白色保护罩（18次命中击碎）
@@ -939,6 +1055,7 @@ Ver 1.0.1 | 2026-05-08
       - 护罩碎后显现金黄色发光核心（多层羽化边缘），按住Shift靠近吸收
       - 吸收持续5秒，期间粒子从核心飞向玩家，松开Shift能量快速流失归零
       - 吸收完成解锁脉冲技能，同时刷10只普敌供玩家体验
+
     - 吸收期间绿色能量条同步增长（每10帧+1格，300帧刚好满30）
 
     - 测试模式新增第三入口 PULSE ORB TEST（分数25+弹幕敌人，直接测试技能球流程）
@@ -947,6 +1064,7 @@ Ver 1.0.1 | 2026-05-08
 
     - 清理死代码：charge蓄力机制残留（charging/chargeTimer/shakePhase）、
       key1Was/key2Was手动刷怪变量残留
+
     - BUGFIX: 能量满后按Shift无反应 — release()残留charge守卫条件导致脉冲从不释放
 
     - BUGFIX: 吸收时能量条不增长 — getFill()的unlocked门控在吸收期间锁0%
@@ -955,6 +1073,7 @@ Ver 1.0.1 | 2026-05-08
 
   Ver 1.2.21 | 代码架构重构：单文件→28个多文件模块化
     - 全量代码重构：从6633行单文件拆分为28个头文件+1个main.cpp的结构化项目
+
     - 文件结构映射：
       - types.h — 全部18个struct（Star/FloatingText/BossConfig/ChapterConfig/FontChar/ActiveSound/
         MenuItem/Ch1Particle/BulletBase/Ch1Bullet/EnemyData/Ch1Alien/Ch1Shockwave/Ch1HealWave/
@@ -975,6 +1094,7 @@ Ver 1.0.1 | 2026-05-08
       - ch1/ — Ch1ShockwaveManager / Ch1AlienManager / Ch1Boss / Ch1Background（4个文件）
       - ch2/ — Ch2Background / Ch2ShooterBase / Ch2DanmakuManager / Ch2AlienManager /
         Ch2SphereBoss / Ch2PulseSystem+Ch2PulseWave / Ch2SkillOrb / HUDBase（8个文件）
+
     - 全部实现内联在头文件中（#pragma once，单翻译单元编译）
 
     - 新编译命令：cd "v2.0.0/multiple code files" && make
@@ -982,6 +1102,7 @@ Ver 1.0.1 | 2026-05-08
     - 休眠资产[DORMANT]标注规范：NightElf（门禁序列激活后）/
       NightElfEnergy（NightElf联动）/Druid（Chapter 3）/
       setStartBgm() — 均为完整保留的未激活代码
+
     - 旧单文件存档为 v2.0.0/space_shooting ver1.2.20 single-file archive.cpp
 
     - 零行逻辑修改，纯剪切粘贴重构
@@ -994,15 +1115,18 @@ Ver 1.0.1 | 2026-05-08
       - 门指示灯亮起→窄扇形红色扫描光束锁定教练机→Moonwell AI 三段对话
       - 大门双面板缓缓分开，玩家驾驶飞机向右飞入门内（白色淡入转场）
       - ESC 一键跳过整段门禁演出（直接开门）；门禁阶段禁用射击
+
     - 新增 Ch2LabScene 中央研究室场景（新文件 ch2/ch2_lab.h，103行）：
       - 圆形研究室（圆墙+径向肋条+旋转雷达光扫+顶光锥），廊桥背景停止滚动
       - 暗夜精灵号停放在基座上（底座呼吸光环+光柱），"CENTRAL LAB"白色大字
+
     - 新增 Ch2WardenBoss 章节Boss（新文件 ch2/ch2_boss.h，350行）：
       - 名称 "MOONWELL WARDEN"，350 HP，175 HP 半血狂暴（ENRAGED）
       - 造型：大菱形核心+8枚环绕碎片+4片旋转刀刃，镂空线稿风格
       - 三种弹幕模式循环：放射弹幕/瞄准三连发/螺旋弹幕，狂暴后加速加密
       - 周期性召唤2只普敌增援；水晶子弹可被玩家子弹击碎；Boss战自动切Boss BGM
       - 击败流程：DYING 链式爆炸→清场→结局旁白→MISSION COMPLETE
+
     - 第二章流程状态机（Ch2Flow 七段）：
       门禁GATE→廊桥CORRIDOR→球体SPHERE→追逐CHASE→研究室LAB→Boss BOSS→结局ENDED
       - 廊桥飞行对话结束后，球体Boss在任意滚动距离前方1200单位处生成
@@ -1013,21 +1137,31 @@ Ver 1.0.1 | 2026-05-08
         （triple-fire），最后3秒倒计时提示音，"TRIPLE FIRE!"浮动文字
       - 升级后 Warden 拦截去路→击败→清场→结局旁白（4页）→MISSION COMPLETE
       - NEXT CHAPTER 解锁第三章并直接进入其开幕旁白
+
     - 第二章剧情对话全部接入（12组触发点，含新说话人 Martha / Moonwell (ai)）：
       门前 Bryssa/Martha/Ally 对话→Moonwell AI 扫描对话→廊桥对话→球体遭遇/
       激活→追逐提示→技能球提示→脉冲解锁提示→研究室发现→升级讲解→Boss警报→狂暴警告
+
     - 新增角色语音音效：sndMarthaTalk / sndMoonwellTalk
+
     - 测试模式第二章扩展为6入口：SPHERE BOSS FULL / COMBAT ONLY / PULSE ORB TEST /
       GATE SEQUENCE / NIGHTELF LAB / WARDEN BOSS
+
     - HUD 扩展：白色能量条三色态（充能白/衰减灰/三发脉冲青）+ 通用Boss血条
       （球体Boss血条"???"显示于球体上方，按剧本补全）
+
     - 瞄准辅助吸附章节Boss；脉冲释放移至公共区（Boss战/研究室同样可用）；
       Boss/球体命中计能量（白色能量条与绿色能量条联动）
+
     - 无头集成测试验证全流程（门禁→结局 全阶段自动机 + Ch1 回归冒烟，
       GATE/SPHERE/CHASE/LAB/BOSS/ENDED 各阶段状态断言全部通过）
+
     - BUGFIX: 门禁阶段飞机被活动范围钳制无法进门 — 开门后放宽活动范围至门内
+
     - BUGFIX: Boss死亡后流程卡死 — 结局旁白触发时同步切换 C2_ENDED
+
     - BUGFIX: 研究室升级后飞机被吸回基座 — 停泊位置赋值限定在触碰前
+
     - BUGFIX: 场景转场白屏卡死 — 淡出计时器移入公共区统一推进
 
   Ver 1.2.22 (补充) | 第一/二章旁白对话双语语音配音 (VOICE OVER,版本号不变)
@@ -1037,17 +1171,21 @@ Ver 1.0.1 | 2026-05-08
       - 与 SFX 通道独立混音(固定增益 0.9),语音不受 BGM 静音影响;
         播放/停止均在 SDL_LockAudioDevice 保护下操作(回调线程安全)
       - 新增 voiceCrc32()(标准 CRC-32/IEEE,与 Python zlib.crc32 逐字节一致)
+
     - 语音挂钩:旁白页切换/对话行切换时自动播放配音
       - 文本 → 文件映射走 voice/voice_manifest.txt(<lang> <crc32> <相对路径>,
         启动时加载),文本改动自动映射新文件,缺失文件静默跳过
       - 旁白打字机字母弹出音效(sndTeletype)始终保留,与配音同时播放
       - 对话行有真实语音时自动屏蔽合成"电报音"音效(无声文件则保留原音效)
       - ESC 跳过旁白 / 暂停 / 旁白结束 时自动停止语音
+
     - 设置新增 VOICE LANG 开关(OPTIONS 菜单第 2 项),三态循环:
       0=中文(ZH,默认)/ 1=English(EN)/ 2=OFF(关闭配音,仅保留字母弹出音效)
+
     - 音频文件按章节+角色分文件夹命名:
       voice/<zh|en>/ch<N>/nar_XX.wav(旁白页)+ dlg_<角色>_XX.wav(对话句),
       角色缩写 narrator/martha/bryssa/ally/tower/moonwell/system
+
     - 语音资源管线 tools/voice_pipeline.py:
       - collect:从 game.h 自动提取全部旁白页+对话行并按章节归属(第一章对话
         位于 updateGameplay,第二章位于 updateCh2Gate~updateBossDefeat 区间),
@@ -1055,13 +1193,16 @@ Ver 1.0.1 | 2026-05-08
       - generate:按"角色→音色"映射合成双语 WAV(edge-tts 在线 / piper 离线 /
         gpt-sovits API 三种后端),--chapters 按章节过滤,6 线程并行+失败重试,
         纯标点句("……")自动跳过(无声停顿),结尾自动生成 voice_manifest.txt
+
     - 已生成第一+二章全部语音(182 个文件,34MB,22050Hz 16bit mono):
       第一章 11 页旁白+34 句对话;第二章 15 页开幕旁白+4 页结局旁白+32 句剧情对话;
       角色音色映射:旁白 zh-Yunyang/en-Christopher;Martha zh-Xiaoxiao/en-Jenny;
       Ally zh-Yunxi/en-Guy;Tower zh-Yunjian/en-Brian;Bryssa zh-Xiaoyi/en-Sonia;
       Moonwell zh-Yunjian(慢速)/en-Andrew;系统 zh-Yunxi/en-Aria
+
     - 无头测试验证:manifest 加载/zh·en·OFF 三态/第一章第二章语音命中/
       标点静默/选项三态循环,全部通过
+
     - BUGFIX: 语音通道推入无锁保护 — 与音频回调存在数据竞争,补
       SDL_LockAudioDevice 包裹
 
@@ -1216,3 +1357,93 @@ Ver 1.0.1 | 2026-05-08
     - BUGFIX: 瞄准辅助在 draw 中推进吸附动画，反复重绘改变暂停/读档画面 — 仅在玩法更新时推进吸附状态
 
     - BUGFIX: 技能球呼吸颜色超过 255 后转换 Uint8 溢出，局部突然变暗 — 输出前钳制颜色范围
+
+  Ver 1.2.24 (补充) | 修复发布后开发目录 shooter 无法启动（2026-11-07）
+    - BUGFIX: 发布脚本将开发目录 shooter 覆盖为依赖 .app 内 Frameworks 的发布产物，直接运行时报动态库缺失 — 发布编译改用临时目录独立产物，并重新编译开发版 shooter
+
+  Ver 1.2.24 (补充) | 纯代码动态 BGM 与音效混音系统优化（2026-11-07）
+    - BGM 保持实时代码合成，不新增外部音频素材；第一章、第二章与 Boss 使用独立乐谱状态，曲目切换和暂停采用 200ms 淡出/淡入，避免硬切爆音
+
+    - 第二章探索/球体/追逐按流程叠加星光高声部与低频推进，第一章按分数提升编曲密度；Boss 战加入和声、低频鼓点与代码噪声镲片，吸收阶段继续保持 Boss 音乐
+
+    - 混音增加对白自动压低 BGM、48 声部上限与关键响声替换策略、tanh 柔性母带限幅；敌方射击改用更低沉且较轻的独立音色，避免压住玩家武器反馈
+
+    - 音频回调共享开关、音量和 EQ 改为原子状态，噪声发生器从全局 rand() 改为回调内确定性 xorshift，消除主线程/音频线程数据竞争
+
+    - 新增 --selftest 音频巡检：离线渲染三套乐谱并检查 RMS/峰值/非有限数，追加 48 声部压力混音；当前压力峰值 0.9462，完整存档/UI/第二章 18 项回归全部通过
+
+    - BUGFIX: 第二章乐谱切换到 16 音 Boss 乐谱时沿用最多 126 的音符下标，可能越界读取 — 切歌在静音点重置全部演奏状态
+
+  Ver 1.2.24 (补充) | 第二章门禁：真空大门造型与扫描/开门演出重构（2026-11-07）
+    - 真空大门造型重做：门体由线框改为分层硬表面，增加横向装甲带、倒角八边形门洞、
+      门柱肩部、对接夹具、状态灯柱、七段数码门禁编号与警示斜纹，断电/通电/扫描/开启各有独立配色
+
+    - 开门动画：36 帧解锁（夹具回缩、门板震颤、门缝爆白光与火花）+ 112 帧缓动对开，
+      露出带远端出口的纵深通道；门缘热光转冷光，门柱灯由红转青
+
+    - 扫描启动动画：设施重启时灯柱自下而上重新点亮并电压闪烁，扫描镜头电火花、
+      红束断续充能后再下扫锁定；锁定框、环形进度、栅格扫描与红色边缘压迫同步出现
+
+    - 扫描时间轴：28 帧通电 → 26 帧展束 → 62 帧下扫 → 90 帧锁定（第 196 帧验证转绿）
+      → 62 帧回收，共 268 帧；验证通过后门体灯柱与门缝转绿，随后才开门
+
+    - 音效复用现有合成音：充能提示、锁定 ping、验证 ping、解锁低频闷响，不新增音频素材
+
+    - 兼容性：动画全部由既有存档字段（stage/timer/doorOpen/beamTimer/pulseCount）推导，
+      未改 visit()，SAVE_FORMAT_VERSION 不变，旧存档与 34 个节点存档可继续读取
+
+    - 回归：-Wall -Wextra 零警告；--selftest 全绿（含自然门禁对话/脉冲/扫描/开门序列）；
+      /tmp/sfss_ch2_qa/ 新增 01b~01e 四张门禁阶段截图
+
+    - 开发日志整理：各版本条目统一补空行；1.0.4-refactored 的 22 条 BUGFIX 移到块尾；
+      音频补充块的 --selftest 条目移到 BUGFIX 之前
+
+    - BUGFIX: 白色脉冲环未开启绘制混合模式，圆环的 alpha 渐隐不生效、消失时硬切 — drawRings 显式启用并在结束时还原 BLEND
+
+  Ver 1.2.24 (补充) | 第二章场景转场 + 廊桥/研究室美术重做（2026-11-07）
+    - 新增第二章场景转场系统：淡出 → 最暗帧换场 → 淡入 + 飞机从画面左侧缓动飞入；
+      门禁/廊桥用白场，追逐/研究室用黑场；转场期间冻结输入，96 帧后交还控制
+
+    - 门禁→廊桥与追逐→研究室都改走统一转场：换场统一在 ch2FadeTimer 第 24 帧执行，
+      廊桥入场 x=170、研究室入场 x=300；自动存档点仍在 enterCh2Flow 切换时标记
+
+    - 廊桥美术重做：窗外加行星弧面、远处 Moonwell 环站与第二层远景桁架；顶部吊灯与光锥、
+      玻璃框料/反光/灰尘、地面纵深网格与灯池、立柱倒影/信标/全息标牌、近景栏杆与悬浮尘埃
+
+    - 研究室改为完整场景（不再叠在廊桥背景上）：环形观景窗+星空/行星、逐段通电的墙灯、
+      下半圆地板同心环、左侧气闸入口、右侧出口闸门、中央基座与旋转全息环、光柱/尘埃
+
+    - 进入研究室时按 timer 做通电启动：墙灯逐段亮起、全息环展开，正好覆盖转场飞入；
+      研究室在 C2_LAB / C2_BOSS / C2_ENDED 持续绘制并继续播放动画，Warden 战留在圆厅内
+
+    - 兼容性：转场复用已入档的 ch2FadeTimer，没有新增存档字段，SAVE_FORMAT_VERSION 不变；
+      旧存档与 34 个节点存档仍可读取
+
+    - 回归：-Wall -Wextra 零警告；--selftest 全绿（含门禁→廊桥、追逐→研究室的自然流程）；
+      /tmp/sfss_ch2_qa/ 新增 01f 淡出、01g 廊桥飞入、04b 研究室飞入截图
+
+    - BUGFIX: 转场遮罩只设了 alpha 但未启用绘制混合模式，白场实际是全屏硬闪 — 遮罩显式启用并还原 BLEND，渐变生效
+
+    - BUGFIX: Warden 战开始时研究室圆厅被廊桥背景替换，场景硬切回廊桥 — C2_BOSS / C2_ENDED 也绘制研究室
+
+  Ver 1.2.25 | 第二章门禁/场景转场/背景美术 + 音频混音发布（2026-11-07）
+    - 发布汇总：真空大门与扫描/开门演出、门禁→廊桥/追逐→研究室的淡出淡入+左侧飞入、
+      廊桥与研究室美术重做，以及纯代码 BGM/音效混音优化（细项见上方 1.2.24 补充条目）
+
+    - 门禁段：重启灯柱、红束断续充能/下扫锁定、验证转绿、夹具解锁、门板缓动与纵深通道；
+      ESC 暂停、TAB 跳过演出保持可用
+
+    - 场景转场：白场/黑场 + 飞机从画面左侧缓动飞入；研究室圆厅在 Warden 战与结局中延续；
+      转场复用 ch2FadeTimer，未新增存档字段
+
+    - 廊桥/研究室：窗外行星与远景桁架、吊灯/地面光池/前景栏杆；环形观景窗、气闸入口、
+      出口闸门、基座全息与进入时逐段通电
+
+    - 音频：三套乐谱 200ms 淡变、第二章流程强度分层、对白 ducking、48 声部上限与柔性母带限幅；
+      --selftest 含音频压力巡检
+
+    - 兼容性：SAVE_FORMAT_VERSION 仍为 1，SAVE_GAME_VERSION 升为 10225；旧存档与节点存档可读取
+
+    - 回归：-Wall -Wextra 零警告；--selftest 全绿；配套 Asset Studio v0.1.3 源码不变
+
+    - BUGFIX: 合入脉冲环/转场遮罩 BLEND、球体碎裂卡关、Warden 战研究室背景回退等修复

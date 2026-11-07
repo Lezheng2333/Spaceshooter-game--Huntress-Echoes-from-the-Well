@@ -364,10 +364,20 @@ public:
         {
             bool wardenFight = chapterMgr.getConfig().isSideScrolling &&
                 (wardenBoss.getState() == Ch2WardenBoss::FIGHT || wardenBoss.getState() == Ch2WardenBoss::ENRAGED);
-            audio.setBossMusic((phase == PHASE_BOSS_FIGHT && boss.isActive()) || wardenFight);
+            bool ch1BossFight = boss.isActive() &&
+                (phase == PHASE_BOSS_FIGHT || phase == PHASE_BOSS_PHASE2);
+            audio.setBossMusic(ch1BossFight || wardenFight);
             audio.setBgmOff(atStartScreen || atChapterSelect || atTestSelect || atOptionScreen || atSoundMenu || atSaveLoadScreen || paused || gameOver || missionComplete);
             audio.setCh2Bgm(chapterMgr.getConfig().isSideScrolling &&
                 !atStartScreen && !atChapterSelect && !atTestSelect && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver);
+            int musicIntensity = 0;
+            if (chapterMgr.getConfig().isSideScrolling) {
+                if (ch2Flow == C2_CORRIDOR || ch2Flow == C2_SPHERE) musicIntensity = 1;
+                if (ch2Flow == C2_CHASE || wardenFight) musicIntensity = 2;
+            } else if (phase == PHASE_PLAY && score >= 30) {
+                musicIntensity = score >= 120 ? 2 : 1;
+            }
+            audio.setMusicIntensity(musicIntensity);
             // ======== Esc key global ========
             if (escPressed && inNarration) {
                 // ESC skips entire opening narration
@@ -633,6 +643,7 @@ public:
         printf("[selftest] save dir: %s\n", SaveSystem::baseDir().c_str());
         std::vector<Uint8> keys(SDL_NUM_SCANCODES, 0);
         int failures = 0;
+        if (!audio.runSynthesisSelfTest()) failures++;
 
         // ---- 场景 1：第二章追逐战（普敌 + 弹幕 + 技能球 + 粒子 + 脉冲波）----
         chapterMgr.selectChapter(1);
@@ -780,12 +791,33 @@ public:
         check(!nightElf.isTripleFire() && nightElf.getInvFrames() == 0, "restart clears NightElf state");
 
         // 完整顺序流程：门禁演出不跳过；模拟命中经过游戏现有碰撞逻辑。
+        // 沿途存下四张门禁阶段截图，便于人工核对开门/扫描动画（/tmp/sfss_ch2_qa/）。
         nodeResetCh2();
+        bool gatePulse = nodeRunUntil(k, 8000, [this]{ return gateScene.getStage() == Ch2GateScene::PULSING
+                                                            && !gateScene.groups.empty(); });
+        snap("01b_gate_pulse");
+        bool gateScan = nodeRunUntil(k, 4000, [this]{ return gateScene.getStage() == Ch2GateScene::SCANNING
+                                                            && gateScene.beamTimer >= 150; });
+        snap("01c_gate_scan");
+        bool gateOpening = nodeRunUntil(k, 4000, [this]{ return gateScene.getStage() == Ch2GateScene::OPENING
+                                                            && gateScene.doorOpen >= 0.35; });
+        snap("01d_gate_open");
         bool gateReady = nodeRunUntil(k, 20000, [this]{ return gateScene.isFullyOpen() && !dialogueSys.isActive(); });
+        snap("01e_gate_full");
+        check(gatePulse, "gate pulse sequence reached");
+        check(gateScan, "gate scan beam locked");
+        check(gateOpening, "gate panels opening");
         check(gateReady, "natural gate dialogue/pulse/scan/open sequence");
         player->setX(660);
+        // 淡出中段：验证白场是渐变而不是硬闪
+        nodeRunUntil(k, 100, [this]{ return ch2FadeTimer >= 12; });
+        snap("01f_gate_fade");
         bool corridor = nodeRunUntil(k, 100, [this]{ return ch2Flow == C2_CORRIDOR; });
         check(corridor && pendingAutoSave, "gate to corridor with autosave marker");
+        // 转场中段：飞机从左侧飞入廊桥
+        nodeRunUntil(k, 200, [this]{ return ch2FadeTimer >= 55; });
+        snap("01g_gate_flyin");
+        nodeRunUntil(k, 200, [this]{ return ch2FadeTimer == 0; });
         bool sphere = nodeRunUntil(k, 12000, [this]{ return ch2Flow == C2_SPHERE && sphereBoss.getState() == Ch2SphereBoss::FIGHT; });
         check(sphere, "corridor to sphere fight");
         snap("02_sphere");
@@ -817,6 +849,11 @@ public:
         lab = ch2Flow == C2_LAB;
         check(lab && pulseSystem.unlocked && score >= 30, "waves/orb/absorption/reinforcements to lab");
         if (lab) {
+            // 转场中段：飞机从左侧飞入研究室（灯柱正在逐段通电）
+            nodeRunUntil(k, 300, [this]{ return ch2FadeTimer >= 55; });
+            snap("04b_lab_flyin");
+            // 等淡入 + 左侧飞入结束，截到真正的研究室画面
+            nodeRunUntil(k, 300, [this]{ return ch2FadeTimer == 0; });
             nodeStep(k.data());
             snap("04_lab");
             player->setX(Ch2LabScene::PARK_X); player->setY(Ch2LabScene::PARK_Y);
@@ -1780,7 +1817,7 @@ private:
         }
         font.drawString(r, "W/S:select  ENTER:confirm", CENTER_X - 150, 500, 2);
         SDL_SetRenderDrawColor(r, 120, 120, 120, 255);
-        font.drawString(r, "Ver 1.2.24", 15, WIN_HEIGHT - 30, 2);
+        font.drawString(r, "Ver 1.2.25", 15, WIN_HEIGHT - 30, 2);
         // 存档目录提示（读档列表为空时方便排查）
         font.drawString(r, SaveSystem::baseDir().c_str(), 15, WIN_HEIGHT - 16, 1);
     }
@@ -2501,37 +2538,41 @@ private:
         bool isSide = chapterMgr.getConfig().isSideScrolling;
         if (isSide) {
             // ======== Chapter 2 side-scrolling update ========
-            bool moveLeft  = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
-            bool moveRight = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
-            bool moveUp    = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
-            bool moveDown  = keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN];
-            bool shoot     = keys[SDL_SCANCODE_SPACE];
-            int px = player->getX(), py = player->getY();
-            if (moveLeft)  px -= 6;
-            if (moveRight) px += 6;
-            if (moveUp)    py -= 6;
-            if (moveDown)  py += 6;
-            if (px < 10) px = 10;
-            if (py < 10) py = 10;
-            if (py > WIN_HEIGHT - 16) py = WIN_HEIGHT - 16;
-            if (py < 16) py = 16;
-            if (px > WIN_WIDTH - player->getNoseOffset() - 4)
-                px = WIN_WIDTH - player->getNoseOffset() - 4;
-            // Gate scene: the closed door blocks the plane; once it opens,
-            // the plane may fly right into the doorway
-            if (ch2Flow == C2_GATE) {
-                double maxGateX = (gateScene.isOpen() || gateScene.doorOpen > 0.5) ? 700.0 : 560.0;
-                if (px > maxGateX) px = maxGateX;
+            // 转场期间冻结玩家输入与位置：飞机位置由 updateCh2Transition() 接管
+            if (ch2FadeTimer <= 0) {
+                bool moveLeft  = keys[SDL_SCANCODE_A] || keys[SDL_SCANCODE_LEFT];
+                bool moveRight = keys[SDL_SCANCODE_D] || keys[SDL_SCANCODE_RIGHT];
+                bool moveUp    = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
+                bool moveDown  = keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN];
+                int px = player->getX(), py = player->getY();
+                if (moveLeft)  px -= 6;
+                if (moveRight) px += 6;
+                if (moveUp)    py -= 6;
+                if (moveDown)  py += 6;
+                if (px < 10) px = 10;
+                if (py < 10) py = 10;
+                if (py > WIN_HEIGHT - 16) py = WIN_HEIGHT - 16;
+                if (py < 16) py = 16;
+                if (px > WIN_WIDTH - player->getNoseOffset() - 4)
+                    px = WIN_WIDTH - player->getNoseOffset() - 4;
+                // Gate scene: the closed door blocks the plane; once it opens,
+                // the plane may fly right into the doorway
+                if (ch2Flow == C2_GATE) {
+                    double maxGateX = (gateScene.isOpen() || gateScene.doorOpen > 0.5) ? 700.0 : 560.0;
+                    if (px > maxGateX) px = maxGateX;
+                }
+
+                int noseX = px + player->getNoseOffset();
+                // Energy wall only during combat (after auto-spawn begins)
+                if (autoSpawnPhase > 0 && noseX > 642) {
+                    px = 642 - player->getNoseOffset();
+                    wallFlashTimer = 28; wallContactY = py; wallAnimFrame++;
+                } else if (wallFlashTimer > 0) { wallFlashTimer--; wallAnimFrame++; }
+
+                player->setX(px); player->setY(py);
             }
 
-            int noseX = px + player->getNoseOffset();
-            // Energy wall only during combat (after auto-spawn begins)
-            if (autoSpawnPhase > 0 && noseX > 642) {
-                px = 642 - player->getNoseOffset();
-                wallFlashTimer = 28; wallContactY = py; wallAnimFrame++;
-            } else if (wallFlashTimer > 0) { wallFlashTimer--; wallAnimFrame++; }
-
-            player->setX(px); player->setY(py);
+            bool shoot = (ch2FadeTimer <= 0) && keys[SDL_SCANCODE_SPACE];
 
             // Shooting (disabled during the gate scene)
             if (dmFireCooldown > 0) dmFireCooldown--;
@@ -2557,6 +2598,13 @@ private:
                 case C2_BOSS:     updateCh2Boss(); break;
                 case C2_ENDED:    updateCh2Ended(keys); break;
             }
+
+            // ==== Scene transition: fade out → switch → fade in + left fly-in ====
+            if (ch2FadeTimer > 0) updateCh2Transition();
+
+            // 研究室的灯/全息动画在 C2_LAB / C2_BOSS / C2_ENDED 持续播放
+            if (ch2Flow == C2_LAB || ch2Flow == C2_BOSS || ch2Flow == C2_ENDED)
+                labScene.update();
 
             // ==== Enemies + invincibility (combat flows only) ====
             if (ch2Flow == C2_CHASE || ch2Flow == C2_BOSS) {
@@ -2607,12 +2655,6 @@ private:
 
             // ==== Dialogue (shared update + character sounds) ====
             updateDialogueCommon();
-
-            // ==== Scene-transition fade (gate → corridor) ====
-            if (ch2FadeTimer > 0) {
-                ch2FadeTimer++;
-                if (ch2FadeTimer >= 30) ch2FadeTimer = 0;
-            }
 
             floatingTextMgr.update();
             particleMgr.update();
@@ -3035,6 +3077,112 @@ private:
         if (f != C2_ENDED) pendingAutoSave = true;
     }
 
+    // ======== CH2 场景切换：淡出 → 换场 → 淡入 + 飞机从左侧飞入 ========
+    // 复用已入档的 ch2FadeTimer，不新增存档字段：
+    //   1..22 淡出；24 换场；25..46 淡入；30..96 飞机从左侧飞入
+    // 淡出色：门禁/廊桥用白（门外是强光），追逐/研究室用黑（进入室内）。
+    enum {
+        CH2_FADE_OUT_END = 22,
+        CH2_SWITCH_AT    = 24,
+        CH2_FADE_IN_END  = 46,
+        CH2_FLY_START    = 30,
+        CH2_FLY_END      = 96
+    };
+
+    bool ch2TransitionActive() const { return ch2FadeTimer > 0; }
+    bool ch2FadeIsWhite() const { return ch2Flow == C2_GATE || ch2Flow == C2_CORRIDOR; }
+
+    int ch2TransitionAlpha() const {
+        int t = ch2FadeTimer;
+        if (t <= 0) return 0;
+        if (t <= CH2_FADE_OUT_END) return 255 * t / CH2_FADE_OUT_END;
+        if (t <= CH2_SWITCH_AT) return 255;
+        if (t <= CH2_FADE_IN_END)
+            return 255 * (CH2_FADE_IN_END - t) / (CH2_FADE_IN_END - CH2_SWITCH_AT);
+        return 0;
+    }
+
+    int ch2EntryX() const {
+        // 廊桥从左侧飞入到偏左位置；研究室停在暗夜精灵战机前方
+        if (ch2Flow == C2_LAB || ch2Flow == C2_BOSS || ch2Flow == C2_ENDED) return 300;
+        return 170;
+    }
+
+    void beginCh2Transition() {
+        if (ch2FadeTimer <= 0) ch2FadeTimer = 1;
+    }
+
+    // 在最暗的一帧完成换场：重置新场景、把飞机放到左侧画面外
+    void ch2ApplySceneSwitch() {
+        if (ch2Flow == C2_GATE) {
+            sideBg->reset();
+            player->setX(-40); player->setY(WIN_HEIGHT / 2);
+            enterCh2Flow(C2_CORRIDOR);
+            ch2PhaseTimer = 0;
+            if (!dCorridorQueued) {
+                dCorridorQueued = true;
+                dialogueSys.queueDialogue("Martha", "We're in. The whole facility is silent.");
+                dialogueSys.queueDialogue("Bryssa", "It feels like no one has been here for years.");
+                dialogueSys.queueDialogue("Ally (ai copilot)", "Main power is online. No life signs detected.");
+                dialogueSys.queueDialogue("Martha", "Stay sharp. We came here for the comms equipment.");
+                dialogueSys.start();
+            }
+        } else if (ch2Flow == C2_CHASE) {
+            ch2AlienMgr.clearBullets();
+            dmMgr.clearBullets();
+            player->setX(-40); player->setY(WIN_HEIGHT / 2);
+            enterCh2Flow(C2_LAB);
+            ch2PhaseTimer = 0;
+            ch2LabInitDone = false;
+            floatingTextMgr.spawn((float)CENTER_X + 1, 160.0f, "CENTRAL LAB", 0, 0, 0);
+            floatingTextMgr.spawn((float)CENTER_X, 159.0f, "CENTRAL LAB", 255, 255, 255);
+        }
+    }
+
+    // 每帧推进转场：换场在最暗帧执行，之后飞机从左侧缓动飞入
+    void updateCh2Transition() {
+        ch2FadeTimer++;
+        if (ch2FadeTimer == CH2_SWITCH_AT) ch2ApplySceneSwitch();
+
+        // 门禁段：淡出时让飞机继续驶进门内（输入已冻结，由转场接管）
+        if (ch2Flow == C2_GATE && ch2FadeTimer < CH2_SWITCH_AT && player) {
+            int nx = player->getX() + 6;
+            if (nx > 770) nx = 770;
+            player->setX(nx);
+            player->setY(WIN_HEIGHT / 2);
+        }
+
+        // 换场后：从画面左侧外缓动飞入，末段减速
+        if (ch2FadeTimer >= CH2_FLY_START && ch2FadeTimer <= CH2_FLY_END) {
+            double t = (ch2FadeTimer - CH2_FLY_START) /
+                       double(CH2_FLY_END - CH2_FLY_START);
+            double e = 1.0 - std::pow(1.0 - t, 3.0);
+            double x0 = -40.0, x1 = (double)ch2EntryX();
+            player->setX((int)(x0 + (x1 - x0) * e));
+            player->setY(WIN_HEIGHT / 2);
+        }
+        if (ch2FadeTimer >= CH2_FLY_END) {
+            ch2FadeTimer = 0;
+            player->setX(ch2EntryX());
+            player->setY(WIN_HEIGHT / 2);
+        }
+    }
+
+    // 转场遮罩：白色/黑色淡入淡出（显式开 BLEND，alpha 才生效）
+    void drawCh2TransitionOverlay() {
+        int fa = ch2TransitionAlpha();
+        if (fa <= 0) return;
+        SDL_Renderer* r = renderer.get();
+        SDL_BlendMode prev;
+        SDL_GetRenderDrawBlendMode(r, &prev);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        if (ch2FadeIsWhite()) SDL_SetRenderDrawColor(r, 255, 255, 255, (Uint8)fa);
+        else SDL_SetRenderDrawColor(r, 0, 0, 0, (Uint8)fa);
+        SDL_Rect fr = {0, 0, WIN_WIDTH, WIN_HEIGHT};
+        SDL_RenderFillRect(r, &fr);
+        SDL_SetRenderDrawBlendMode(r, prev);
+    }
+
     void updateCh2Gate() {
         if (!ch2GateInitDone) {
             ch2GateInitDone = true;
@@ -3075,24 +3223,9 @@ private:
             dialogueSys.start();
         }
 
-        // Door fully open → fly right through the doorway
+        // Door fully open → fly right through the doorway → start scene transition
         if (gateScene.isOpen() && player->getX() > 640 && ch2FadeTimer <= 0) {
-            ch2FadeTimer = 1;   // start white fade (incremented in the common section)
-        }
-        if (ch2FadeTimer == 15) {
-            // Mid-fade: switch to the corridor scene
-            sideBg->reset();
-            player->setX(100); player->setY(WIN_HEIGHT / 2);
-            enterCh2Flow(C2_CORRIDOR);
-            ch2PhaseTimer = 0;
-            if (!dCorridorQueued) {
-                dCorridorQueued = true;
-                dialogueSys.queueDialogue("Martha", "We're in. The whole facility is silent.");
-                dialogueSys.queueDialogue("Bryssa", "It feels like no one has been here for years.");
-                dialogueSys.queueDialogue("Ally (ai copilot)", "Main power is online. No life signs detected.");
-                dialogueSys.queueDialogue("Martha", "Stay sharp. We came here for the comms equipment.");
-                dialogueSys.start();
-            }
+            beginCh2Transition();
         }
     }
 
@@ -3314,13 +3447,9 @@ private:
             && autoSpawnQueued == 0 && ch2AlienMgr.countLiving() == 0 && danmakuGone
             && !dialogueSys.isActive()) {
             ch2PhaseTimer++;
-            if (ch2PhaseTimer >= 120) {
-                enterCh2Flow(C2_LAB);
+            if (ch2PhaseTimer >= 120 && ch2FadeTimer <= 0) {
                 ch2PhaseTimer = 0;
-                ch2LabInitDone = false;
-                ch2AlienMgr.clearBullets(); dmMgr.clearBullets();
-                floatingTextMgr.spawn((float)CENTER_X + 1, 160.0f, "CENTRAL LAB", 0, 0, 0);
-                floatingTextMgr.spawn((float)CENTER_X, 159.0f, "CENTRAL LAB", 255, 255, 255);
+                beginCh2Transition();
             }
         } else {
             ch2PhaseTimer = 0;
@@ -3349,7 +3478,6 @@ private:
             nightElf.setX(Ch2LabScene::PARK_X);
             nightElf.setY(Ch2LabScene::PARK_Y);
         }
-        labScene.update();
 
         if (labUpgradeState == 0) {
             // Player flies to touch the prototype
@@ -3670,9 +3798,11 @@ private:
                     // Gate scene: full-screen starfield + vacuum door
                     if (background) background->drawStarsFullscreen(renderer.get());
                     gateScene.drawDoor(renderer.get());
+                } else if (ch2Flow == C2_LAB || ch2Flow == C2_BOSS || ch2Flow == C2_ENDED) {
+                    // 研究室的圆厅一直保留到 Warden 战与击破演出
+                    labScene.draw(renderer.get());
                 } else {
                     sideBg->draw(renderer.get());
-                    if (ch2Flow == C2_LAB) labScene.draw(renderer.get());
                 }
             } else if (background) {
                 background->drawBackground(renderer.get());
@@ -3737,14 +3867,8 @@ private:
                 if (ch2Flow == C2_BOSS) wardenBoss.drawHPBar(renderer.get(), font);
                 if (aimAssistOn) drawAimAssistSide();
                 dialogueSys.draw(renderer.get(), font);
-                // White scene-transition fade (gate → corridor)
-                if (ch2FadeTimer > 0 && ch2FadeTimer < 30) {
-                    double ft = ch2FadeTimer / 30.0;
-                    int fa = (int)(255.0 * std::sin(M_PI * ft));
-                    SDL_SetRenderDrawColor(renderer.get(), 255, 255, 255, (Uint8)fa);
-                    SDL_Rect fr = {0, 0, WIN_WIDTH, WIN_HEIGHT};
-                    SDL_RenderFillRect(renderer.get(), &fr);
-                }
+                // Scene-transition fade (white for gate/corridor, black for lab)
+                drawCh2TransitionOverlay();
             } else player->draw(renderer.get());
 
             // Floating texts

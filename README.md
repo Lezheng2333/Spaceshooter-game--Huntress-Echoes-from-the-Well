@@ -52,7 +52,9 @@ QA：游戏 `--selftest` 包含第二章 18 项回归与七段流程检查（战
 
 > macOS 11.0+
 
-[Download v1.2.24](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.24) (latest)
+[Download v1.2.25](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.25) (latest)
+
+[Download v1.2.24](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.24)
 
 [Download v1.2.23](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.23)
 
@@ -70,14 +72,13 @@ Download the `.zip`, unzip, and run `Shooter.app`.
 
 下载 `.zip` 后解压，直接运行 `Shooter.app`。
 
-## What's New / 最近更新 (v1.2.24)
+## What's New / 最近更新 (v1.2.25)
 
-- 修复第二章球体 Boss 碎裂卡关、追逐战增援转场和暂停时背景仍滚动的问题。
-- 门禁阶段 **ESC 暂停／恢复，TAB 跳过演出**；改善 Warden 入场、死亡演出及血条标题排版。
-- 修复飞机越界、NightElf 重开状态残留、瞄准辅助重绘改变状态和技能球颜色溢出。
-- 本次 macOS 游戏包内置第一、二章 182 个中英语音文件，OPTIONS → VOICE LANG 切换语言。
-- 配套 Asset Studio v0.1.3：修复状态切换、参数分析和 GIF 缓存，新增草稿参数与状态保存恢复；启动方法见上方。
-- 保留完整状态存档及 AUTO + 六个手动槽；存档格式未变，可读取 v1.2.23 存档。
+- 第二章门禁重做：真空大门分层装甲造型、扫描器重启/红束锁定动画、夹具解锁与门板缓动开启。
+- 门禁→廊桥、追逐→研究室改为白场/黑场淡出淡入 + 飞机从画面左侧缓缓飞入；研究室圆厅延续到 Warden 战。
+- 廊桥与研究室背景美术重做：窗外行星/远景桁架/吊灯/地面光池，环形观景窗/气闸/出口/基座全息与通电动画。
+- 纯代码 BGM/音效混音优化：三套乐谱淡变、第二章流程强度分层、对白自动压低 BGM、48 声部与柔性限幅。
+- 存档格式未变（仍可读取 v1.2.23/v1.2.24 存档与节点存档）；配套 Asset Studio v0.1.3 源码随仓库提供。
 
 ## Build from Source / 从源码编译
 
@@ -110,7 +111,7 @@ Requires SDL2: `brew install sdl2`
 │   ├── space_shooting ver1.0.0.cpp
 │   ├── Shooter ver1.0.0.app/
 │   └── Shooter ver1.0.0.zip
-└── v2.0.0/                                            # 当前开发主线 (v1.2.24)
+└── v2.0.0/                                            # 当前开发主线 (v1.2.25)
     ├── multiple code files/                            # ★ 当前开发源码（多文件架构）
     │   ├── main.cpp                                    # 入口 + #include 所有头文件
     │   ├── game.h                                      # Game 类与流程/存档/QA
@@ -151,7 +152,8 @@ Requires SDL2: `brew install sdl2`
         ├── Shooter ver1.2.20.app/ + .zip                # v1.2.20
         ├── Shooter ver1.2.21.app/ + .zip                # v1.2.21
         ├── Shooter ver1.2.23.app/ + .zip                # v1.2.23
-        └── Shooter ver1.2.24.app/ + .zip                # v1.2.24 (最新)
+        ├── Shooter ver1.2.24.app/ + .zip                # v1.2.24
+        └── Shooter ver1.2.25.app/ + .zip                # v1.2.25 (最新)
 ```
 
 ## License

@@ -53,7 +53,10 @@
 ## 当前开发状态
 
 ### 当前焦点
-- **2026-11-02 发布版本：游戏 v1.2.24 / Asset Studio v0.1.3**
+- **2026-11-07 发布版本：游戏 v1.2.25 / Asset Studio v0.1.3**
+- **2026-11-07 v1.2.25 音频优化**：BGM/音效继续使用纯代码实时合成；三套乐谱安全淡变、流程强度分层、对白 ducking、48 声部与柔性限幅已接入，`--selftest` 包含音频渲染压力巡检。
+- **2026-11-07 v1.2.25 第二章门禁演出升级**：真空大门改为分层硬表面（装甲带/倒角八边形门洞/门柱肩部/夹具/状态灯柱），扫描与开门重做（重启灯柱、红束断续充能锁定、验证转绿、夹具解锁+门板缓动、纵深通道）；动画全部由既有存档字段推导，存档格式未变。
+- **2026-11-07 v1.2.25 第二章场景转场与背景美术**：门禁→廊桥、追逐→研究室改为淡出/淡入 + 飞机从左侧飞入（复用 `ch2FadeTimer`，无存档格式变化）；廊桥加窗外行星/远景桁架/吊灯/地面光池/前景栏杆，研究室改为完整圆厅（观景窗/气闸/出口/基座全息），Warden 战留在圆厅内。
 - 本轮继续完善第二章与素材工坊；第三章暂不扩展。第二章门禁改为 ESC 暂停、TAB 跳过演出。
 - `--selftest` 新增第二章 18 项回归及门禁到结局顺序流程；阶段截图 `/tmp/sfss_ch2_qa/`。
 - 工坊后端回归：`python3 -m unittest discover -s tools/asset_studio/tests -v`（GIF/像素比较需 Pillow）。
@@ -82,6 +85,10 @@
   结局旁白触发时必须同步 `ch2Flow = C2_ENDED`，否则 MISSION COMPLETE 永不出现
 - **Ch2 门禁飞机活动范围**：门关闭时 x≤560，开门（doorOpen>0.5）后放宽至 x≤700，
   玩家穿过 x=640 触发白色淡出转场进入廊桥
+- **Ch2 转场计时**：`ch2FadeTimer` 现在是转场总计时（1..22 淡出 / 24 换场 / 30..96 左侧飞入），
+  换场与飞机位置由 `updateCh2Transition()` 接管；不要在别处直接改它，也不要绕过 `beginCh2Transition()`
+- **Ch2 研究室绘制**：`C2_LAB / C2_BOSS / C2_ENDED` 统一画 `labScene`（完整圆厅，不再叠廊桥），
+  `labScene.update()` 在公共 Ch2 段落里推进；读档/截图像素对比依赖这个更新顺序
 - **存档字段顺序即字节顺序**：任何新增"会被存档的可变状态"必须同时
   ①在对应类的 `visit()` 里按固定位置补上 ②改动 serializeAll 字段顺序/类型时把
   `SAVE_FORMAT_VERSION` +1。游戏版本号（SAVE_GAME_VERSION）只作显示，不作废玩家存档
@@ -151,7 +158,7 @@ main.cpp            (81 lines)  #include 所有头文件 + main()（--test / --s
 | `ui.h` | 185 | UIRenderer + MenuStateMachine + MenuKeys |
 | `save_system.h` | 533 | SaveArchive（读写双端序列化）+ SaveMeta + SaveSystem（路径/CRC/文件 IO）+ FileBrowser + GameSettings |
 | `save_menu.h` | 274 | SaveMenu — 读档列表/存档列表/迷你文件浏览器/确认框/提示条 |
-| `game.h` | 4246 | Game 类 — 全部状态机 + 全部 update/draw + 存档序列化 + 存/读档界面接线 |
+| `game.h` | 4510 | Game 类 — 全部状态机 + 全部 update/draw + 存档序列化 + 存/读档界面接线 |
 
 ### ch1/ 子目录: Chapter 1 战斗系统 (4 files)
 
@@ -166,7 +173,7 @@ main.cpp            (81 lines)  #include 所有头文件 + main()（--test / --s
 
 | 文件 | 行数 | 内容 |
 |------|------|------|
-| `ch2_background.h` | 312 | Ch2Background — 侧滚廊桥背景 |
+| `ch2_background.h` | 656 | Ch2Background — 侧滚廊桥背景（行星/桁架/吊灯/地面光池/前景栏杆） |
 | `ch2_shooter_base.h` | 160 | Ch2ShooterBase + NightElfEnergy（白色能量条） |
 | `ch2_hud.h` | 86 | HUDBase — drawScore/drawHPHearts/drawEnergyBar/drawEnergyBarWhite/drawBossBar |
 | `ch2_danmaku.h` | 224 | Ch2DanmakuManager — 螺旋弹幕敌人 |
@@ -174,8 +181,8 @@ main.cpp            (81 lines)  #include 所有头文件 + main()（--test / --s
 | `ch2_sphere_boss.h` | 424 | Ch2SphereBoss — 六角密铺菱形球体，7 状态机 |
 | `ch2_skill_orb.h` | 211 | Ch2SkillOrb — 漂浮技能球 + 18边形护罩 + 吸收 |
 | `ch2_pulse.h` | 203 | Ch2PulseSystem — 绿色能量条 + Shift 单按释放冲击波 |
-| `ch2_gate.h` | 325 | Ch2GateScene — 门禁场景（真空门+扫描+脉冲解锁+开门） |
-| `ch2_lab.h` | 108 | Ch2LabScene — 中央研究室（圆形房间+基座） |
+| `ch2_gate.h` | 1058 | Ch2GateScene — 门禁场景（真空门造型+重启扫描演出+脉冲解锁+开门动画） |
+| `ch2_lab.h` | 487 | Ch2LabScene — 中央研究室（完整圆厅/观景窗/气闸/出口/基座全息） |
 | `ch2_boss.h` | 360 | Ch2WardenBoss — 章节Boss MOONWELL WARDEN（4 状态机+弹幕） |
 
 ### 休眠资产 (grep `[DORMANT]` 查找)
