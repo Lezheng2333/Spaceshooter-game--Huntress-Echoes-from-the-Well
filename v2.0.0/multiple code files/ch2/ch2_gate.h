@@ -41,9 +41,10 @@ public:
         SCAN_BOOT_END   = 28,   // emitter boot / flicker
         SCAN_DEPLOY_END = 54,   // cone extends
         SCAN_SWEEP_END  = 116,  // cone swings down and locks
-        SCAN_VERIFY_AT  = 196,  // ID accepted: reticle turns green
-        SCAN_HOLD_END   = 206,  // beam starts retracting
-        SCAN_TOTAL      = 268,  // scan finished -> OPENING
+        SCAN_STEADY_AT  = 206,  // locked red light settles from blink to steady
+        SCAN_VERIFY_AT  = 276,  // ID accepted: reticle turns green
+        SCAN_HOLD_END   = 286,  // beam starts retracting
+        SCAN_TOTAL      = 348,  // scan finished -> OPENING
         OPEN_UNLOCK     = 36,   // bolts retract / panels shudder before moving
         OPEN_TRAVEL     = 112,  // panel slide duration (doorOpen 0 -> 1)
         PANEL_TRAVEL    = 350   // pixels each panel slides to clear the aperture
@@ -258,6 +259,13 @@ public:
             alpha *= 0.55;
         }
 
+        bool verified = beamTimer >= SCAN_VERIFY_AT;
+        double redDim = verified ? 1.0 : redPulse(beamTimer);
+        // 锁定的那一下强制亮起，给"找到目标"一个明确的重音
+        if (!verified && beamTimer >= SCAN_SWEEP_END && beamTimer < SCAN_SWEEP_END + 4)
+            redDim = 1.0;
+        alpha *= redDim;
+
         // 目标点：先在门洞里立起一道扫描帘，再整体扫向玩家并锁定
         double aimX = SCAN_X - 6.0;
         double aimY = DOOR_T + 40.0;
@@ -270,7 +278,6 @@ public:
             aimY += (py - aimY) * raw;
         }
 
-        bool verified = beamTimer >= SCAN_VERIFY_AT;
         int cr = verified ? 120 : 255;
         int cg = verified ? 255 : 62;
         int cb = verified ? 168 : 58;
@@ -306,14 +313,14 @@ public:
         if (beamTimer >= SCAN_DEPLOY_END) {
             double lockT = clamp01((beamTimer - SCAN_DEPLOY_END) /
                                    double(SCAN_SWEEP_END - SCAN_DEPLOY_END));
-            drawReticle(r, aimX, aimY, lockT, verified, beamTimer);
+            drawReticle(r, aimX, aimY, lockT, verified, beamTimer, redDim);
             // 锁定后的栅格扫描：细横线从锁定框上沿往下刷
             if (lockT > 0.99) {
                 int top = (int)aimY - 26, bot = (int)aimY + 26;
                 for (int y = top; y <= bot; y += 4) {
                     int sweepY = top + ((int)(beamTimer * 2.2) % (bot - top));
                     int d = std::abs(y - sweepY);
-                    int a = d < 5 ? 90 : 22;
+                    int a = (int)((d < 5 ? 90 : 22) * redDim);
                     line(r, (int)aimX - 26, y, (int)aimX + 26, y,
                          verified ? 120 : 255, verified ? 255 : 96, verified ? 170 : 88, a);
                 }
@@ -340,7 +347,7 @@ public:
                                  double(SCAN_TOTAL - SCAN_HOLD_END));
             vig *= (1.0 - raw);
         }
-        drawScanVignette(r, vig);
+        drawScanVignette(r, vig * (0.55 + 0.45 * redDim));
 
         // 锁定瞬间：只让锁定框闪一下白，不做全屏红闪（避免像画面故障）
         if (beamTimer >= SCAN_SWEEP_END && beamTimer < SCAN_SWEEP_END + 4 && !verified) {
@@ -358,6 +365,27 @@ private:
     static double smooth01(double t) { t = clamp01(t); return t * t * (3.0 - 2.0 * t); }
     static double easeOutCubic(double t) { t = clamp01(t); double u = 1.0 - t; return 1.0 - u * u * u; }
     static double easeInCubic(double t) { t = clamp01(t); return t * t * t; }
+
+    // 红色扫描的"搜寻 → 锁定"呼吸曲线：
+    //   扫描段慢闪；锁住玩家后闪动逐渐加快、亮占空比增大；最后常亮。
+    double redPulse(int bt) const {
+        if (bt < SCAN_DEPLOY_END)
+            return 0.62 + 0.38 * std::fabs(std::sin(bt * 0.35));
+        if (bt < SCAN_SWEEP_END) {
+            double ph = std::fmod(bt, 64.0) / 64.0;
+            return ph < 0.52 ? 1.0 : 0.26;
+        }
+        if (bt < SCAN_STEADY_AT) {
+            double k = clamp01((bt - SCAN_SWEEP_END) /
+                               double(SCAN_STEADY_AT - SCAN_SWEEP_END));
+            double period = 64.0 - 46.0 * k;
+            double duty = 0.52 + 0.48 * k;
+            double ph = std::fmod(bt, period) / period;
+            double on = ph < duty ? 1.0 : 0.24;
+            return on * (0.94 + 0.06 * std::sin(bt * 0.5));
+        }
+        return 1.0;
+    }
 
     // 确定性噪声：绘制只依赖帧号，读档逐像素校验不会漂移
     static unsigned hashU(unsigned x) {
@@ -906,12 +934,15 @@ private:
         } else if (done) { cr = 110; cg = 226; cb = 255; }
         else { cr = 120; cg = 34; cb = 30; }
 
-        int glow = active ? (int)(45 + 40 * std::fabs(std::sin(timer * 0.30))) : 22;
+        double lensDim = active ? redPulse(beamTimer) : 1.0;
+        int glow = active ? (int)((45 + 40 * std::fabs(std::sin(timer * 0.30))) * lensDim) : 22;
         int ly = top ? tipY - 2 : tipY + 1;
         fill(r, cx - 12, top ? ly - 6 : ly, 24, 7, cr, cg, cb, glow / 2);
         fill(r, cx - 6, top ? ly - 4 : ly - 1, 12, 5, cr, cg, cb, glow);
+        int lensMix = (int)(120 + 135 * lensDim);
         fill(r, cx - 3, top ? ly - 3 : ly - 1, 6, 4,
-             active ? 255 : cr, active ? 188 : cg, active ? 170 : cb, 245);
+             active ? lensMix : cr, active ? (int)(60 + 128 * lensDim) : cg,
+             active ? (int)(50 + 120 * lensDim) : cb, 245);
 
         // 两侧警示灯
         bool warn = (stage == PULSING || stage == SCANNING) && (timer / 14) % 2 == 0;
@@ -1001,14 +1032,14 @@ private:
     }
 
     void drawReticle(SDL_Renderer* r, double tx, double ty, double lockT,
-                     bool verified, int bt) const {
+                     bool verified, int bt, double dim = 1.0) const {
         int cr = verified ? 120 : 255;
         int cg = verified ? 255 : 72;
         int cb = verified ? 170 : 62;
         double size = 46.0 - 18.0 * smooth01(lockT);
         int s = (int)size;
         int L = 9;
-        int a = verified ? 210 : 180;
+        int a = (int)((verified ? 210 : 180) * dim);
         // 四角括号
         line(r, (int)tx - s, (int)ty - s, (int)tx - s + L, (int)ty - s, cr, cg, cb, a);
         line(r, (int)tx - s, (int)ty - s, (int)tx - s, (int)ty - s + L, cr, cg, cb, a);
@@ -1025,20 +1056,20 @@ private:
         }
         if (lockT > 0.99) {
             double pulse = 0.5 + 0.5 * std::fabs(std::sin(bt * 0.25));
-            arc(r, tx, ty, s + 9, 0, 2.0 * M_PI, cr, cg, cb, (int)(90 + 70 * pulse));
+            arc(r, tx, ty, s + 9, 0, 2.0 * M_PI, cr, cg, cb, (int)((90 + 70 * pulse) * dim));
             // 环上的四根刻度
             for (int k = 0; k < 4; ++k) {
                 double ang = M_PI / 2 * k + bt * 0.01;
                 double ux = std::cos(ang), uy = std::sin(ang);
                 line(r, (int)(tx + ux * (s + 5)), (int)(ty + uy * (s + 5)),
                      (int)(tx + ux * (s + 13)), (int)(ty + uy * (s + 13)),
-                     cr, cg, cb, 170);
+                     cr, cg, cb, (int)(170 * dim));
             }
         } else {
             // 锁定进度弧（从 12 点方向顺时针）
             double a0 = -M_PI / 2;
             arc(r, tx, ty, s + 9, a0, a0 + 2.0 * M_PI * smooth01(lockT),
-                cr, cg, cb, 190);
+                cr, cg, cb, (int)(190 * dim));
         }
     }
 

@@ -31,6 +31,7 @@
 #include "ch2/ch2_skill_orb.h"
 #include "ch2/ch2_pulse.h"
 #include "ch2/ch2_gate.h"
+#include "ch2/ch2_airlock.h"
 #include "ch2/ch2_lab.h"
 #include "ch2/ch2_boss.h"
 #include "chapter_manager.h"

@@ -64,6 +64,22 @@ public:
     void reset() { aliens.clear(); resetBase(); }
     void clearAll() { aliens.clear(); bullets.clear(); }
     void forceSpawn() { spawnOne(); }
+
+    // 球体碎裂后的第一波：从地面升起，橙色/灰白残留，明确是刚才弹到地上的菱形
+    void forceSpawnFromShards() {
+        Ch2Alien a;
+        a.targetX = 540 + rand() % 221;
+        a.targetY = 70 + rand() % 440;
+        a.startX = 100 + rand() % 601;
+        a.startY = WIN_HEIGHT + 16;
+        a.x = a.startX; a.y = a.startY;
+        a.hp = ALIEN_HP; a.active = true; a.entering = true; a.defeated = false;
+        a.enterFrame = 0; a.enterDuration = 40 + rand() % 22;
+        a.invincibleFrames = 0;
+        a.fireVolleyTimer = 0; a.fireBurstCount = 0; a.fireBurstTimer = 0;
+        a.lastHitByPulse = -1;
+        aliens.push_back(a);
+    }
     int countLiving() const {
         int cnt = 0;
         for (const auto& a : aliens) { if (!a.defeated && a.active) cnt++; }
@@ -141,16 +157,23 @@ public:
             if (!a.active) continue;
             int ex = (int)a.x, ey = (int)a.y, sz = 12;
             int rCol, gCol, bCol;
-            if (a.entering || a.invincibleFrames > 0) { rCol=100; gCol=180; bCol=255; }
-            else computeHPColor((double)a.hp / ALIEN_HP, rCol, gCol, bCol);
+            bool shardEnter = a.entering && a.startY > WIN_HEIGHT - 20;
+            if (a.entering || a.invincibleFrames > 0) {
+                if (shardEnter) { rCol=238; gCol=164; bCol=82; }
+                else { rCol=100; gCol=180; bCol=255; }
+            } else computeHPColor((double)a.hp / ALIEN_HP, rCol, gCol, bCol);
             if (a.entering && a.enterFrame > 3) {
+                int tr = shardEnter ? 238 : 100;
+                int tg = shardEnter ? 164 : 180;
+                int tb = shardEnter ? 82 : 255;
                 for (int k = 1; k <= 3; ++k) {
                     double pRaw = (double)(a.enterFrame - k*3) / a.enterDuration;
                     if (pRaw < 0) continue;
                     double pE = 1.0 - std::pow(1.0 - pRaw, 3.0);
                     int px = (int)(a.startX + (a.targetX - a.startX) * pE);
                     int py = (int)(a.startY + (a.targetY - a.startY) * pE);
-                    SDL_SetRenderDrawColor(r, 100, 180, 255, (Uint8)(150 - k*40));
+                    SDL_SetRenderDrawColor(r, (Uint8)tr, (Uint8)tg, (Uint8)tb,
+                                           (Uint8)(150 - k*40));
                     SDL_RenderDrawPoint(r, px, py);
                 }
             }

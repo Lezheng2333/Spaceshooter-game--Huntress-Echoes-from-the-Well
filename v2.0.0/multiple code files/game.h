@@ -44,7 +44,7 @@ enum GamePhase { PHASE_PLAY, PHASE_BOSS_INTRO, PHASE_BOSS_FIGHT, PHASE_BOSS_PHAS
 
 // Chapter 2 scripted flow state machine (normal play):
 // GATE → CORRIDOR → SPHERE → CHASE → LAB → BOSS → ENDED
-enum Ch2Flow { C2_GATE, C2_CORRIDOR, C2_SPHERE, C2_CHASE, C2_LAB, C2_BOSS, C2_ENDED };
+enum Ch2Flow { C2_GATE, C2_CORRIDOR, C2_SPHERE, C2_CHASE, C2_LAB, C2_BOSS, C2_ENDED, C2_AIRLOCK };
 
 class Game {
     Renderer& renderer;
@@ -373,7 +373,7 @@ public:
             int musicIntensity = 0;
             if (chapterMgr.getConfig().isSideScrolling) {
                 if (ch2Flow == C2_CORRIDOR || ch2Flow == C2_SPHERE) musicIntensity = 1;
-                if (ch2Flow == C2_CHASE || wardenFight) musicIntensity = 2;
+                if (ch2Flow == C2_CHASE || ch2Flow == C2_AIRLOCK || wardenFight) musicIntensity = 2;
             } else if (phase == PHASE_PLAY && score >= 30) {
                 musicIntensity = score >= 120 ? 2 : 1;
             }
@@ -821,10 +821,34 @@ public:
         bool sphere = nodeRunUntil(k, 12000, [this]{ return ch2Flow == C2_SPHERE && sphereBoss.getState() == Ch2SphereBoss::FIGHT; });
         check(sphere, "corridor to sphere fight");
         snap("02_sphere");
+        {
+            int hp0 = sphereBoss.getHp(), on0 = sphereBoss.countOnSphere();
+            int dropped = sphereBoss.hitDiamonds(3);
+            check(dropped == 3 && sphereBoss.getHp() == hp0 - dropped
+                  && sphereBoss.countOnSphere() == on0 - dropped,
+                  "sphere drops 3 diamonds per hit with HP sync");
+            snap("02a_sphere_3drop");
+        }
         sphereBoss.takeDamage(sphereBoss.getMaxHp());
+        bool ghost = nodeRunUntil(k, 1200,
+            [this]{ return sphereBoss.getState() == Ch2SphereBoss::SHATTERING
+                           && sphereBoss.getStateTimer() >= 55; });
+        check(ghost, "sphere black body ghost phase");
+        snap("02b_sphere_ghost");
+        bool grounded = nodeRunUntil(k, 3000,
+            [this]{ return sphereBoss.getState() == Ch2SphereBoss::SHAKING; });
+        check(grounded, "sphere debris all grounded before shaking");
+        snap("02c_sphere_shake");
         bool chase = nodeRunUntil(k, 6000, [this]{ return ch2Flow == C2_CHASE; });
         check(chase, "sphere shatter to chase");
         snap("03_chase");
+        // 第一波从地面升起：确认玩家能看到"刚才散落的菱形"回来
+        nodeRunUntil(k, 100, [this]{
+            for (const auto& a : ch2AlienMgr.getAliens())
+                if (a.active && a.entering && a.enterFrame > 12) return true;
+            return false;
+        });
+        snap("03b_shards_return");
         auto hitAt = [this](double x, double y) {
             Ch1Bullet b = {};
             b.x = x; b.y = y; b.startX = x; b.startY = y;
@@ -846,6 +870,18 @@ public:
             nodeStep(k.data());
         }
         k[SDL_SCANCODE_LSHIFT] = 0;
+        if (ch2Flow == C2_AIRLOCK) {
+            // 截一张红光锁定舱门的画面
+            nodeRunUntil(k, 400, [this]{ return ch2PhaseTimer >= Ch2AirlockScene::LOCK_AT + 30; });
+            snap("03b_airlock");
+            bool airlockReady = nodeRunUntil(k, 500,
+                [this]{ return Ch2AirlockScene::canPass(ch2PhaseTimer); });
+            check(airlockReady, "corridor airlock scan and open");
+            snap("03c_airlock_open");
+            player->setX(725); player->setY(WIN_HEIGHT / 2);
+            snap("03d_airlock_pass");
+            nodeRunUntil(k, 400, [this]{ return ch2Flow == C2_LAB; });
+        }
         lab = ch2Flow == C2_LAB;
         check(lab && pulseSystem.unlocked && score >= 30, "waves/orb/absorption/reinforcements to lab");
         if (lab) {
@@ -1817,7 +1853,7 @@ private:
         }
         font.drawString(r, "W/S:select  ENTER:confirm", CENTER_X - 150, 500, 2);
         SDL_SetRenderDrawColor(r, 120, 120, 120, 255);
-        font.drawString(r, "Ver 1.2.25", 15, WIN_HEIGHT - 30, 2);
+        font.drawString(r, "Ver 1.2.26", 15, WIN_HEIGHT - 30, 2);
         // 存档目录提示（读档列表为空时方便排查）
         font.drawString(r, SaveSystem::baseDir().c_str(), 15, WIN_HEIGHT - 16, 1);
     }
@@ -2278,7 +2314,10 @@ private:
         shiftWas = true; shiftJustPressed = false;
         dialogueSys.suppressEnter();
         narration.suppressEnter();
-        if (sphereBossActive) sphereBoss.init(sideBg, player);   // 重新绑定读档后的机体指针
+        if (sphereBossActive) {
+            sphereBoss.init(sideBg, player);   // 重新绑定读档后的机体指针
+            sphereBoss.normalizeHpToCells();   // 旧档 maxHp=500 → 剩余菱形数
+        }
         audio.stopVoice();
     }
 
@@ -2561,6 +2600,11 @@ private:
                     double maxGateX = (gateScene.isOpen() || gateScene.doorOpen > 0.5) ? 700.0 : 560.0;
                     if (px > maxGateX) px = maxGateX;
                 }
+                // 室内门禁：门未开时停在舱壁前，开门后才允许穿过去
+                if (ch2Flow == C2_AIRLOCK) {
+                    double maxAirX = Ch2AirlockScene::canPass(ch2PhaseTimer) ? 730.0 : 630.0;
+                    if (px > maxAirX) px = maxAirX;
+                }
 
                 int noseX = px + player->getNoseOffset();
                 // Energy wall only during combat (after auto-spawn begins)
@@ -2576,7 +2620,7 @@ private:
 
             // Shooting (disabled during the gate scene)
             if (dmFireCooldown > 0) dmFireCooldown--;
-            if (ch2Flow != C2_GATE && ch2Flow != C2_ENDED && shoot && dmFireCooldown <= 0) {
+            if (ch2Flow != C2_GATE && ch2Flow != C2_AIRLOCK && ch2Flow != C2_ENDED && shoot && dmFireCooldown <= 0) {
                 int nGuns = player->getGunCount();
                 for (int g = 0; g < nGuns; ++g) {
                     int ox, oy;
@@ -2596,6 +2640,7 @@ private:
                 case C2_CHASE:    updateCh2Chase(keys); break;
                 case C2_LAB:      updateCh2Lab(); break;
                 case C2_BOSS:     updateCh2Boss(); break;
+                case C2_AIRLOCK:  updateCh2Airlock(); break;
                 case C2_ENDED:    updateCh2Ended(keys); break;
             }
 
@@ -3127,7 +3172,7 @@ private:
                 dialogueSys.queueDialogue("Martha", "Stay sharp. We came here for the comms equipment.");
                 dialogueSys.start();
             }
-        } else if (ch2Flow == C2_CHASE) {
+        } else if (ch2Flow == C2_CHASE || ch2Flow == C2_AIRLOCK) {
             ch2AlienMgr.clearBullets();
             dmMgr.clearBullets();
             player->setX(-40); player->setY(WIN_HEIGHT / 2);
@@ -3279,9 +3324,9 @@ private:
                 double dy = b.y - sphereBoss.getCy();
                 if (dx*dx + dy*dy < sphereBoss.getRadius() * sphereBoss.getRadius()) {
                     b.active = false;
-                    sphereBoss.takeDamage(1);
-                    sphereBoss.popDiamonds(1);
-                    particleMgr.spawnExplosion(b.x, b.y, 2);
+                    int dropped = sphereBoss.hitDiamonds(3);
+                    if (dropped > 0)
+                        particleMgr.spawnExplosion(b.x, b.y, 2 + dropped);
                 }
             }
         }
@@ -3293,9 +3338,11 @@ private:
                 autoSpawnAliveLast = 0; autoSpawnKillsLast = 0;
             }
             enterCh2Flow(C2_CHASE);
+            floatingTextMgr.spawn((float)CENTER_X + 1, 154.0f, "SHARDS INBOUND", 0, 0, 0);
+            floatingTextMgr.spawn((float)CENTER_X, 153.0f, "SHARDS INBOUND", 255, 100, 70);
             if (!dChaseQueued) {
                 dChaseQueued = true;
-                dialogueSys.queueDialogue("Ally (ai copilot)", "Energy constructs! We'll have to fight through!");
+                dialogueSys.queueDialogue("Ally (ai copilot)", "The shards — they're coming back around! Incoming!");
                 dialogueSys.start();
             }
         }
@@ -3308,7 +3355,8 @@ private:
         if (autoSpawnQueued > 0) {
             if (autoSpawnTimer > 0) autoSpawnTimer--;
             if (autoSpawnTimer <= 0) {
-                ch2AlienMgr.forceSpawn();
+                if (autoSpawnPhase == 1) ch2AlienMgr.forceSpawnFromShards();
+                else ch2AlienMgr.forceSpawn();
                 autoSpawnQueued--;
                 autoSpawnTimer = 12; // 0.2s = 12 frames
             }
@@ -3449,10 +3497,37 @@ private:
             ch2PhaseTimer++;
             if (ch2PhaseTimer >= 120 && ch2FadeTimer <= 0) {
                 ch2PhaseTimer = 0;
-                beginCh2Transition();
+                enterCh2Flow(C2_AIRLOCK);   // 廊桥尽头的室内门禁
             }
         } else {
             ch2PhaseTimer = 0;
+        }
+    }
+
+    // ======== CH2 FLOW: AIRLOCK (indoor security door at the corridor's end) ========
+    // 扫描 → 锁定 → 开门；开门后玩家自己飞过舱门，再进入研究室转场。
+    // 计时/进度全部由已入档的 ch2PhaseTimer 推导，不新增存档字段。
+    void updateCh2Airlock() {
+        if (ch2PhaseTimer == 0) {
+            sideBg->setSpeed(0);       // 廊桥停在舱壁前
+            autoSpawnPhase = 0;        // 关掉隐形能量墙，允许飞向舱门
+            ch2AlienMgr.clearBullets();
+            dmMgr.clearBullets();
+        }
+        int prev = ch2PhaseTimer;
+        ch2PhaseTimer++;
+        if (prev < Ch2AirlockScene::BOOT_END && ch2PhaseTimer >= Ch2AirlockScene::BOOT_END)
+            audio.sndTripleCountdown();
+        if (prev < Ch2AirlockScene::LOCK_AT && ch2PhaseTimer >= Ch2AirlockScene::LOCK_AT)
+            audio.sndTripleOn();
+        if (prev < Ch2AirlockScene::VERIFY_AT && ch2PhaseTimer >= Ch2AirlockScene::VERIFY_AT)
+            audio.sndTripleOn();
+        if (prev < Ch2AirlockScene::OPEN_START && ch2PhaseTimer >= Ch2AirlockScene::OPEN_START)
+            audio.sndShockwave();
+
+        if (Ch2AirlockScene::canPass(ch2PhaseTimer) &&
+            player->getX() > 720 && ch2FadeTimer <= 0) {
+            beginCh2Transition();
         }
     }
 
@@ -3803,6 +3878,8 @@ private:
                     labScene.draw(renderer.get());
                 } else {
                     sideBg->draw(renderer.get());
+                    if (ch2Flow == C2_AIRLOCK)
+                        Ch2AirlockScene::draw(renderer.get(), ch2PhaseTimer);
                 }
             } else if (background) {
                 background->drawBackground(renderer.get());
@@ -3827,6 +3904,10 @@ private:
                 if (ch2Flow == C2_GATE) {
                     gateScene.drawScanBeam(renderer.get(), player->getX(), player->getY());
                     gateScene.drawRings(renderer.get(), player->getX(), player->getY());
+                }
+                if (ch2Flow == C2_AIRLOCK) {
+                    Ch2AirlockScene::drawScan(renderer.get(), ch2PhaseTimer,
+                                              player->getX(), player->getY());
                 }
                 if (ch2Flow == C2_GATE) {
                     font.drawString(renderer.get(), "TAB:skip gate  ESC:pause", 16, WIN_HEIGHT - 22, 2);
@@ -3857,7 +3938,8 @@ private:
                 }
                 // Sphere boss HP bar (above the sphere, FIGHT only)
                 if (ch2Flow == C2_SPHERE && sphereBossActive
-                    && sphereBoss.getState() == Ch2SphereBoss::FIGHT) {
+                    && (sphereBoss.getState() == Ch2SphereBoss::FIGHT
+                        || sphereBoss.getState() == Ch2SphereBoss::SHATTERING)) {
                     HUDBase::drawBossBar(renderer.get(), font, "???",
                         sphereBoss.getHp(), sphereBoss.getMaxHp(),
                         (int)sphereBoss.getCx() - 100,

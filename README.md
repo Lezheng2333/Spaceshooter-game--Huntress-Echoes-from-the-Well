@@ -45,14 +45,16 @@ bash tools/asset_studio/studio.sh
 点击素材卡片可切换状态和调参数；草稿素材的「保存草稿参数」会保存参数与状态，下次打开恢复。
 端口冲突可运行 `bash tools/asset_studio/studio.sh --port 8792`，然后访问相应端口。
 
-QA：游戏 `--selftest` 包含第二章 18 项回归与七段流程检查（战斗注入命中、维持玩家存活）；
+QA：游戏 `--selftest` 包含第二章 25 项回归、七段主流程与廊桥室内门禁检查（战斗注入命中、维持玩家存活）；
 工坊运行 `python3 -m unittest discover -s tools/asset_studio/tests -v`。
 
 ## Download / 下载
 
 > macOS 11.0+
 
-[Download v1.2.25](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.25) (latest)
+[Download v1.2.26](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.26) (latest)
+
+[Download v1.2.25](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.25)
 
 [Download v1.2.24](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.24)
 
@@ -68,17 +70,18 @@ QA：游戏 `--selftest` 包含第二章 18 项回归与七段流程检查（战
 
 [Download v1.2.17](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.17)
 
-Download the `.zip`, unzip, and run `Shooter.app`.
+Download the `.zip`, unzip, and run `Shooter ver1.2.26.app`.
 
-下载 `.zip` 后解压，直接运行 `Shooter.app`。
+下载 `.zip` 后解压，直接运行 `Shooter ver1.2.26.app`。
 
-## What's New / 最近更新 (v1.2.25)
+## What's New / 最近更新 (v1.2.26)
 
-- 第二章门禁重做：真空大门分层装甲造型、扫描器重启/红束锁定动画、夹具解锁与门板缓动开启。
-- 门禁→廊桥、追逐→研究室改为白场/黑场淡出淡入 + 飞机从画面左侧缓缓飞入；研究室圆厅延续到 Warden 战。
-- 廊桥与研究室背景美术重做：窗外行星/远景桁架/吊灯/地面光池，环形观景窗/气闸/出口/基座全息与通电动画。
-- 纯代码 BGM/音效混音优化：三套乐谱淡变、第二章流程强度分层、对白自动压低 BGM、48 声部与柔性限幅。
-- 存档格式未变（仍可读取 v1.2.23/v1.2.24 存档与节点存档）；配套 Asset Studio v0.1.3 源码随仓库提供。
+- 廊桥美术二轮：实心行星/大气/云带/风暴、银河/星云/星团、月球/环站/碎石/航船，顶部桁架与灯具/应急灯/体积光，实心立柱/湿地倒影/光池/舱盖/跑道灯。
+- 廊桥尽头新增室内小型真空门禁：侧置扫描头、七段编号、双门板；红光从慢闪逐渐锁定常亮，验证后直接开门放行。
+- 开场大门红光扫描延长，锁定玩家后由慢闪过渡到常亮，再转绿验证。
+- 球体 Boss：每发子弹随机打落 3 个菱形，血条与掉落数量严格同步；异化排布（扭曲网格/三暗坑/深色本体/约 7.5% 微颤）。
+- 球体 Boss 死亡演出：黑球扭曲成幽灵飘走，随后散落残骸按旧版灰白清晰节奏震动/飞出，再从地面升起追击。
+- 存档格式未变（兼容 v1.2.23–v1.2.25 存档与节点存档）；`--selftest` 第二章 25 项回归全绿；Asset Studio v0.1.3 源码随仓库提供。
 
 ## Build from Source / 从源码编译
 
@@ -111,7 +114,7 @@ Requires SDL2: `brew install sdl2`
 │   ├── space_shooting ver1.0.0.cpp
 │   ├── Shooter ver1.0.0.app/
 │   └── Shooter ver1.0.0.zip
-└── v2.0.0/                                            # 当前开发主线 (v1.2.25)
+└── v2.0.0/                                            # 当前开发主线 (v1.2.26)
     ├── multiple code files/                            # ★ 当前开发源码（多文件架构）
     │   ├── main.cpp                                    # 入口 + #include 所有头文件
     │   ├── game.h                                      # Game 类与流程/存档/QA
@@ -124,12 +127,12 @@ Requires SDL2: `brew install sdl2`
     │   ├── ch1/                                        # Ch1 系统 (4 个文件)
     │   │   ├── ch1_shockwave.h  ch1_aliens.h
     │   │   ├── ch1_boss.h  ch1_background.h
-    │   └── ch2/                                        # Ch2 系统 (11 个文件)
+    │   └── ch2/                                        # Ch2 系统 (12 个文件)
     │       ├── ch2_background.h  ch2_shooter_base.h
     │       ├── ch2_danmaku.h  ch2_aliens.h
     │       ├── ch2_sphere_boss.h  ch2_hud.h
     │       ├── ch2_skill_orb.h  ch2_pulse.h
-    │       ├── ch2_gate.h  ch2_lab.h  ch2_boss.h
+    │       ├── ch2_gate.h  ch2_airlock.h  ch2_lab.h  ch2_boss.h
     │       └── Makefile
     ├── space_shooting ver1.2.20 single-file archive.cpp # v1.2.20 单文件存档
     ├── space_shooting ver2.0.0 deprecated.cpp           # 原始代码 (已废弃)
@@ -153,7 +156,8 @@ Requires SDL2: `brew install sdl2`
         ├── Shooter ver1.2.21.app/ + .zip                # v1.2.21
         ├── Shooter ver1.2.23.app/ + .zip                # v1.2.23
         ├── Shooter ver1.2.24.app/ + .zip                # v1.2.24
-        └── Shooter ver1.2.25.app/ + .zip                # v1.2.25 (最新)
+        ├── Shooter ver1.2.25.app/ + .zip                # v1.2.25
+        └── Shooter ver1.2.26.app/ + .zip                # v1.2.26 (最新)
 ```
 
 ## License

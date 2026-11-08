@@ -11,7 +11,7 @@ $(TARGET): main.cpp types.h constants.h font.h renderer.h audio.h floating_text.
 		ch2/ch2_background.h ch2/ch2_shooter_base.h ch2/ch2_hud.h \
 		ch2/ch2_danmaku.h ch2/ch2_aliens.h ch2/ch2_sphere_boss.h \
 		ch2/ch2_skill_orb.h ch2/ch2_pulse.h \
-		ch2/ch2_gate.h ch2/ch2_lab.h ch2/ch2_boss.h \
+		ch2/ch2_gate.h ch2/ch2_airlock.h ch2/ch2_lab.h ch2/ch2_boss.h \
 		chapter_manager.h ui.h save_system.h save_menu.h game.h
 	$(CXX) $(CXXFLAGS) main.cpp -o $(TARGET) $(LDFLAGS)
 
