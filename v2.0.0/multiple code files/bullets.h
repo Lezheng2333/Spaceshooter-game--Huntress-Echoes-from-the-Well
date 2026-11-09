@@ -1,5 +1,6 @@
 #pragma once
 
+#include "art_fx.h"
 #include "audio.h"
 #include "constants.h"
 #include "player.h"
@@ -127,50 +128,60 @@ public:
     }
 
     void draw(SDL_Renderer* renderer) const {
+        ArtFX::BlendGuard guard(renderer);
         for (const auto& b : bullets) {
             if (!b.active) continue;
             if (b.sideScroll) {
-                // Rightward bullet: white line + short trail
-                SDL_SetRenderDrawColor(renderer, 80, 80, 80, 100);
-                SDL_RenderDrawLine(renderer, (int)b.x-8, (int)b.y, (int)b.x-2, (int)b.y);
+                // 侧滚弹：冷白核心 + 双层拖尾；靠近弹头时更亮更粗。
+                int bx = (int)b.x, by = (int)b.y;
+                int dy = (int)(b.dy * 3.0);
+                ArtFX::glowLine(renderer, bx - 20, by - dy * 2, bx + 4, by, 76, 154, 255, 55, 1);
+                ArtFX::glowLine(renderer, bx - 10, by - dy, bx + 10, by, 148, 222, 255, 125, 1);
+                SDL_SetRenderDrawColor(renderer, 225, 249, 255, 245);
+                SDL_RenderDrawLine(renderer, bx + 2, by, bx + 15, by);
                 SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                SDL_RenderDrawLine(renderer, (int)b.x-2, (int)b.y, (int)b.x+14, (int)b.y);
+                SDL_RenderDrawPoint(renderer, bx + 15, by);
                 continue;
             }
             double dist = std::sqrt((b.x - b.startX) * (b.x - b.startX) +
                                     (b.y - b.startY) * (b.y - b.startY));
             double remainRatio = 1.0 - dist / BULLET_RANGE;
             if (remainRatio < 0.0) remainRatio = 0.0;
-            double bodyLen = 16.0 * remainRatio;
-            if (bodyLen < 1.5) bodyLen = 1.5;
+            double bodyLen = 18.0 * remainRatio;
+            if (bodyLen < 2.0) bodyLen = 2.0;
 
             int alpha = 255;
             if (!b.canDamage && remainRatio < 0.15) {
                 alpha = (int)(255.0 * (remainRatio - 0.03) / 0.12);
-                if (alpha < 20) alpha = 20;
+                if (alpha < 24) alpha = 24;
                 if (alpha > 255) alpha = 255;
             }
-
             double hx = b.x + b.dx * bodyLen * 0.5;
             double hy = b.y + b.dy * bodyLen * 0.5;
             double tx = b.x - b.dx * bodyLen * 0.5;
             double ty = b.y - b.dy * bodyLen * 0.5;
-            double trailLen = bodyLen * 0.7;
+            double trailLen = bodyLen * 1.25;
             double trx = tx - b.dx * trailLen;
             double try_ = ty - b.dy * trailLen;
-            int trailAlpha = (int)(alpha * 0.35);
-            if (trailAlpha < 8) trailAlpha = 8;
+            int trailAlpha = (int)(alpha * 0.30);
+            if (trailAlpha < 10) trailAlpha = 10;
 
-            if (b.blueBeam)
-                SDL_SetRenderDrawColor(renderer, 60, 160, 255, (unsigned char)alpha);
-            else
-                SDL_SetRenderDrawColor(renderer, 90, 90, 90, (unsigned char)trailAlpha);
-            SDL_RenderDrawLine(renderer, (int)tx, (int)ty, (int)trx, (int)try_);
-            if (b.blueBeam)
-                SDL_SetRenderDrawColor(renderer, 100, 200, 255, (unsigned char)alpha);
-            else
-                SDL_SetRenderDrawColor(renderer, 255, 255, 255, (unsigned char)alpha);
+            int cr = b.blueBeam ? 94 : 220;
+            int cg = b.blueBeam ? 194 : 239;
+            int cb = b.blueBeam ? 255 : 235;
+            ArtFX::glowLine(renderer, (int)tx, (int)ty, (int)trx, (int)try_,
+                            b.blueBeam ? 56 : 120, b.blueBeam ? 144 : 178, 255,
+                            trailAlpha, b.blueBeam ? 2 : 1);
+            SDL_SetRenderDrawColor(renderer, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)alpha);
             SDL_RenderDrawLine(renderer, (int)tx, (int)ty, (int)hx, (int)hy);
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, (Uint8)std::min(255, alpha + 20));
+            SDL_RenderDrawPoint(renderer, (int)hx, (int)hy);
+            if (b.blueBeam) {
+                // 吸收光束：额外的并行细线让它与普通玩家弹明显区分。
+                SDL_SetRenderDrawColor(renderer, 88, 206, 255, (Uint8)(alpha / 2));
+                SDL_RenderDrawLine(renderer, (int)tx, (int)ty - 2, (int)hx, (int)hy - 2);
+                SDL_RenderDrawLine(renderer, (int)tx, (int)ty + 2, (int)hx, (int)hy + 2);
+            }
         }
     }
 

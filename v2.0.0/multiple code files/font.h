@@ -136,6 +136,20 @@ public:
         }
     }
 
+    // 保留 drawString 的白色默认行为，另提供可指定颜色的版本，供标题/HUD/
+    // 菜单强调色使用。逐字符调用 drawChar，避免改动现有调用者的默认颜色。
+    void drawStringColor(SDL_Renderer* renderer, const char* str, int x, int y,
+                         int scale, int r, int g, int b, int a = 255, int mul = 1) const {
+        SDL_SetRenderDrawColor(renderer, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)a);
+        int cx = x;
+        int step = 6 * scale * mul;
+        for (const char* p = str; *p; ++p) {
+            if (*p == ' ') { cx += step; continue; }
+            drawChar(renderer, *p, cx, y, scale, mul);
+            cx += step;
+        }
+    }
+
     void drawCharFloat(SDL_Renderer* r, char c, float x, float y, float scale) const {
         const FontChar& fc = chars[(int)c];
         for (int row = 0; row < 7; ++row) {

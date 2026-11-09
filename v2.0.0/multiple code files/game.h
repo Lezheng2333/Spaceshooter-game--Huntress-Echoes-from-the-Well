@@ -175,6 +175,7 @@ class Game {
     // Edge detection helpers for menus
     bool upWas, downWas, enterWas, escWas, leftWas, rightWas;
     bool pUpWas, pDownWas, pEnterWas, pLeftWas, pRightWas;   // 暂停菜单（改成员变量：读档后需要复位）
+    bool f2Was;                // F2: CRT 后处理开关（纯视觉，不入档）
     int autoSpawnPhase;    // 0=idle,1=spawnW1(3),2=fightW1,3=spawnW2(5),4=fightW2,5=wave3,6=danmaku+done
     int autoSpawnQueued;   // aliens left to spawn in current spawning phase
     int autoSpawnTimer;    // countdown frames to next spawn (0.2s=12)
@@ -223,6 +224,7 @@ public:
           upWas(false), downWas(false), enterWas(false), escWas(false),
           leftWas(false), rightWas(false),
           pUpWas(false), pDownWas(false), pEnterWas(false), pLeftWas(false), pRightWas(false),
+          f2Was(false),
           autoSpawnPhase(0), autoSpawnQueued(0), autoSpawnTimer(0),
           autoSpawnWave3Reinf(0), autoSpawnScoreBase(0),
           autoSpawnAliveLast(0), autoSpawnKillsLast(0),
@@ -362,18 +364,38 @@ public:
     void stepFrame(const Uint8* keys, bool escPressed, bool& running) {
         // 块作用域只是为了保留原 run() 循环体的缩进，不改任何逻辑
         {
+            // F2 只切换 CRT 观感，不进入存档，也不影响任何 update 路径。
+            bool f2Now = keys[SDL_SCANCODE_F2] != 0;
+            if (f2Now && !f2Was) renderer.toggleCRT();
+            f2Was = f2Now;
+
             bool wardenFight = chapterMgr.getConfig().isSideScrolling &&
                 (wardenBoss.getState() == Ch2WardenBoss::FIGHT || wardenBoss.getState() == Ch2WardenBoss::ENRAGED);
-            bool ch1BossFight = boss.isActive() &&
-                (phase == PHASE_BOSS_FIGHT || phase == PHASE_BOSS_PHASE2);
+            bool ch1BossFight = !chapterMgr.getConfig().isSideScrolling &&
+                (phase == PHASE_BOSS_INTRO || phase == PHASE_BOSS_FIGHT ||
+                 phase == PHASE_BOSS_PHASE2 || phase == PHASE_BOSS_DEFEAT);
             audio.setBossMusic(ch1BossFight || wardenFight);
-            audio.setBgmOff(atStartScreen || atChapterSelect || atTestSelect || atOptionScreen || atSoundMenu || atSaveLoadScreen || paused || gameOver || missionComplete);
+            // 标题/章节/主菜单选项使用专门的慢速主题；暂停、读档、结算仍静音。
+            // 从暂停进入 OPTIONS/SOUND 时不重新起标题曲，避免暂停被错误地"解冻"。
+            bool startTheme = atStartScreen || atChapterSelect ||
+                ((atOptionScreen || atSoundMenu) && !optionFromPause);
+            bool bgmMuted = atTestSelect || atSaveLoadScreen || paused || gameOver || missionComplete ||
+                ((atOptionScreen || atSoundMenu) && optionFromPause);
+            audio.setStartBgm(startTheme);
+            audio.setBgmOff(bgmMuted);
             audio.setCh2Bgm(chapterMgr.getConfig().isSideScrolling &&
                 !atStartScreen && !atChapterSelect && !atTestSelect && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver);
             int musicIntensity = 0;
             if (chapterMgr.getConfig().isSideScrolling) {
-                if (ch2Flow == C2_CORRIDOR || ch2Flow == C2_SPHERE) musicIntensity = 1;
-                if (ch2Flow == C2_CHASE || ch2Flow == C2_AIRLOCK || wardenFight) musicIntensity = 2;
+                if (ch2Flow == C2_CORRIDOR || ch2Flow == C2_SPHERE || ch2Flow == C2_BOSS)
+                    musicIntensity = 1;
+                if (ch2Flow == C2_CHASE || ch2Flow == C2_AIRLOCK || wardenFight)
+                    musicIntensity = 2;
+                if (wardenBoss.getState() == Ch2WardenBoss::ENRAGED) musicIntensity = 2;
+            } else if (phase == PHASE_BOSS_INTRO || phase == PHASE_BOSS_FIGHT) {
+                musicIntensity = 1;                 // demo boss layer 1
+            } else if (phase == PHASE_BOSS_PHASE2 || phase == PHASE_BOSS_DEFEAT) {
+                musicIntensity = 2;                 // demo boss layer 2
             } else if (phase == PHASE_PLAY && score >= 30) {
                 musicIntensity = score >= 120 ? 2 : 1;
             }
@@ -460,6 +482,8 @@ public:
                 if (paused && countdown >= 0) drawCountdown();
                 else if (paused) drawPauseMenu();
             }
+            // 统一 CRT/暗角后处理。所有界面都走同一出口，避免截图与实际画面不一致。
+            renderer.composite();
         }
     }
 
@@ -474,6 +498,7 @@ public:
         if (!tex) return false;
         SDL_SetRenderTarget(renderer.get(), tex);
         drawGameplayFrame();
+        renderer.composite();
         out.assign((size_t)WIN_WIDTH * WIN_HEIGHT, 0);
         bool ok = SDL_RenderReadPixels(renderer.get(), NULL, SDL_PIXELFORMAT_ARGB8888,
                                       out.data(), WIN_WIDTH * 4) == 0;
@@ -489,6 +514,7 @@ public:
     // 把某个界面画到离屏目标并导出 BMP（仅 --selftest 用于人工核对排版）
     bool captureBmp(const char* path) {
         std::vector<uint32_t> px((size_t)WIN_WIDTH * WIN_HEIGHT, 0);
+        renderer.composite();
         if (SDL_RenderReadPixels(renderer.get(), NULL, SDL_PIXELFORMAT_ARGB8888,
                                  px.data(), WIN_WIDTH * 4) != 0) return false;
         SDL_Surface* surf = SDL_CreateRGBSurfaceFrom(px.data(), WIN_WIDTH, WIN_HEIGHT, 32, WIN_WIDTH * 4,
@@ -1792,9 +1818,10 @@ private:
             upWas = upNow; downWas = downNow; enterWas = enterNow;
             sJustEntered = false;
         }
-        if (upNow && !upWas && startMenuSelection > 0)                 startMenuSelection--;
-        if (downNow && !downWas && startMenuSelection < startItemCount - 1) startMenuSelection++;
+        if (upNow && !upWas && startMenuSelection > 0) { startMenuSelection--; audio.sndMenuMove(); }
+        if (downNow && !downWas && startMenuSelection < startItemCount - 1) { startMenuSelection++; audio.sndMenuMove(); }
         if (enterNow && !enterWas) {
+            audio.sndMenuConfirm();
             int act = startItemId[startMenuSelection];
             if (act == SI_PLAY) {
                 resetGame(); atStartScreen = false;
@@ -1832,30 +1859,108 @@ private:
         renderer.setColor(0, 0, 0); renderer.clear();
         if (background) background->drawStarsFullscreen(r);
 
-        font.drawString(r, "STAR FOX", CENTER_X - 96, 70, 4);
-        font.drawString(r, "SPACE SHOOTER", CENTER_X - 117, 120, 3);
-        SDL_SetRenderDrawColor(r, 100, 100, 100, 255);
-        SDL_RenderDrawLine(r, CENTER_X - 200, 140, CENTER_X + 200, 140);
-        SDL_RenderDrawLine(r, CENTER_X - 200, 142, CENTER_X + 200, 142);
+        ArtFX::BlendGuard guard(r);
+        // 顶部/底部仪器框：给极简标题画面一个"驾驶舱终端"的舞台。
+        ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 26, 72, 190, 116, 120);
+        SDL_SetRenderDrawColor(r, 28, 82, 62, 150);
+        SDL_RenderDrawLine(r, 64, 43, 300, 43);
+        SDL_RenderDrawLine(r, 500, 43, 736, 43);
+        font.drawStringColor(r, "MOONWELL DEFENSE NETWORK", 64, 32, 1, 77, 157, 119, 210);
+        font.drawStringColor(r, "TACTICAL LINK // ONLINE", 530, 32, 1, 77, 157, 119, 210);
+
+        // 标题：深色投影 + 双层荧光，形成明确的视觉中心。
+        int titleW = 8 * 6 * 5;
+        int titleX = CENTER_X - titleW / 2;
+        font.drawStringColor(r, "STAR FOX", titleX + 3, 61, 5, 14, 56, 39, 220);
+        font.drawStringColor(r, "STAR FOX", titleX, 58, 5, 232, 248, 238, 255);
+        int subW = 13 * 6 * 3;
+        int subX = CENTER_X - subW / 2;
+        font.drawStringColor(r, "SPACE SHOOTER", subX, 116, 3, 184, 255, 207, 235);
+        const char* initiative = "MOONWELL DEFENSE INITIATIVE";
+        int iw = (int)strlen(initiative) * 6;
+        font.drawStringColor(r, initiative, CENTER_X - iw / 2, 151, 1, 96, 144, 123, 180);
+
+        // 分隔线中央留一个菱形准星。
+        SDL_SetRenderDrawColor(r, 54, 168, 108, 180);
+        SDL_RenderDrawLine(r, 196, 166, 389, 166);
+        SDL_RenderDrawLine(r, 411, 166, 604, 166);
+        SDL_Point dia[4] = {{400, 161}, {406, 166}, {400, 171}, {394, 166}};
+        SDL_SetRenderDrawColor(r, 142, 255, 184, 220);
+        SDL_RenderDrawLines(r, dia, 4);
+        SDL_RenderDrawLine(r, dia[3].x, dia[3].y, dia[0].x, dia[0].y);
+
+        // 右侧缓慢旋转的战术准星，增加菜单层的纵深与生命感。
+        {
+            int cx = 688, cy = 366;
+            int tick = (int)(SDL_GetTicks() / 40);
+            for (int ring = 0; ring < 2; ++ring) {
+                int rr = 42 + ring * 13;
+                int alpha = ring == 0 ? 48 : 30;
+                int px = cx + rr, py = cy;
+                for (int i = 1; i <= 48; ++i) {
+                    double a = 2.0 * M_PI * i / 48.0 + tick * 0.004 * (ring ? -1 : 1);
+                    int nx = cx + (int)(rr * std::cos(a));
+                    int ny = cy + (int)(rr * std::sin(a));
+                    if (i % 6) {
+                        SDL_SetRenderDrawColor(r, 54, 184, 118, (Uint8)alpha);
+                        SDL_RenderDrawLine(r, px, py, nx, ny);
+                    }
+                    px = nx; py = ny;
+                }
+            }
+            SDL_SetRenderDrawColor(r, 90, 232, 151, 75);
+            SDL_RenderDrawLine(r, cx - 68, cy, cx - 18, cy);
+            SDL_RenderDrawLine(r, cx + 18, cy, cx + 68, cy);
+            SDL_RenderDrawLine(r, cx, cy - 68, cx, cy - 18);
+            SDL_RenderDrawLine(r, cx, cy + 18, cx, cy + 68);
+            ArtFX::starGlint(r, cx, cy, 2, 110, 255, 172, 110);
+        }
 
         if (startItemCount == 0) buildStartMenu();
-        const int MENU_Y0 = 200, GAP = 48;
+        const int MENU_Y0 = 200, GAP = 45;
+        int maxW = 0;
+        for (int i = 0; i < startItemCount; ++i) {
+            int w = (int)strlen(startItemLabel(startItemId[i])) * 6 * 4;
+            if (w > maxW) maxW = w;
+        }
         for (int i = 0; i < startItemCount; ++i) {
             const char* label = startItemLabel(startItemId[i]);
             int itemW = (int)strlen(label) * 6 * 4;
             int itemX = CENTER_X - itemW / 2;
             int itemY = MENU_Y0 + i * GAP;
-            font.drawString(r, label, itemX, itemY, 4);
-            if (i == startMenuSelection) {
-                UIRenderer::drawMenuCursor(r, itemX - 30, itemY + 14, 12);
-                UIRenderer::drawMenuUnderline(r, itemX, itemY + 32, itemW);
+            bool sel = (i == startMenuSelection);
+            if (sel) {
+                ArtFX::techPanel(r, CENTER_X - maxW / 2 - 34, itemY - 7,
+                                 maxW + 68, 38, 3, 12, 12, 68, 214, 130);
+                ArtFX::bracket(r, CENTER_X - maxW / 2 - 42, itemY - 11,
+                               maxW + 84, 46, 9, 100, 255, 163, 150);
+            }
+            char idx[8];
+            snprintf(idx, sizeof(idx), "%02d", i + 1);
+            font.drawStringColor(r, idx, CENTER_X - maxW / 2 - 26, itemY + 7, 1,
+                                 sel ? 148 : 58, sel ? 255 : 103, sel ? 186 : 81, sel ? 230 : 140);
+            font.drawStringColor(r, label, itemX, itemY, 4,
+                                 sel ? 236 : 128, sel ? 255 : 151, sel ? 243 : 144,
+                                 sel ? 255 : 170);
+            if (sel) {
+                UIRenderer::drawMenuCursor(r, itemX - 42, itemY + 14, 12);
+                UIRenderer::drawMenuUnderline(r, itemX, itemY + 33, itemW);
             }
         }
-        font.drawString(r, "W/S:select  ENTER:confirm", CENTER_X - 150, 500, 2);
-        SDL_SetRenderDrawColor(r, 120, 120, 120, 255);
-        font.drawString(r, "Ver 1.2.26", 15, WIN_HEIGHT - 30, 2);
-        // 存档目录提示（读档列表为空时方便排查）
-        font.drawString(r, SaveSystem::baseDir().c_str(), 15, WIN_HEIGHT - 16, 1);
+
+        // 底部主导航提示 + 左右状态灯。
+        SDL_SetRenderDrawColor(r, 34, 92, 68, 150);
+        SDL_RenderDrawLine(r, 64, 466, 736, 466);
+        const char* help = "W/S SELECT   ENTER CONFIRM   F2 CRT";
+        int helpW = (int)strlen(help) * 6 * 2;
+        font.drawStringColor(r, help, CENTER_X - helpW / 2, 482, 2, 118, 183, 149, 220);
+        font.drawStringColor(r, "Ver 1.2.27", 55, WIN_HEIGHT - 62, 2, 83, 126, 106, 170);
+        font.drawStringColor(r, SaveSystem::baseDir().c_str(), 55, WIN_HEIGHT - 46, 1, 56, 86, 74, 180);
+        // 两个小的系统状态灯，打破标题左右完全对称。
+        SDL_SetRenderDrawColor(r, 83, 238, 141, 215);
+        SDL_Rect l1 = {54, 204, 3, 3}; SDL_RenderFillRect(r, &l1);
+        SDL_SetRenderDrawColor(r, 238, 164, 76, 180);
+        SDL_Rect l2 = {742, 410, 3, 3}; SDL_RenderFillRect(r, &l2);
     }
 
     // ======== CHAPTER SCREEN ========
@@ -1863,9 +1968,10 @@ private:
         static bool cJustEntered = true;
         MenuKeys mk(keys);
         if (cJustEntered) { upWas=mk.up; downWas=mk.down; enterWas=mk.enter; escWas=mk.esc; cJustEntered=false; }
-        if (mk.up && !upWas)    { int cs = chapterSelection; while (cs > 0) { cs--; if (chapterMgr.isUnlocked(cs)) { chapterSelection = cs; break; } } }
-        if (mk.down && !downWas) { int cs = chapterSelection; while (cs < 4) { cs++; if (chapterMgr.isUnlocked(cs)) { chapterSelection = cs; break; } } }
+        if (mk.up && !upWas)    { int cs = chapterSelection; while (cs > 0) { cs--; if (chapterMgr.isUnlocked(cs)) { chapterSelection = cs; audio.sndMenuMove(); break; } } }
+        if (mk.down && !downWas) { int cs = chapterSelection; while (cs < 4) { cs++; if (chapterMgr.isUnlocked(cs)) { chapterSelection = cs; audio.sndMenuMove(); break; } } }
         if (mk.enter && !enterWas) {
+            audio.sndMenuConfirm();
             if (chapterMgr.isUnlocked(chapterSelection)) {
                 chapterMgr.selectChapter(chapterSelection);
                 resetGame(); atStartScreen = false; atChapterSelect = false;
@@ -1877,7 +1983,7 @@ private:
                 pendingAutoSave = true;      // 章节起点写入 AUTO 槽
             }
         }
-        if (mk.esc && !escWas) { atChapterSelect = false; atStartScreen = true; cJustEntered = true; }
+        if (mk.esc && !escWas) { audio.sndMenuBack(); atChapterSelect = false; atStartScreen = true; cJustEntered = true; }
         upWas=mk.up; downWas=mk.down; enterWas=mk.enter; escWas=mk.esc;
     }
 
@@ -1885,25 +1991,55 @@ private:
         SDL_Renderer* r = renderer.get();
         renderer.setColor(0, 0, 0); renderer.clear();
         if (background) background->drawStarsFullscreen(r);
-        font.drawString(r, "SELECT CHAPTER", CENTER_X - 180, 60, 4);
-        SDL_SetRenderDrawColor(r, 100, 100, 100, 255);
-        SDL_RenderDrawLine(r, CENTER_X - 180, 100, CENTER_X + 180, 100);
+        ArtFX::BlendGuard guard(r);
+        ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 24, 64, 188, 118, 112);
+        const char* title = "SELECT CHAPTER";
+        int tw = (int)strlen(title) * 6 * 4;
+        font.drawStringColor(r, title, CENTER_X - tw / 2, 50, 4, 228, 247, 237, 255);
+        SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
+        SDL_RenderDrawLine(r, CENTER_X - 180, 98, CENTER_X + 180, 98);
+        font.drawStringColor(r, "MOONWELL CAMPAIGN // OPERATION ARCHIVE", CENTER_X - 144, 108, 1,
+                             80, 147, 116, 195);
+
         const char* chLabels[5] = {"CHAPTER 1", "CHAPTER 2", "CHAPTER 3", "CHAPTER 4", "CHAPTER 5"};
-        const int Y0 = 150, GAP = 55;
+        const char* chSub[5] = {"FIRST FLIGHT", "DEEP SPACE", "ENEMY FORTRESS", "ASTEROID BELT", "FINAL ASSAULT"};
+        const int Y0 = 146, GAP = 55;
         for (int i = 0; i < 5; ++i) {
+            bool locked = !chapterMgr.isUnlocked(i);
+            bool sel = (i == chapterSelection);
             int itemW = (int)strlen(chLabels[i]) * 6 * 3;
             int itemX = CENTER_X - itemW / 2;
             int itemY = Y0 + i * GAP;
-            bool locked = !chapterMgr.isUnlocked(i);
-            SDL_SetRenderDrawColor(r, locked ? 80 : 255, locked ? 80 : 255, locked ? 80 : 255, 255);
-            font.drawString(r, chLabels[i], itemX, itemY, 3);
-            if (i == chapterSelection) {
-                UIRenderer::drawMenuCursor(r, itemX - 24, itemY + 10, 10);
-                UIRenderer::drawMenuUnderline(r, itemX, itemY + 24, itemW);
+            if (sel) {
+                ArtFX::techPanel(r, 110, itemY - 9, WIN_WIDTH - 220, 42, 4, 16, 14, 62, 218, 129);
+                ArtFX::bracket(r, 102, itemY - 13, WIN_WIDTH - 204, 50, 10, 120, 255, 168, 140);
+            } else {
+                SDL_SetRenderDrawColor(r, 27, 62, 46, 95);
+                SDL_RenderDrawLine(r, 126, itemY + 35, WIN_WIDTH - 126, itemY + 35);
             }
-            if (locked) font.drawString(r, "(LOCKED)", itemX + itemW + 10, itemY, 2);
+            char num[8];
+            snprintf(num, sizeof(num), "%02d", i + 1);
+            font.drawStringColor(r, num, 138, itemY + 5, 1, locked ? 62 : 72,
+                                 locked ? 82 : (sel ? 255 : 164), locked ? 72 : (sel ? 182 : 122), 180);
+            font.drawStringColor(r, chLabels[i], itemX, itemY, 3,
+                                 locked ? 86 : (sel ? 228 : 165),
+                                 locked ? 103 : (sel ? 255 : 195),
+                                 locked ? 94 : (sel ? 194 : 178),
+                                 locked ? 145 : 230);
+            if (locked) {
+                font.drawStringColor(r, "LOCKED", itemX + itemW + 22, itemY + 4, 1, 176, 88, 76, 195);
+            } else {
+                font.drawStringColor(r, chSub[i], itemX + itemW + 22, itemY + 4, 1,
+                                     sel ? 170 : 93, sel ? 236 : 148, sel ? 189 : 126, 190);
+            }
+            if (sel) {
+                UIRenderer::drawMenuCursor(r, itemX - 30, itemY + 10, 10);
+                UIRenderer::drawMenuUnderline(r, itemX, itemY + 26, itemW);
+            }
         }
-        font.drawString(r, "W/S:select  ENTER:start  ESC:back", CENTER_X - 210, 490, 2);
+        const char* hint = "W/S:SELECT   ENTER:START   ESC:BACK";
+        int hw = (int)strlen(hint) * 12;
+        font.drawStringColor(r, hint, CENTER_X - hw / 2, 492, 2, 112, 172, 139, 218);
     }
 
     // ======== TEST SCREEN ========
@@ -2448,14 +2584,16 @@ private:
         static bool oJustEntered = true;
         MenuKeys mk(keys);
         if (oJustEntered) { upWas=mk.up; downWas=mk.down; enterWas=mk.enter; escWas=mk.esc; oJustEntered=false; }
-        if (mk.up && !upWas && optionCursor > 0)    optionCursor--;
-        if (mk.down && !downWas && optionCursor < 2) optionCursor++;
+        if (mk.up && !upWas && optionCursor > 0)    { optionCursor--; audio.sndMenuMove(); }
+        if (mk.down && !downWas && optionCursor < 2) { optionCursor++; audio.sndMenuMove(); }
         if (mk.enter && !enterWas) {
+            audio.sndMenuConfirm();
             if (optionCursor == 0) { aimAssistOn = !aimAssistOn; storeSettings(); }
             else if (optionCursor == 1) { voiceLang = (voiceLang + 1) % 3; storeSettings(); }   // 0=中文 1=English 2=OFF
             else if (optionCursor == 2) { atSoundMenu = true; oJustEntered = true; }
         }
         if (mk.esc && !escWas) {
+            audio.sndMenuBack();
             optionCursor = 0; atOptionScreen = false; oJustEntered = true;
             if (optionFromPause) paused = true;
             else atStartScreen = true;
@@ -2467,37 +2605,51 @@ private:
         SDL_Renderer* r = renderer.get();
         renderer.setColor(0, 0, 0); renderer.clear();
         if (background) background->drawStarsFullscreen(r);
-        font.drawString(r, "OPTIONS", CENTER_X - 84, 40, 4);
-        SDL_SetRenderDrawColor(r, 100, 100, 100, 255);
-        SDL_RenderDrawLine(r, CENTER_X - 180, 78, CENTER_X + 180, 78);
+        ArtFX::BlendGuard guard(r);
+        ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 24, 64, 188, 118, 112);
+        const char* title = "OPTIONS";
+        int tw = (int)strlen(title) * 6 * 4;
+        font.drawStringColor(r, title, CENTER_X - tw / 2, 42, 4, 228, 247, 237, 255);
+        SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
+        SDL_RenderDrawLine(r, CENTER_X - 180, 84, CENTER_X + 180, 84);
+        font.drawStringColor(r, "PILOT INTERFACE / AUDIO SYSTEM", CENTER_X - 114, 96, 1,
+                             80, 147, 116, 195);
+
         const char* labels[3] = {"AIM ASSIST", "VOICE LANG", "SOUND"};
-        const int Y0 = 120, GAP = 66;
+        const int Y0 = 134, GAP = 76;
         for (int i = 0; i < 3; ++i) {
             int ly = Y0 + i * GAP;
-            int lx = CENTER_X - 120;
-            if (i == optionCursor) UIRenderer::drawMenuCursor(r, lx - 22, ly + 7, 10);
-            font.drawString(r, labels[i], lx, ly, 3);
-            if (i == 0) {
-                SDL_SetRenderDrawColor(r, aimAssistOn ? 100 : 200, aimAssistOn ? 255 : 60, 100, 255);
-                SDL_Rect tg = {CENTER_X + 80, ly - 2, 56, 26};
-                SDL_RenderFillRect(r, &tg);
-                font.drawString(r, aimAssistOn ? "ON" : "OFF", CENTER_X + 88, ly + 4, 2);
-            } else if (i == 1) {
-                // VOICE LANG: 0=中文(ZH) 1=English(EN) 2=OFF (letter pops only)
-                const char* vlLabels[3] = {"ZH", "EN", "OFF"};
-                font.drawString(r, vlLabels[voiceLang], CENTER_X + 92, ly + 4, 2);
-                SDL_SetRenderDrawColor(r, 120, 120, 120, 255);
-                SDL_Rect tg = {CENTER_X + 80, ly - 2, 62, 26};
-                SDL_RenderDrawRect(r, &tg);
-            } else {
-                font.drawString(r, ">", CENTER_X + 80, ly, 3);
+            int lx = CENTER_X - 230;
+            bool sel = (i == optionCursor);
+            if (sel) {
+                ArtFX::techPanel(r, CENTER_X - 300, ly - 11, 600, 46, 4, 16, 14, 61, 214, 128);
+                ArtFX::bracket(r, CENTER_X - 306, ly - 15, 612, 54, 10, 120, 255, 168, 135);
             }
-            if (i == optionCursor) {
+            font.drawStringColor(r, labels[i], lx, ly, 3,
+                                 sel ? 224 : 158, sel ? 255 : 192, sel ? 237 : 180, 240);
+            if (i == 0) {
+                int tx = CENTER_X + 120;
+                ArtFX::techPanel(r, tx, ly - 3, 70, 28, 3, 13, 12, 65, 204, 121);
+                font.drawStringColor(r, aimAssistOn ? "ON" : "OFF", tx + 17, ly + 3, 2,
+                                     aimAssistOn ? 126 : 216, aimAssistOn ? 255 : 116,
+                                     aimAssistOn ? 171 : 94, 245);
+            } else if (i == 1) {
+                const char* vlLabels[3] = {"ZH", "EN", "OFF"};
+                int tx = CENTER_X + 120;
+                ArtFX::techPanel(r, tx, ly - 3, 70, 28, 3, 13, 12, 65, 204, 121);
+                font.drawStringColor(r, vlLabels[voiceLang], tx + 22, ly + 3, 2, 168, 230, 255, 240);
+            } else {
+                font.drawStringColor(r, ">", CENTER_X + 130, ly, 3, 118, 244, 157, 240);
+            }
+            if (sel) {
                 int itemW = (int)strlen(labels[i]) * 6 * 3;
-                UIRenderer::drawMenuUnderline(r, lx, ly + 24, itemW);
+                UIRenderer::drawMenuCursor(r, lx - 22, ly + 10, 10);
+                UIRenderer::drawMenuUnderline(r, lx, ly + 25, itemW);
             }
         }
-        font.drawString(r, "W/S:select  ENTER:confirm  ESC:back", CENTER_X - 216, 490, 2);
+        const char* hint = "W/S:SELECT   ENTER:CONFIRM   ESC:BACK";
+        int hw = (int)strlen(hint) * 12;
+        font.drawStringColor(r, hint, CENTER_X - hw / 2, 494, 2, 112, 172, 139, 218);
     }
 
     // ======== SOUND MENU ========
@@ -2510,10 +2662,10 @@ private:
             upWas=mk.up; downWas=mk.down; escWas=mk.esc; enterWas=mk.enter;
             leftWas=leftNow; rightWas=rightNow; sJustEntered=false;
         }
-        if (mk.up && !upWas && soundCursor > 0)    soundCursor--;
-        if (mk.down && !downWas && soundCursor < 5) soundCursor++;
-        if (mk.esc && !escWas)  { atSoundMenu = false; sJustEntered = true; }
-        if (mk.enter && !enterWas && soundCursor == 5) { atSoundMenu = false; sJustEntered = true; }
+        if (mk.up && !upWas && soundCursor > 0)    { soundCursor--; audio.sndMenuMove(); }
+        if (mk.down && !downWas && soundCursor < 5) { soundCursor++; audio.sndMenuMove(); }
+        if (mk.esc && !escWas)  { audio.sndMenuBack(); atSoundMenu = false; sJustEntered = true; }
+        if (mk.enter && !enterWas && soundCursor == 5) { audio.sndMenuBack(); atSoundMenu = false; sJustEntered = true; }
 
         bool changed = false;
         if (leftNow && !leftWas) {
@@ -2530,7 +2682,7 @@ private:
             if (soundCursor == 3) { audio.adjEqMid(1); changed = true; }
             if (soundCursor == 4) { audio.adjEqHigh(1); changed = true; }
         }
-        if (changed) storeSettings();   // 音量/EQ 改动立即持久化
+        if (changed) { audio.sndMenuMove(); storeSettings(); }   // 音量/EQ 改动立即持久化
         upWas=mk.up; downWas=mk.down; escWas=mk.esc; enterWas=mk.enter;
         leftWas=leftNow; rightWas=rightNow;
     }
@@ -2539,37 +2691,58 @@ private:
         SDL_Renderer* r = renderer.get();
         renderer.setColor(0, 0, 0); renderer.clear();
         if (background) background->drawStarsFullscreen(r);
-        font.drawString(r, "SOUND", CENTER_X - 60, 40, 4);
-        SDL_SetRenderDrawColor(r, 100, 100, 100, 255);
-        SDL_RenderDrawLine(r, CENTER_X - 180, 78, CENTER_X + 180, 78);
+        ArtFX::BlendGuard guard(r);
+        ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 24, 64, 188, 118, 112);
+        const char* title = "SOUND";
+        int tw = (int)strlen(title) * 6 * 4;
+        font.drawStringColor(r, title, CENTER_X - tw / 2, 40, 4, 228, 247, 237, 255);
+        SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
+        SDL_RenderDrawLine(r, CENTER_X - 180, 84, CENTER_X + 180, 84);
+        font.drawStringColor(r, "DYNAMIC MIXER // MASTER EQ", CENTER_X - 96, 96, 1,
+                             80, 147, 116, 195);
+
         const char* labels[6] = {"BGM VOL", "SFX VOL", "EQ LOW", "EQ MID", "EQ HIGH", "BACK"};
-        const int Y0 = 110, GAP = 48;
+        const int Y0 = 120, GAP = 54;
         for (int i = 0; i < 6; ++i) {
             int ly = Y0 + i * GAP;
-            int lx = CENTER_X - 120;
-            if (i == soundCursor) UIRenderer::drawMenuCursor(r, lx - 22, ly + 7, 10);
-            font.drawString(r, labels[i], lx, ly, 3);
-            if (i == soundCursor) {
+            int lx = CENTER_X - 225;
+            bool sel = (i == soundCursor);
+            if (sel) {
+                ArtFX::techPanel(r, CENTER_X - 300, ly - 10, 600, 42, 4, 16, 14, 61, 214, 128);
+                ArtFX::bracket(r, CENTER_X - 306, ly - 14, 612, 50, 10, 120, 255, 168, 135);
+            }
+            font.drawStringColor(r, labels[i], lx, ly, 3,
+                                 sel ? 224 : 158, sel ? 255 : 192, sel ? 237 : 180, 240);
+            int sx = CENTER_X + 50, sw = 160;
+            char vbuf[8] = {0};
+            if (i < 5) {
+                switch (i) {
+                    case 0: snprintf(vbuf, sizeof(vbuf), "%d", audio.getBgmVolume());
+                            UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getBgmVolume(), 1, 10, false); break;
+                    case 1: snprintf(vbuf, sizeof(vbuf), "%d", audio.getSfxVolume());
+                            UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getSfxVolume(), 1, 10, false); break;
+                    case 2: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqLow());
+                            UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqLow(), -5, 5, true); break;
+                    case 3: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqMid());
+                            UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqMid(), -5, 5, true); break;
+                    case 4: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqHigh());
+                            UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqHigh(), -5, 5, true); break;
+                }
+                font.drawStringColor(r, vbuf, sx + sw + 14, ly, 2,
+                                     sel ? 190 : 123, sel ? 255 : 174, sel ? 213 : 148, 235);
+            } else {
+                font.drawStringColor(r, ">", sx, ly, 3, sel ? 124 : 68, sel ? 255 : 148,
+                                     sel ? 167 : 111, 235);
+            }
+            if (sel) {
                 int itemW = (int)strlen(labels[i]) * 6 * 3;
-                UIRenderer::drawMenuUnderline(r, lx, ly + 24, itemW);
+                UIRenderer::drawMenuCursor(r, lx - 22, ly + 10, 10);
+                UIRenderer::drawMenuUnderline(r, lx, ly + 25, itemW);
             }
-            int sx = CENTER_X + 20, sw = 160;
-            char vbuf[8];
-            switch (i) {
-                case 0: snprintf(vbuf, sizeof(vbuf), "%d", audio.getBgmVolume());
-                        UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getBgmVolume(), 1, 10, false); break;
-                case 1: snprintf(vbuf, sizeof(vbuf), "%d", audio.getSfxVolume());
-                        UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getSfxVolume(), 1, 10, false); break;
-                case 2: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqLow());
-                        UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqLow(), -5, 5, true); break;
-                case 3: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqMid());
-                        UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqMid(), -5, 5, true); break;
-                case 4: snprintf(vbuf, sizeof(vbuf), "%+d", audio.getEqHigh());
-                        UIRenderer::drawSlider(r, sx, ly+6, sw, audio.getEqHigh(), -5, 5, true); break;
-            }
-            if (i < 5) font.drawString(r, vbuf, sx + sw + 10, ly, 2);
         }
-        font.drawString(r, "W/S:select  A/D:adjust  ENTER/ESC:back", CENTER_X - 232, 490, 2);
+        const char* hint = "W/S:SELECT   A/D:ADJUST   ENTER/ESC:BACK";
+        int hw = (int)strlen(hint) * 12;
+        font.drawStringColor(r, hint, CENTER_X - hw / 2, 494, 2, 112, 172, 139, 218);
     }
 
     // ======== GAMEPLAY UPDATE ========
@@ -3154,7 +3327,10 @@ private:
     }
 
     void beginCh2Transition() {
-        if (ch2FadeTimer <= 0) ch2FadeTimer = 1;
+        if (ch2FadeTimer <= 0) {
+            ch2FadeTimer = 1;
+            audio.sndTransitionSwell();
+        }
     }
 
     // 在最暗的一帧完成换场：重置新场景、把飞机放到左侧画面外
@@ -3284,6 +3460,7 @@ private:
             sphereBoss.init(sideBg, player);
             sphereBossActive = true;
             sphereBoss.startEnteringAt(sideBg->getScrollX());  // appears ahead of current scroll
+            audio.sndSphereAppear();
             enterCh2Flow(C2_SPHERE);
             ch2PhaseTimer = 0;
         }
@@ -3303,7 +3480,7 @@ private:
                 dialogueSys.queueDialogue("Martha", "Brace yourselves.");
                 dialogueSys.start();
             }
-            sphereBoss.update();
+            sphereBoss.update(&audio);
             double ts = sphereBoss.getBgTargetSpeed();
             if (ts >= 0 && sideBg) sideBg->setSpeed(ts);
         }
@@ -3325,13 +3502,16 @@ private:
                 if (dx*dx + dy*dy < sphereBoss.getRadius() * sphereBoss.getRadius()) {
                     b.active = false;
                     int dropped = sphereBoss.hitDiamonds(3);
-                    if (dropped > 0)
+                    if (dropped > 0) {
                         particleMgr.spawnExplosion(b.x, b.y, 2 + dropped);
+                        audio.sndSphereCrystalHit();
+                    }
                 }
             }
         }
         // Shatter sequence finished → chase begins (auto-spawn wave 1)
         if (sphereBossActive && sphereBoss.getState() == Ch2SphereBoss::DONE) {
+            audio.sndShardSwarm();
             if (autoSpawnPhase == 0) {
                 autoSpawnPhase = 1; autoSpawnQueued = 3; autoSpawnTimer = 0;
                 autoSpawnScoreBase = score;  // record baseline for kill counting
@@ -3355,8 +3535,13 @@ private:
         if (autoSpawnQueued > 0) {
             if (autoSpawnTimer > 0) autoSpawnTimer--;
             if (autoSpawnTimer <= 0) {
-                if (autoSpawnPhase == 1) ch2AlienMgr.forceSpawnFromShards();
-                else ch2AlienMgr.forceSpawn();
+                if (autoSpawnPhase == 1) {
+                    ch2AlienMgr.forceSpawnFromShards();
+                    audio.sndShardLaunch();
+                } else {
+                    ch2AlienMgr.forceSpawn();
+                    audio.sndAlienWarp();
+                }
                 autoSpawnQueued--;
                 autoSpawnTimer = 12; // 0.2s = 12 frames
             }
@@ -3401,6 +3586,7 @@ private:
             // Danmaku gate: 4 reinf rounds done + field clear + no pending spawns
             if (autoSpawnWave3Reinf >= 4 && alive == 0 && autoSpawnQueued <= 0) {
                 dmMgr.spawnEnemy();
+                audio.sndAlienWarp();
                 autoSpawnPhase = 6;
             }
         }
@@ -3414,6 +3600,7 @@ private:
                 if (de.defeated && de.defeatTimer == 1) { // last frame of defeat animation
                     skillOrb.spawn(de.x, de.y);
                     pulseOrbDropped = true;
+                    audio.sndTripleOn();
                     break;
                 }
             }
@@ -3454,11 +3641,13 @@ private:
                 // Start absorption: must be CORE, holding Shift, near player, energy at 0
                 if (skillOrb.state == Ch2SkillOrb::CORE && shiftNow && nearPlayer && pulseSystem.canAbsorb()) {
                     skillOrb.startAbsorb();
+                    audio.sndAbsorbCharge();
                 }
                 // Continuing absorption: each frame tick timer + fill energy
                 if (skillOrb.state == Ch2SkillOrb::ABSORBING && shiftNow && nearPlayer) {
                     skillOrb.tickAbsorb();
                     if (skillOrb.absorbTimer % 10 == 0) pulseSystem.addAbsorbEnergy();
+                    if (skillOrb.absorbTimer % 30 == 0) audio.sndAbsorbCharge();
                     for (int i = 0; i < 5; ++i) {
                         double sx = skillOrb.x + (rand()%14-7);
                         double sy = skillOrb.y + (rand()%14-7);
@@ -3470,6 +3659,7 @@ private:
                         pulseSystem.unlocked = true;
                         pulseSystem.energy = Ch2PulseSystem::MAX_ENERGY; // snap to full
                         autoSpawnQueued += 10;
+                        audio.sndTripleOn();
                     }
                 }
                 // Energy drain: -3 per frame until 0
@@ -3561,10 +3751,12 @@ private:
             if (dx*dx + dy*dy < 80.0 * 80.0) {
                 labUpgradeState = 1;
                 labUpgradeTimer = 0;
+                audio.sndTransitionSwell();
             }
         } else if (labUpgradeState == 1) {
             // Upgrade animation: white particles converge on the prototype
             labUpgradeTimer++;
+            if (labUpgradeTimer % 18 == 0) audio.sndAbsorbCharge();
             if (labUpgradeTimer % 3 == 0) {
                 double angle = (rand() % 6283) / 1000.0;
                 double dist = 40 + rand() % 90;
@@ -3615,7 +3807,10 @@ private:
         // Minion summons from the boss
         if (wardenBoss.wantsMinion()) {
             wardenBoss.clearMinionRequest();
-            if (ch2AlienMgr.countLiving() < 2) ch2AlienMgr.forceSpawn();
+            if (ch2AlienMgr.countLiving() < 2) {
+                ch2AlienMgr.forceSpawn();
+                audio.sndAlienWarp();
+            }
         }
 
         wardenBoss.update(*player, ch2PlayerHP, ch2GameOver, particleMgr, audio, floatingTextMgr);
@@ -3643,7 +3838,7 @@ private:
                 double dx = b.x - wardenBoss.getX(), dy = b.y - wardenBoss.getY();
                 if (dx*dx + dy*dy < wardenBoss.getRadius() * wardenBoss.getRadius()) {
                     b.active = false; b.canDamage = false;
-                    wardenBoss.takeDamage(1);
+                    wardenBoss.takeDamage(1, &audio);
                     playerHitCount++;
                     audio.sndBossHit();
                     particleMgr.spawnExplosion(b.x, b.y, 4);
@@ -3660,7 +3855,7 @@ private:
             double dx = wardenBoss.getX() - w.x, dy = wardenBoss.getY() - w.y;
             if (dx*dx + dy*dy < (w.radius + wardenBoss.getRadius()) * (w.radius + wardenBoss.getRadius())) {
                 wardenBoss.lastHitByPulse = w.id;
-                wardenBoss.takeDamage(1);
+                wardenBoss.takeDamage(1, &audio);
                 playerHitCount++;
                 particleMgr.spawnExplosion(wardenBoss.getX(), wardenBoss.getY(), 4);
                 audio.sndShockwaveHit();
@@ -3924,6 +4119,7 @@ private:
                 pulseSystem.draw(renderer.get());
                 skillOrb.draw(renderer.get());
                 // Ch2 HUD: all aligned to rightEdge = WIN_WIDTH - 10
+                HUDBase::drawStatusPanel(renderer.get(), WIN_WIDTH - 10, 4, 60);
                 HUDBase::drawScore(renderer.get(), font, score, WIN_WIDTH - 10, 10);
                 HUDBase::drawHPHearts(renderer.get(), font, ch2PlayerHP, 3, WIN_WIDTH - 10, 28);
                 float eFill = pulseSystem.getFill();
@@ -3987,6 +4183,7 @@ private:
 
     void drawScoreHUD() {
         SDL_Renderer* r = renderer.get();
+        HUDBase::drawStatusPanel(r, WIN_WIDTH - 10, 4, 54);
         HUDBase::drawScore(r, font, score, WIN_WIDTH - 10, 10);
         HUDBase::drawHPHearts(r, font, baseHP, 10, WIN_WIDTH - 10, 28);
         int lev = score / 30;
@@ -4243,9 +4440,10 @@ private:
 
             if (!pauseHistoryFocused) {
                 // Menu focused
-                if (upNow && !pUpWas && pauseMenuSelection > 0)     pauseMenuSelection--;
-                if (downNow && !pDownWas && pauseMenuSelection < 6) pauseMenuSelection++;
+                if (upNow && !pUpWas && pauseMenuSelection > 0)     { pauseMenuSelection--; audio.sndMenuMove(); }
+                if (downNow && !pDownWas && pauseMenuSelection < 6) { pauseMenuSelection++; audio.sndMenuMove(); }
                 if (enterNow && !pEnterWas) {
+                    audio.sndMenuConfirm();
                     if (pauseMenuSelection == 0)      { countdown = 3; countdownFrame = 0; }
                     else if (pauseMenuSelection == 1) { openSaveScreen(true); }
                     else if (pauseMenuSelection == 2) { openLoadScreen(true); }
@@ -4267,10 +4465,20 @@ private:
     void drawPauseMenu() {
         SDL_Renderer* r = renderer.get();
         UIRenderer::drawHalfTransparentOverlay(r, 180);
+        ArtFX::BlendGuard guard(r);
+
+        // 左右两块独立仪器面板：菜单和通讯记录互不干扰，同时压住背景高频线条。
+        ArtFX::techPanel(r, 26, 82, 368, 384, 3, 10, 11, 52, 168, 106);
+        ArtFX::techPanel(r, 406, 82, 368, 384, 3, 10, 11, 52, 148, 172);
+        ArtFX::bracket(r, 20, 76, 380, 396, 12, 96, 236, 142, 115);
+        ArtFX::bracket(r, 400, 76, 380, 396, 12, 96, 182, 214, 115);
 
         // === Left half: menu ===
         bool menuFocus = !pauseHistoryFocused;
-        font.drawString(r, "PAUSED", 50, 100, 3);
+        font.drawStringColor(r, "PAUSED", 50, 100, 3, 226, 248, 238, 255);
+        font.drawStringColor(r, "FLIGHT OPS // LINK STANDBY", 200, 106, 1, 72, 160, 119, 195);
+        SDL_SetRenderDrawColor(r, 45, 143, 91, 130);
+        SDL_RenderDrawLine(r, 48, 134, 372, 134);
         const char* items[7] = {"RESUME", "SAVE GAME", "LOAD GAME", "RESTART",
                                 "OPTIONS", "BACK TO MAIN MENU", "EXIT"};
         const int MENU_Y0 = 150, GAP = 38;
@@ -4278,100 +4486,107 @@ private:
             int itemW = (int)strlen(items[i]) * 6 * 3;
             int itemX = 50;
             int itemY = MENU_Y0 + i * GAP;
-            font.drawString(r, items[i], itemX, itemY, 3);
-            if (menuFocus && i == pauseMenuSelection) {
+            bool sel = menuFocus && i == pauseMenuSelection;
+            if (sel) {
+                ArtFX::techPanel(r, 36, itemY - 6, 342, 34, 4, 17, 14, 66, 224, 132);
                 UIRenderer::drawMenuCursor(r, itemX - 20, itemY + 10, 8);
                 UIRenderer::drawMenuUnderline(r, itemX, itemY + 24, itemW);
             }
+            font.drawStringColor(r, items[i], itemX, itemY, 3,
+                                 sel ? 230 : 158, sel ? 255 : 190, sel ? 241 : 178, 235);
         }
-        font.drawString(r, "A/D:switch  W/S:menu  ENTER:confirm", 30, 480, 2);
+        font.drawStringColor(r, "A/D:SWITCH  W/S:MENU  ENTER:CONFIRM", 42, 480, 2,
+                             108, 166, 134, 218);
 
         // === Right half: dialogue history ===
         const int RX = 420;
-        font.drawString(r, "HISTORY DIALOGUE", RX, 100, 3);
+        font.drawStringColor(r, "HISTORY DIALOGUE", RX, 100, 3, 186, 226, 242, 250);
+        font.drawStringColor(r, "RECORDED TRANSMISSIONS", RX, 124, 1,
+                             pauseHistoryFocused ? 138 : 74,
+                             pauseHistoryFocused ? 210 : 124,
+                             pauseHistoryFocused ? 240 : 148, 200);
+        SDL_SetRenderDrawColor(r, 49, 117, 152, 115);
+        SDL_RenderDrawLine(r, RX, 136, 756, 136);
 
         auto& hist = dialogueSys.history;
         int total = (int)hist.size();
-        if (total == 0) return;
+        if (total == 0) {
+            font.drawStringColor(r, "NO TRANSMISSIONS RECORDED", RX + 8, 170, 2,
+                                 86, 122, 133, 185);
+            font.drawStringColor(r, "FLIGHT LOG WILL APPEAR HERE", RX + 8, 192, 1,
+                                 63, 94, 105, 165);
+        } else {
+            const int CH_W = 12, CH_H = 14;
+            const int RY_TOP = 152;
+            const int LINE_GAP = 14;
+            const int TR = 54, TG = 177, TB = 123;
+            const int SR = 164, SG = 218, SB = 240;
 
-        const int CH_W = 12, CH_H = 14;
-        const int RY_TOP = 160;
-        const int LINE_GAP = 14;  // one blank line between blocks
-        const int TR = 50, TG = 155, TB = 70;
-        const int SR = 180, SG = 200, SB = 160;
+            int bottomIdx = total - 1 - dialogueSys.history.scroll;
+            if (bottomIdx < 0) { bottomIdx = 0; dialogueSys.history.scroll = total - 1; }
+            int maxSlot = (total >= 3) ? 2 : total - 1;
+            int fSlot = dialogueSys.history.focusSlot;
+            if (fSlot > maxSlot) fSlot = maxSlot;
 
-        int bottomIdx = total - 1 - dialogueSys.history.scroll;
-        if (bottomIdx < 0) { bottomIdx = 0; dialogueSys.history.scroll = total - 1; }
-        int maxSlot = (total >= 3) ? 2 : total - 1;
-        int fSlot = dialogueSys.history.focusSlot;
-        if (fSlot > maxSlot) fSlot = maxSlot;
+            const int HIST_WRAP = 27;
+            int curY = RY_TOP;
+            for (int s = 0; s <= maxSlot; ++s) {
+                int idx = bottomIdx - (maxSlot - s);
+                if (idx < 0 || idx >= total) continue;
+                auto& hl = hist[idx];
 
-        // Draw items top to bottom with LINE_GAP between
-        const int HIST_WRAP = 30;
-        int curY = RY_TOP;
-        for (int s = 0; s <= maxSlot; ++s) {
-            int idx = bottomIdx - (maxSlot - s);
-            if (idx < 0 || idx >= total) continue;
-            auto& hl = hist[idx];
+                int dist = (s > fSlot) ? s - fSlot : fSlot - s;
+                int alpha = 100;
+                if (dist == 1) alpha = 50;
+                else if (dist >= 2) alpha = 30;
+                if (!pauseHistoryFocused) alpha = 30;
 
-            // Opacity based on distance from focus
-            int dist = (s > fSlot) ? s - fSlot : fSlot - s;
-            int alpha = 100;
-            if (dist == 1) alpha = 50;
-            else if (dist >= 2) alpha = 30;
-            if (!pauseHistoryFocused) alpha = 30;
+                int rr = (int)(TR * alpha / 100.0);
+                int gg = (int)(TG * alpha / 100.0);
+                int bb = (int)(TB * alpha / 100.0);
+                int sr2 = (int)(SR * alpha / 100.0);
+                int sg2 = (int)(SG * alpha / 100.0);
+                int sb2 = (int)(SB * alpha / 100.0);
 
-            int rr = (int)(TR * alpha / 100.0);
-            int gg = (int)(TG * alpha / 100.0);
-            int bb = (int)(TB * alpha / 100.0);
-            int sr2 = (int)(SR * alpha / 100.0);
-            int sg2 = (int)(SG * alpha / 100.0);
-            int sb2 = (int)(SB * alpha / 100.0);
-
-            // Re-wrap lines for narrow history panel
-            std::vector<std::string> wlines;
-            for (auto& line : hl.lines) {
-                std::string s = line;
-                while ((int)s.length() > HIST_WRAP) {
-                    int brk = HIST_WRAP;
-                    while (brk > 0 && s[brk] != ' ') brk--;
-                    if (brk == 0) brk = HIST_WRAP;
-                    wlines.push_back(s.substr(0, brk));
-                    s = s.substr(brk + 1);
+                std::vector<std::string> wlines;
+                for (auto& line : hl.lines) {
+                    std::string wr = line;
+                    while ((int)wr.length() > HIST_WRAP) {
+                        int brk = HIST_WRAP;
+                        while (brk > 0 && wr[brk] != ' ') brk--;
+                        if (brk == 0) brk = HIST_WRAP;
+                        wlines.push_back(wr.substr(0, brk));
+                        wr = wr.substr(brk + 1);
+                    }
+                    if (!wr.empty()) wlines.push_back(wr);
                 }
-                if (!s.empty()) wlines.push_back(s);
-            }
-            int wNum = (int)wlines.size();
-            int itemH = wNum * CH_H + (wNum - 1) * 4;
-            int speakerOff = 0;
-            if (!hl.speaker.empty()) { speakerOff = CH_H + 2; itemH += speakerOff; }
-
-            int itemY = curY;
-
-            // Speaker
-            if (!hl.speaker.empty()) {
-                SDL_SetRenderDrawColor(r, (Uint8)sr2, (Uint8)sg2, (Uint8)sb2, 255);
-                int tx = RX, ty = itemY;
-                for (char c : hl.speaker) {
-                    if (c == ' ') { tx += CH_W; continue; }
-                    font.drawChar(r, c, tx, ty, 1, 2);
-                    tx += CH_W;
+                int wNum = (int)wlines.size();
+                int itemH = wNum * CH_H + (wNum - 1) * 4;
+                if (!hl.speaker.empty()) itemH += CH_H + 2;
+                int itemY = curY;
+                if (!hl.speaker.empty()) {
+                    SDL_SetRenderDrawColor(r, (Uint8)sr2, (Uint8)sg2, (Uint8)sb2, 255);
+                    int tx = RX, ty = itemY;
+                    for (char c : hl.speaker) {
+                        if (c == ' ') { tx += CH_W; continue; }
+                        font.drawChar(r, c, tx, ty, 1, 2);
+                        tx += CH_W;
+                    }
+                    itemY += CH_H + 2;
                 }
-                itemY += CH_H + 2;
-            }
-            // Content
-            SDL_SetRenderDrawColor(r, (Uint8)rr, (Uint8)gg, (Uint8)bb, 255);
-            for (int li = 0; li < wNum; ++li) {
-                auto& line = wlines[li];
-                int tx = RX;
-                int ty = itemY + li * (CH_H + 4);
-                for (char c : line) {
-                    if (c == ' ') { tx += CH_W; continue; }
-                    font.drawChar(r, c, tx, ty, 1, 2);
-                    tx += CH_W;
+                SDL_SetRenderDrawColor(r, (Uint8)rr, (Uint8)gg, (Uint8)bb, 255);
+                for (int li = 0; li < wNum; ++li) {
+                    auto& line = wlines[li];
+                    int tx = RX;
+                    int ty = itemY + li * (CH_H + 4);
+                    for (char c : line) {
+                        if (c == ' ') { tx += CH_W; continue; }
+                        font.drawChar(r, c, tx, ty, 1, 2);
+                        tx += CH_W;
+                    }
                 }
+                curY += itemH + LINE_GAP;
             }
-            curY += itemH + LINE_GAP;
         }
     }
 
@@ -4382,20 +4597,51 @@ private:
         if (progress > 1.0) progress = 1.0;
         double eased = 1.0 - std::pow(1.0 - progress, 2.5);
         char digit = '0' + countdown;
-        int mainScale = 3 + (int)(eased * 15);
+
+        // 准星式倒计时环，进度向右收束，增强"重新进入战斗"的节奏。
+        int rr = 92 + (int)(eased * 18.0);
+        for (int ring = 0; ring < 2; ++ring) {
+            int radius = rr + ring * 9;
+            int alpha = ring == 0 ? 115 : 55;
+            SDL_Point prev = {CENTER_X + radius, WIN_HEIGHT / 2};
+            for (int i = 1; i <= 48; ++i) {
+                double a = 2.0 * M_PI * i / 48.0;
+                SDL_Point next = {CENTER_X + (int)(radius * std::cos(a)),
+                                  WIN_HEIGHT / 2 + (int)(radius * std::sin(a))};
+                if (i <= (int)(48 * (1.0 - progress)) || ring == 1) {
+                    SDL_SetRenderDrawColor(r, ring == 0 ? 94 : 44, ring == 0 ? 238 : 132,
+                                           ring == 0 ? 145 : 94, (Uint8)alpha);
+                    SDL_RenderDrawLine(r, prev.x, prev.y, next.x, next.y);
+                }
+                prev = next;
+            }
+        }
+        // 四向刻度。
+        for (int k = 0; k < 4; ++k) {
+            double a = k * M_PI / 2.0;
+            int x0 = CENTER_X + (int)((rr + 7) * std::cos(a));
+            int y0 = WIN_HEIGHT / 2 + (int)((rr + 7) * std::sin(a));
+            int x1 = CENTER_X + (int)((rr + 17) * std::cos(a));
+            int y1 = WIN_HEIGHT / 2 + (int)((rr + 17) * std::sin(a));
+            SDL_SetRenderDrawColor(r, 122, 255, 172, 165);
+            SDL_RenderDrawLine(r, x0, y0, x1, y1);
+        }
+
+        int mainScale = 3 + (int)(eased * 13);
         for (int i = 2; i >= 0; --i) {
             double t = (double)(i + 1) / 3.0;
-            int gs = mainScale + (int)(t * eased * 28.0);
-            int alpha = (int)(180.0 * (1.0 - t) * (1.0 - eased * 0.4));
+            int gs = mainScale + (int)(t * eased * 25.0);
+            int alpha = (int)(150.0 * (1.0 - t) * (1.0 - eased * 0.4));
             if (alpha < 8) continue;
             int gw = 5 * gs, gh = 7 * gs;
             int gx = CENTER_X - gw / 2, gy = WIN_HEIGHT / 2 - gh / 2;
-            SDL_SetRenderDrawColor(r, (Uint8)alpha, (Uint8)alpha, (Uint8)alpha, 255);
+            SDL_SetRenderDrawColor(r, (Uint8)(alpha / 3), (Uint8)alpha, (Uint8)(alpha / 2), 255);
             font.drawChar(r, digit, gx, gy, gs);
         }
         int dw = 5 * mainScale, dh = 7 * mainScale;
         int dx = CENTER_X - dw / 2, dy = WIN_HEIGHT / 2 - dh / 2;
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        font.drawStringColor(r, "RESUMING", CENTER_X - 48, WIN_HEIGHT / 2 + 82, 2, 173, 224, 191, 220);
+        SDL_SetRenderDrawColor(r, 225, 255, 236, 255);
         font.drawChar(r, digit, dx, dy, mainScale);
     }
 
@@ -4405,9 +4651,10 @@ private:
         bool upNow2 = keys[SDL_SCANCODE_W] || keys[SDL_SCANCODE_UP];
         bool downNow2 = keys[SDL_SCANCODE_S] || keys[SDL_SCANCODE_DOWN];
         bool enterNow2 = keys[SDL_SCANCODE_RETURN];
-        if (upNow2 && !upWas2 && menuSelection > 0)   menuSelection--;
-        if (downNow2 && !downWas2 && menuSelection < 1) menuSelection++;
+        if (upNow2 && !upWas2 && menuSelection > 0)   { menuSelection--; audio.sndMenuMove(); }
+        if (downNow2 && !downWas2 && menuSelection < 1) { menuSelection++; audio.sndMenuMove(); }
         if (enterNow2 && !enterWas2) {
+            audio.sndMenuConfirm();
             if (menuSelection == 0) {
                 // PLAY AGAIN: restart current chapter
                 bool wasNormal = isNormalPlay;
@@ -4430,31 +4677,44 @@ private:
     void drawGameOverScreen() {
         SDL_Renderer* r = renderer.get();
         UIRenderer::drawHalfTransparentOverlay(r, 200);
-        font.drawString(r, "GAME OVER", CENTER_X - 118, 140, 4);
+        ArtFX::techPanel(r, 142, 116, 516, 300, 8, 13, 12, 184, 60, 54);
+        ArtFX::bracket(r, 134, 108, 532, 316, 16, 236, 96, 78, 170);
+        int titleW = 9 * 6 * 4;
+        font.drawStringColor(r, "GAME OVER", CENTER_X - titleW / 2, 140, 4, 255, 116, 96, 255);
+        SDL_SetRenderDrawColor(r, 162, 56, 51, 180);
+        SDL_RenderDrawLine(r, CENTER_X - 160, 186, CENTER_X + 160, 186);
         char buf[32];
         snprintf(buf, sizeof(buf), "SCORE:%-4d", score);
-        int scoreW = (int)strlen(buf) * 6 * 4;
-        font.drawString(r, buf, CENTER_X - scoreW/2, 210, 4);
+        int scoreW = (int)strlen(buf) * 6 * 3;
+        font.drawStringColor(r, buf, CENTER_X - scoreW/2, 210, 3, 226, 239, 232, 240);
+        font.drawStringColor(r, "SIGNAL LOST // AIRFRAME DOWN", CENTER_X - 120, 246, 1,
+                             184, 99, 86, 190);
         const char* items[2] = {"PLAY AGAIN", "BACK TO MAIN MENU"};
-        const int MENU_Y0 = 340;
+        const int MENU_Y0 = 312;
         for (int i = 0; i < 2; ++i) {
             int itemW = (int)strlen(items[i]) * 6 * 3;
             int itemX = CENTER_X - itemW / 2;
             int itemY = MENU_Y0 + i * 60;
-            font.drawString(r, items[i], itemX, itemY, 3);
-            if (i == menuSelection) {
+            bool sel = i == menuSelection;
+            if (sel) {
+                ArtFX::techPanel(r, CENTER_X - itemW / 2 - 34, itemY - 7, itemW + 68, 36,
+                                 5, 18, 15, 176, 56, 51);
                 UIRenderer::drawMenuCursor(r, itemX - 20, itemY + 10, 8);
                 UIRenderer::drawMenuUnderline(r, itemX, itemY + 24, itemW);
             }
+            font.drawStringColor(r, items[i], itemX, itemY, 3,
+                                 sel ? 244 : 155, sel ? 236 : 171, sel ? 223 : 163, 235);
         }
-        font.drawString(r, "W/S:select  ENTER:confirm", CENTER_X - 150, 490, 2);
+        const char* hint = "W/S:SELECT   ENTER:CONFIRM";
+        int hw = (int)strlen(hint) * 12;
+        font.drawStringColor(r, hint, CENTER_X - hw / 2, 474, 2, 201, 139, 121, 220);
     }
 
     // ======== MISSION COMPLETE ========
     void updateMissionComplete(const Uint8* keys) {
         bool enterNow = keys[SDL_SCANCODE_RETURN];
         static bool entWas = false;
-        if (enterNow && !entWas) { resetGame(); atStartScreen = true; }
+        if (enterNow && !entWas) { audio.sndMenuConfirm(); resetGame(); atStartScreen = true; }
         entWas = enterNow;
     }
 
@@ -4466,40 +4726,39 @@ private:
         SDL_Rect dr = {0, 0, WIN_WIDTH, WIN_HEIGHT};
         SDL_RenderFillRect(r, &dr);
         if (fadeAlpha > 160) {
-            const int TR = 50, TG = 155, TB = 70;
-            // Narration-style text box
+            ArtFX::techPanel(r, 146, 118, 508, 314, 8, 18, 14, 74, 214, 130);
+            ArtFX::bracket(r, 138, 110, 524, 330, 18, 146, 255, 180, 165);
             const char* title = "MISSION COMPLETE";
-            int titleLen = (int)strlen(title);
-            int titleW = titleLen * 18 + 50;
-            int titleH = 21 + 40;
-            int boxX = CENTER_X - titleW / 2, boxY = 200;
-            // Background
-            SDL_SetRenderDrawColor(r, 10, 25, 15, 220);
-            SDL_Rect bgRect = {boxX, boxY, titleW, titleH};
-            SDL_RenderFillRect(r, &bgRect);
-            SDL_SetRenderDrawColor(r, TR, TG, TB, 180);
-            SDL_RenderDrawRect(r, &bgRect);
-            // Title text
-            SDL_SetRenderDrawColor(r, TR, TG, TB, 255);
-            int tx = boxX + 25;
-            for (const char* p = title; *p; ++p) {
-                if (*p != ' ') font.drawChar(r, *p, tx, boxY + 22, 3);
-                tx += 18;
-            }
-            // Menu options
-            const int MENU_Y = 310, MENU_GAP = 40;
+            int titleW = (int)strlen(title) * 6 * 3;
+            font.drawStringColor(r, title, CENTER_X - titleW / 2, 148, 3, 168, 255, 193, 255);
+            SDL_SetRenderDrawColor(r, 105, 216, 145, 175);
+            SDL_RenderDrawLine(r, CENTER_X - 160, 190, CENTER_X + 160, 190);
+            font.drawStringColor(r, "THE MOONWELL LINE HOLDS", CENTER_X - 102, 206, 1,
+                                 107, 174, 138, 195);
+            char scoreBuf[48];
+            snprintf(scoreBuf, sizeof(scoreBuf), "SCORE %-4d", score);
+            int sw = (int)strlen(scoreBuf) * 6 * 2;
+            font.drawStringColor(r, scoreBuf, CENTER_X - sw / 2, 238, 2, 226, 240, 232, 235);
+            const int MENU_Y = 300, MENU_GAP = 44;
             const char* items[2] = {"NEXT CHAPTER", "BACK TO MAIN MENU"};
             for (int i = 0; i < 2; ++i) {
                 int iy = MENU_Y + i * MENU_GAP;
-                SDL_SetRenderDrawColor(r, TR, TG, TB, (i == mcMenuSelection) ? 255 : 140);
-                int itemW = (int)strlen(items[i]) * 12; // scale=2, charW=6*2
+                bool sel = i == mcMenuSelection;
+                int itemW = (int)strlen(items[i]) * 6 * 2;
                 int ix = CENTER_X - itemW / 2;
-                font.drawString(r, items[i], ix, iy, 2);
-                if (i == mcMenuSelection) {
-                    SDL_SetRenderDrawColor(r, 255, 255, 0, 200);
-                    SDL_RenderDrawLine(r, ix, iy + 20, ix + itemW, iy + 20);
+                if (sel) {
+                    ArtFX::techPanel(r, CENTER_X - itemW / 2 - 28, iy - 7, itemW + 56, 34,
+                                     5, 18, 15, 65, 218, 132);
+                    UIRenderer::drawMenuCursor(r, ix - 20, iy + 8, 8);
+                    UIRenderer::drawMenuUnderline(r, ix, iy + 20, itemW);
                 }
+                font.drawStringColor(r, items[i], ix, iy, 2,
+                                     sel ? 236 : 154, sel ? 255 : 196,
+                                     sel ? 219 : 177, 235);
             }
+            const char* hint = "W/S:SELECT   ENTER:CONFIRM";
+            int hw = (int)strlen(hint) * 12;
+            font.drawStringColor(r, hint, CENTER_X - hw / 2, 402, 2, 111, 174, 137, 215);
         }
     }
 
@@ -4585,8 +4844,13 @@ private:
         renderer.clear();
         if (background) background->drawStarsFullscreen(r);
         narration.draw(r, font);
-        SDL_SetRenderDrawColor(r, 130, 130, 130, 255);
-        font.drawString(r, "ENTER:continue", CENTER_X - 78, WIN_HEIGHT - 40, 2);
+        const char* hint = "ENTER : CONTINUE";
+        int hw = (int)strlen(hint) * 12;
+        font.drawStringColor(r, hint, CENTER_X - hw / 2, WIN_HEIGHT - 42, 2,
+                             116, 184, 147, 220);
+        SDL_SetRenderDrawColor(r, 40, 116, 76, 100);
+        SDL_RenderDrawLine(r, CENTER_X - hw / 2 - 22, WIN_HEIGHT - 27,
+                           CENTER_X + hw / 2 + 22, WIN_HEIGHT - 27);
     }
 
 };

@@ -65,6 +65,7 @@ struct ActiveSound {
     float volume;
     int type, band;
     float phase;
+    float filterLP;   // 仅音频内部使用：低通噪声/锯齿的滤波状态
 };
 
 struct MenuItem {

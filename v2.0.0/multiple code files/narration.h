@@ -1,5 +1,6 @@
 #pragma once
 
+#include "art_fx.h"
 #include "constants.h"
 #include "font.h"
 #include "renderer.h"
@@ -128,30 +129,55 @@ public:
             if ((int)vl.length() > maxLineLen) maxLineLen = (int)vl.length();
 
         double popScale = marioEase((double)cur.popupTimer / POPUP_FRAMES);
-        int boxW = maxLineLen * charW + 50;
-        int boxH = cur.numLines * charH + (cur.numLines - 1) * lineGap + 40;
+        int boxW = maxLineLen * charW + 64;
+        if (boxW < 300) boxW = 300;
+        if (boxW > 760) boxW = 760;
+        int boxH = cur.numLines * charH + (cur.numLines - 1) * lineGap + 74;
         int boxX = CENTER_X - boxW / 2, boxY = WIN_HEIGHT / 2 - boxH / 2;
         int drawW = (int)(boxW * popScale), drawH = (int)(boxH * popScale);
         int drawX = boxX + (boxW - drawW) / 2, drawY = boxY + (boxH - drawH) / 2;
         if (drawW < 10 || drawH < 10) return;
 
-        const int TR = 50, TG = 155, TB = 70;
-        Uint8 ba = (Uint8)(bgAlpha);
-        SDL_SetRenderDrawColor(r, 10, 25, 15, (Uint8)(ba * 0.85));
+        Uint8 ba = (Uint8)bgAlpha;
+        ArtFX::BlendGuard guard(r);
+        SDL_SetRenderDrawColor(r, 3, 13, 10, (Uint8)(ba * 0.88));
         SDL_Rect bgRect = {drawX, drawY, drawW, drawH};
         SDL_RenderFillRect(r, &bgRect);
-        SDL_SetRenderDrawColor(r, TR, TG, TB, (Uint8)(ba * 0.7));
-        SDL_RenderDrawRect(r, &bgRect);
+        SDL_SetRenderDrawColor(r, 34, 110, 74, (Uint8)(ba * 0.8));
+        SDL_Rect outer = {drawX - 2, drawY - 2, drawW + 4, drawH + 4};
+        SDL_RenderDrawRect(r, &outer);
+        SDL_SetRenderDrawColor(r, 77, 212, 132, (Uint8)(ba * 0.72));
+        SDL_RenderDrawLine(r, drawX, drawY, drawX + drawW, drawY);
+        SDL_RenderDrawLine(r, drawX, drawY + drawH - 1, drawX + drawW, drawY + drawH - 1);
+        SDL_SetRenderDrawColor(r, 53, 168, 106, (Uint8)(ba * 0.65));
+        SDL_RenderDrawLine(r, drawX + 22, drawY + 36, drawX + drawW - 22, drawY + 36);
+        ArtFX::bracket(r, drawX + 7, drawY + 7, drawW - 14, drawH - 14, 14,
+                       104, 235, 151, (int)(ba * 0.75));
+        font.drawStringColor(r, "MISSION LOG // ARCHIVE TRANSMISSION", drawX + 25, drawY + 14, 1,
+                             85, 169, 121, (int)(ba * 0.9));
         if (cur.popupTimer < POPUP_FRAMES) return;
 
-        SDL_SetRenderDrawColor(r, TR, TG, TB, 255);
+        SDL_SetRenderDrawColor(r, 66, 214, 126, 255);
         int charsLeft = cur.revealed;
         for (int li = 0; li < cur.numLines && charsLeft > 0; ++li) {
             int show = charsLeft;
             if (show > (int)cur.vlines[li].length()) show = (int)cur.vlines[li].length();
             drawTextLine(r, font, cur.vlines[li].substr(0, show),
-                         drawX + 25, drawY + 22 + li * (charH + lineGap), 3, 1, charW);
+                         drawX + 25, drawY + 48 + li * (charH + lineGap), 3, 1, charW);
             charsLeft -= show;
+        }
+        // 页面进度点：让玩家知道当前旁白在整段中的位置。
+        int total = (int)lines.size();
+        int dots = total > 12 ? 12 : total;
+        int dotY = drawY + drawH - 13;
+        int startX = drawX + drawW / 2 - dots * 5;
+        for (int i = 0; i < dots; ++i) {
+            int real = (total > 12) ? i * total / dots : i;
+            bool on = (real == curLine);
+            SDL_SetRenderDrawColor(r, on ? 150 : 49, on ? 255 : 131,
+                                   on ? 185 : 88, on ? 235 : 130);
+            SDL_Rect dot = {startX + i * 10, dotY, on ? 5 : 3, 3};
+            SDL_RenderFillRect(r, &dot);
         }
     }
 };

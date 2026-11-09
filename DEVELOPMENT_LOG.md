@@ -1544,3 +1544,61 @@ Ver 1.0.1 | 2026-05-08
     - BUGFIX: 旧存档球体 maxHp=500 与剩余菱形数脱节 — 读档时 normalizeHpToCells() 重映射
 
     - BUGFIX: 上一版地面震动被橙色光晕/拖尾/地面能量环削弱 — 恢复改版前灰白清晰菱形与无额外光效的震动/飞出节奏
+
+  Ver 1.2.27 | 2026-11-09 | 美术 / 音乐 / 音效 / 特效全面强化（表现层，不动 gameplay）
+    - 全局终端质感：Renderer 内置静态 CRT 扫描线 + 暗角后处理，所有菜单、战斗、旁白、存读档截图
+      走同一绘制出口；F2 可实时开关。该后处理不读游戏状态，不改任何绘制坐标
+
+    - 第一章重做：深空渐变/星云/行星环/远景前哨、青绿空气透视地面、实心带装甲带与机库灯光的基地、
+      玩家机深色蒙皮+座舱+双尾焰、六边形能量敌机、分层堡垒 Boss（轨道护盾/肩舱/核心竖瞳）、
+      多层弹道辉光、火花拖尾、双层绿色冲击波
+
+    - 第二章增强：Warden 改为实心八边能量躯干+中央核心眼+双层轨道碎片+能量刃；敌方弹改为带尾迹的辉光菱形；
+      脉冲环、技能球呼吸改为存档状态推导；廊桥新增由已存档 scrollX 推导的速度光点与暖色微尘
+
+    - UI/叙事：标题、章节、选项、声音、暂停、游戏结束、任务完成、存读档全部统一仪器面板/切角框/状态灯；
+      对话与旁白改为带面板、通讯标签、打字机光标与进度点的终端界面；修复 BROWSE FILE 行信息列文字重叠
+
+    - 音频：新增独立标题主题（A/G/C/F 慢速 pad + 钟声 + sub pulse）；CH1/Boss 增加和声床与指数衰减琶音，
+      CH2 增加冷色 pad/微光琶音；SFX 扩展为三角/锯齿/窄脉冲/低通噪声多波形并重做射击/命中/爆炸/
+      冲击波/Boss 入场/玩家受伤音色；菜单移动/确认/返回新增独立反馈音
+
+    - 状态兼容：新增的视觉动画全部由既有存档字段（scrollX / timer / spinAngle / playFrames / 已显示字数）
+      或纯常量推导，没有新增任何 Game/子系统存档字段，SAVE_FORMAT_VERSION 不变；F2 与菜单音效不入档
+
+    - BUGFIX: Ch1Particle 长寿命烟花 fade > 1 导致颜色分量溢出；现在 clamp 后自然淡出
+    - BUGFIX: LOAD/SAVE 列表 BROWSE FILE 标签过长时与右侧说明重叠；信息列改为按标签宽度动态定位
+
+    - 回归：make -Wall -Wextra 零警告；--selftest 全绿（存档字节/像素 frame=OK，maxdiff=0；
+      第二章 25 项流程、Ch1 Boss、音频三套乐谱 + 标题主题、48 声部压力巡检全 PASS）；
+      Asset Studio 重编译通过、--verify-all 78/78；asset_studio unittest 4/4
+
+  Ver 1.2.27 (补充) | 2026-11-09 | 音频导演轮：demo BGM 移植 + 打字机/冲击波/第二章细节音
+    - 第一章 BGM 彻底切换到 First Flight demo 的 92 BPM CH1 与 132 BPM Boss 乐句：
+      移植 demo 的 Bass / Arp / Pad / Melody / Kick / Hat 编排与三层强度（0/1/2），
+      Boss 的 Ostinato / Tritone Stab / High Line / Kick / Noise / Layer2 加花逐项对齐；
+      30 分加入 layer1，120 分加入 layer2；Ch1 Boss 从 PHASE_BOSS_INTRO 起切换到 Boss 轨，
+      二阶段/击破演出进入 layer2。没有保留旧版自编 CH1/Boss 旋律
+
+    - 打字机音效重做：移除刺耳 2.4 kHz 扫频，改为 D 小调四音高软三角波木鱼 +
+      146.83 Hz 低频体 + 4ms 低通噪声齿；连续台词使用轮换音高，不再是同一条高频蜂鸣
+
+    - 第一章基地光波重做：由刺耳高频扫频改为 D 根音 + 五度 + 八度的 430ms 低频能量脉冲，
+      加入很轻的空气噪声与高八度闪烁；冲击波命中改为 D 小调木质短击
+
+    - 第二章细节音：球体登场低频嗡鸣、激活期玻璃琶音、激活完成锁定和弦、
+      打落菱形的晶体命中、黑球幽灵飘走的 1.5 秒下坠/风声、幽灵消失、
+      碎片落地、地面震动低频、逐批碎片起飞、SHARDS INBOUND 回归蜂群
+
+    - 其它细节：Warden 狂暴独立警报、三种弹幕模式切换提示、召唤增援/普通敌机入场/逃逸提示、
+      技能球护罩命中与破罩、吸收充能脉冲、脉冲技能解锁、研究室升级充能、
+      Ch2 场景转场低频 swell；Warden 狂暴/模式切换只读取既有状态发提示音，不改变状态机
+
+    - 兼容性：所有新增计时器均为 audio-only 或纯局部变量，不参与 Game/子系统的存档序列化；
+      没有改碰撞、输入、生成或流程状态机，SAVE_FORMAT_VERSION 不变；读档像素回归 maxdiff=0
+
+    - 回归：make -Wall -Wextra 零警告；--selftest 全绿（Ch1/Ch2/Boss/Title 音频巡检、
+      48 声部限幅、4 个存档场景 frame=OK、第二章 25 项流程）；Asset Studio --verify-all 78/78
+
+    - 发布：Release Version/Shooter ver1.2.27.app + Shooter ver1.2.27.zip；
+      Info.plist 1.2.27、内置 SDL2 dylib、183 个语音资源、ad-hoc codesign；解压包内重新运行 selftest PASS

@@ -3,6 +3,7 @@
 #include "constants.h"
 #include "renderer.h"
 #include "aim_assist.h"
+#include "art_fx.h"
 
 // ============== Player (shared player state) ==============
 class Player {
@@ -53,7 +54,8 @@ public:
     TrainingPlane() : Player() {}
 
     void draw(SDL_Renderer* r) const {
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
+        if (getInvFrames() > 0 && (getInvFrames() / 4) % 2 == 0) return;
+        ArtFX::BlendGuard guard(r);
         int px = getX(), py = getY();
         double tPlane = (px - perspLeft(py)) / perspWidth(py);
         if (tPlane < 0.0) tPlane = 0.0; if (tPlane > 1.0) tPlane = 1.0;
@@ -75,16 +77,48 @@ public:
                     py + (int)(rx * hnx  + ry * (-hny))};
         };
 
-        SDL_Point nose = hr(0, -12), leftB = hr(-10, 6), rightB = hr(10, 6);
-        SDL_Point body[3] = {nose, leftB, rightB};
-        SDL_RenderDrawLines(r, body, 3);
-        SDL_RenderDrawLine(r, leftB.x, leftB.y, rightB.x, rightB.y);
-        SDL_Point lw1 = hrr(-6, 0), lw2 = hrr(-14, 4);
-        SDL_RenderDrawLine(r, lw1.x, lw1.y, lw2.x, lw2.y);
-        SDL_Point rw1 = hrr(6, 0),  rw2 = hrr(14, 4);
-        SDL_RenderDrawLine(r, rw1.x, rw1.y, rw2.x, rw2.y);
-        SDL_Point tail1 = hr(0, 6), tail2 = hr(0, 12);
-        SDL_RenderDrawLine(r, tail1.x, tail1.y, tail2.x, tail2.y);
+        // 主机体：深色蒙皮 + 双层白色描边。填充被限制在原机体轮廓内，
+        // 碰撞/瞄准仍使用既有的玩家坐标与 NoseOffset，不改变玩法判定。
+        SDL_Point hull[4] = {hr(0, -13), hr(-9, 5), hr(0, 11), hr(9, 5)};
+        ArtFX::fillPoly(r, hull, 4, 7, 11, 14, 236);
+        for (int i = 0; i < 4; ++i) {
+            SDL_Point& a = hull[i]; SDL_Point& b = hull[(i + 1) % 4];
+            ArtFX::glowLine(r, a.x, a.y, b.x, b.y, 225, 241, 235, 175, 1);
+        }
+        // 机翼：稍带 roll 的翼展，填充让浅色背景里也有清晰剪影。
+        SDL_Point lw[4] = {hrr(-4, 1), hrr(-16, 7), hrr(-11, 10), hrr(-3, 6)};
+        SDL_Point rw[4] = {hrr(4, 1), hrr(16, 7), hrr(11, 10), hrr(3, 6)};
+        ArtFX::fillPoly(r, lw, 4, 9, 14, 17, 220);
+        ArtFX::fillPoly(r, rw, 4, 9, 14, 17, 220);
+        for (int i = 0; i < 4; ++i) {
+            SDL_Point& a = lw[i]; SDL_Point& b = lw[(i + 1) % 4];
+            ArtFX::glowLine(r, a.x, a.y, b.x, b.y, 210, 229, 224, 150, 1);
+            a = rw[i]; b = rw[(i + 1) % 4];
+            ArtFX::glowLine(r, a.x, a.y, b.x, b.y, 210, 229, 224, 150, 1);
+        }
+        // 座舱：冷青色玻璃，既呼应第二章 NightElf，也成为玩家最亮的部件。
+        SDL_Point ck[4] = {hr(0, -7), hr(-3, 2), hr(0, 6), hr(3, 2)};
+        ArtFX::fillPoly(r, ck, 4, 70, 151, 170, 155);
+        SDL_Point ckTop = hr(0, -5), ckTail = hr(0, 3);
+        ArtFX::glowLine(r, ckTop.x, ckTop.y, ckTail.x, ckTail.y, 196, 248, 255, 210, 1);
+
+        // 双引擎尾焰：只影响几个像素，作为读档/截图时的呼吸动画。
+        int tick = getX() / 11 + getY() / 7 + (int)(getRollAngle() * 10.0);
+        int flick = 2 + (tick + px) % 4;
+        SDL_Point e1 = hrr(-3, 8), e2 = hrr(-3, 14 + flick);
+        SDL_Point e3 = hrr(3, 8), e4 = hrr(3, 14 + flick);
+        ArtFX::glowLine(r, e1.x, e1.y, e2.x, e2.y, 94, 214, 255, 170, 2);
+        ArtFX::glowLine(r, e3.x, e3.y, e4.x, e4.y, 94, 214, 255, 170, 2);
+        SDL_SetRenderDrawColor(r, 235, 252, 255, 235);
+        SDL_RenderDrawPoint(r, e1.x, e1.y + 1);
+        SDL_RenderDrawPoint(r, e3.x, e3.y + 1);
+
+        // 舷灯：左红右绿；与参考版本一样的航空器识别语言。
+        SDL_Point nvL = hrr(-15, 6), nvR = hrr(15, 6);
+        SDL_SetRenderDrawColor(r, 255, 92, 84, 220);
+        SDL_RenderDrawPoint(r, nvL.x, nvL.y);
+        SDL_SetRenderDrawColor(r, 92, 255, 152, 220);
+        SDL_RenderDrawPoint(r, nvR.x, nvR.y);
     }
 
     void reset() {
@@ -157,31 +191,42 @@ public:
 
     void draw(SDL_Renderer* r) const override {
         if (getInvFrames() > 0 && (getInvFrames() / 4) % 2 == 0) return;
+        ArtFX::BlendGuard guard(r);
         int px = getX(), py = getY();
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
 
-        // Triangular body (same as Ch1 trainer, rotated -90 deg, 1:1 scale)
-        SDL_Point nose    = {px + 12, py};
-        SDL_Point topB    = {px - 6, py - 10};
-        SDL_Point bottomB = {px - 6, py + 10};
-        SDL_Point body[3] = {nose, topB, bottomB};
-        SDL_RenderDrawLines(r, body, 3);
-        SDL_RenderDrawLine(r, topB.x, topB.y, bottomB.x, bottomB.y);
+        // 深色填充 + 浅色外轮廓，与第一章玩家机同属一个视觉家族。
+        SDL_Point hull[4] = {{px + 12, py}, {px - 6, py - 10},
+                             {px - 12, py}, {px - 6, py + 10}};
+        ArtFX::fillPoly(r, hull, 4, 7, 11, 14, 236);
+        for (int i = 0; i < 4; ++i) {
+            SDL_Point& a = hull[i]; SDL_Point& b = hull[(i + 1) % 4];
+            ArtFX::glowLine(r, a.x, a.y, b.x, b.y, 220, 238, 233, 165, 1);
+        }
 
-        // Upper wing (Ch1 left wing, rotated)
-        SDL_Point uw1 = {px, py - 6};
-        SDL_Point uw2 = {px - 4, py - 14};
-        SDL_RenderDrawLine(r, uw1.x, uw1.y, uw2.x, uw2.y);
+        // 上/下翼，保留原 1:1 侧视比例。
+        SDL_Point uw[4] = {{px + 1, py - 5}, {px - 5, py - 15},
+                           {px - 8, py - 12}, {px - 2, py - 4}};
+        SDL_Point lw[4] = {{px + 1, py + 5}, {px - 5, py + 15},
+                           {px - 8, py + 12}, {px - 2, py + 4}};
+        ArtFX::fillPoly(r, uw, 4, 9, 14, 17, 218);
+        ArtFX::fillPoly(r, lw, 4, 9, 14, 17, 218);
+        for (int i = 0; i < 4; ++i) {
+            ArtFX::glowLine(r, uw[i].x, uw[i].y, uw[(i+1)%4].x, uw[(i+1)%4].y, 196, 216, 210, 130, 1);
+            ArtFX::glowLine(r, lw[i].x, lw[i].y, lw[(i+1)%4].x, lw[(i+1)%4].y, 196, 216, 210, 130, 1);
+        }
 
-        // Lower wing (Ch1 right wing, rotated)
-        SDL_Point lw1 = {px, py + 6};
-        SDL_Point lw2 = {px - 4, py + 14};
-        SDL_RenderDrawLine(r, lw1.x, lw1.y, lw2.x, lw2.y);
-
-        // Tail (Ch1 center tail, rotated)
-        SDL_Point tail1 = {px - 6, py};
-        SDL_Point tail2 = {px - 12, py};
-        SDL_RenderDrawLine(r, tail1.x, tail1.y, tail2.x, tail2.y);
+        // 座舱玻璃与尾喷。
+        ArtFX::glowLine(r, px + 6, py - 1, px + 9, py + 1, 205, 245, 255, 220, 1);
+        int tick = getX() / 11 + getY() / 7 + (int)(getRollAngle() * 10.0);
+        int flick = 3 + (tick + py) % 4;
+        ArtFX::glowLine(r, px - 10, py, px - 16 - flick, py, 96, 214, 255, 155, 2);
+        SDL_SetRenderDrawColor(r, 236, 252, 255, 230);
+        SDL_RenderDrawPoint(r, px - 11, py);
+        // 翼尖识别灯。
+        SDL_SetRenderDrawColor(r, 255, 92, 84, 210);
+        SDL_RenderDrawPoint(r, px - 5, py - 14);
+        SDL_SetRenderDrawColor(r, 92, 255, 152, 210);
+        SDL_RenderDrawPoint(r, px - 5, py + 14);
     }
 
     int getGunCount() const override { return 1; }
@@ -215,40 +260,50 @@ public:
 
     void draw(SDL_Renderer* r) const override {
         if (getInvFrames() > 0 && (getInvFrames() / 4) % 2 == 0) return;
+        ArtFX::BlendGuard guard(r);
         int px = getX(), py = getY();
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
 
-        int wingX = px + 2, wingSpan = 8;
-        int noseX = wingX + 30;          // 30° nose: tan(15°)=8/30≈0.27
-        int tailX = wingX + 5;           // 120° tail, reflected across wing line
-
-        // Body outline: nose → upper wing → tail → lower wing → nose
-        SDL_Point body[5] = {
+        // 暗夜精灵：前掠翼截击机。轮廓仍在原 32px NoseOffset / 30px 翼展内，
+        // 保持命中判定与视觉大小一致。
+        int noseX = px + 32;
+        int wingSpan = 8;
+        int tailX = px - 13;
+        SDL_Point hull[6] = {
             {noseX, py},
-            {wingX, py - wingSpan},
+            {px + 8, py - wingSpan},
+            {px - 4, py - 13},
             {tailX, py},
-            {wingX, py + wingSpan},
-            {noseX, py}
+            {px - 4, py + 13},
+            {px + 8, py + wingSpan}
         };
-        SDL_RenderDrawLines(r, body, 5);
-
-        // Parallel lines from wing tips forward, slightly shorter than nose
-        SDL_RenderDrawLine(r, wingX, py - wingSpan, noseX - 3, py - wingSpan);
-        SDL_RenderDrawLine(r, wingX, py + wingSpan, noseX - 3, py + wingSpan);
-
-        // Fill upper half with correct lower boundary
-        for (int sx = wingX; sx <= noseX; sx += 2) {
-            double tn = (double)(sx - wingX) / (noseX - wingX);
-            int uy = (py - wingSpan) + (int)(wingSpan * tn);
-            int ly;
-            if (sx <= tailX) {
-                double tt = (double)(sx - wingX) / (tailX - wingX);
-                ly = (py - wingSpan) + (int)(wingSpan * tt);
-            } else {
-                ly = py;
-            }
-            SDL_RenderDrawLine(r, sx, uy, sx, ly);
+        ArtFX::fillPoly(r, hull, 6, 7, 13, 18, 238);
+        for (int i = 0; i < 6; ++i) {
+            SDL_Point& a = hull[i]; SDL_Point& b = hull[(i + 1) % 6];
+            ArtFX::glowLine(r, a.x, a.y, b.x, b.y, 180, 239, 255, 170, 1);
         }
+        // 机翼上的双发光导轨 + 中线。
+        ArtFX::glowLine(r, px + 7, py - wingSpan, noseX - 3, py - wingSpan, 100, 190, 255, 100, 1);
+        ArtFX::glowLine(r, px + 7, py + wingSpan, noseX - 3, py + wingSpan, 100, 190, 255, 100, 1);
+        ArtFX::glowLine(r, px - 3, py, px + 20, py, 120, 214, 245, 90, 1);
+        // 驾驶舱冷白光。
+        SDL_Point ck[4] = {{px + 9, py - 4}, {px + 17, py - 2},
+                           {px + 17, py + 2}, {px + 9, py + 4}};
+        ArtFX::fillPoly(r, ck, 4, 132, 224, 246, 210);
+        ArtFX::glowLine(r, px + 9, py, px + 18, py, 236, 255, 255, 220, 1);
+
+        // 双发尾焰：NightElf 比训练机更冷、更亮。
+        int tick = getX() / 9 + getY() / 5 + (int)(getRollAngle() * 12.0);
+        int flick = 4 + (tick + py) % 5;
+        ArtFX::glowLine(r, tailX + 1, py - 4, tailX - 10 - flick, py - 5, 88, 214, 255, 175, 2);
+        ArtFX::glowLine(r, tailX + 1, py + 4, tailX - 10 - flick, py + 5, 88, 214, 255, 175, 2);
+        SDL_SetRenderDrawColor(r, 236, 252, 255, 230);
+        SDL_RenderDrawPoint(r, tailX, py - 4);
+        SDL_RenderDrawPoint(r, tailX, py + 4);
+        // 翼尖小灯。
+        SDL_SetRenderDrawColor(r, 255, 105, 82, 220);
+        SDL_RenderDrawPoint(r, px - 4, py - 13);
+        SDL_SetRenderDrawColor(r, 92, 255, 166, 220);
+        SDL_RenderDrawPoint(r, px - 4, py + 13);
     }
 
     int getGunCount() const override { return tripleFire ? 3 : 1; }

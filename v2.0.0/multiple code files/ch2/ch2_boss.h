@@ -4,6 +4,7 @@
 #include "../constants.h"
 #include "../floating_text.h"
 #include "../font.h"
+#include "../art_fx.h"
 #include "../particles.h"
 #include "../player.h"
 #include "../renderer.h"
@@ -76,12 +77,13 @@ public:
         ar.ioNum(lastHitByPulse); ar.ioNum(deathTimer); ar.ioBool(defeated);
     }
 
-    void takeDamage(int dmg) {
+    void takeDamage(int dmg, AudioEngine* audio = nullptr) {
         if (state != FIGHT && state != ENRAGED) return;
         hp -= dmg;
         flashTimer = 5;
         if (hp <= ENRAGE_HP && state == FIGHT) {
             state = ENRAGED; pattern = 0; patternTimer = 0; volleyCount = 0;
+            if (audio) audio->sndBossEnrage();
         }
         if (hp <= 0) {
             hp = 0; state = DYING; deathTimer = 0; bullets.clear();
@@ -150,7 +152,7 @@ public:
             case 0: {   // Radial burst
                 if (patternTimer >= cycle) {
                     fireRadial(enraged ? 20 : 14, enraged ? 1.9 : 1.5, spinAngle * 0.5);
-                    audio.sndEnemyShoot();
+                    audio.sndWardenBurst();
                     pattern = 1; patternTimer = 0;
                 }
                 break;
@@ -164,7 +166,10 @@ public:
                     }
                     audio.sndEnemyShoot();
                     volleyCount++;
-                    if (volleyCount >= 3) { volleyCount = 0; pattern = 2; patternTimer = 0; }
+                    if (volleyCount >= 3) {
+                        volleyCount = 0; pattern = 2; patternTimer = 0;
+                        audio.sndWardenSpiral();
+                    }
                 }
                 break;
             }
@@ -178,7 +183,10 @@ public:
                         fireBullet(a - M_PI / 2, 1.6);
                     }
                 }
-                if (patternTimer >= cycle) { pattern = 0; patternTimer = 0; }
+                if (patternTimer >= cycle) {
+                    pattern = 0; patternTimer = 0;
+                    audio.sndWardenAim();
+                }
                 break;
             }
             }
@@ -241,125 +249,189 @@ public:
 
     void draw(SDL_Renderer* r) const {
         if (state == INACTIVE || defeated) return;
+        ArtFX::BlendGuard guard(r);
         int cx = (int)x, cy = (int)y;
         bool enraged = (state == ENRAGED);
 
         int br, bg, bb;
-        if (enraged)      { br = 255; bg = 110; bb = 110; }
-        else              { br = 120; bg = 210; bb = 255; }
-        if (flashTimer > 0) { br = 255; bg = 230; bb = 210; }
+        if (enraged)      { br = 255; bg = 106; bb = 118; }
+        else              { br = 122; bg = 214; bb = 255; }
+        if (flashTimer > 0) { br = 255; bg = 238; bb = 218; }
         if (state == DYING) {
-            // 机体随连锁爆炸衰暗，而不是进入 DYING 的第一帧直接消失。
             double fade = 1.0 - deathTimer / 200.0;
-            br = (int)(255 * fade); bg = (int)(180 * fade); bb = (int)(140 * fade);
+            if (fade < 0.0) fade = 0.0;
+            br = (int)(255 * fade); bg = (int)(184 * fade); bb = (int)(142 * fade);
         }
 
-        // ---- 4 rotating blades ----
+        // 外层脉冲圆环：战斗状态越激烈，环越亮。
+        double pulse = 0.5 + 0.5 * std::sin(timer * 0.075);
+        for (int ring = 0; ring < 3; ++ring) {
+            int rr = 62 + ring * 17;
+            int alpha = (int)((enraged ? 76 : 58) * (0.65 + 0.35 * pulse)) / (ring + 1);
+            int px = cx + rr, py = cy;
+            for (int i = 1; i <= 56; ++i) {
+                double a = 2.0 * M_PI * i / 56.0 + spinAngle * (ring == 1 ? -0.7 : 0.45);
+                int nx = cx + (int)(rr * std::cos(a));
+                int ny = cy + (int)(rr * std::sin(a));
+                if (i % 5 != 0 && alpha > 0) {
+                    SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, (Uint8)alpha);
+                    SDL_RenderDrawLine(r, px, py, nx, ny);
+                }
+                px = nx; py = ny;
+            }
+        }
+
+        // ---- 4 rotating blades (填充成能量刃，不再是单线) ----
         for (int k = 0; k < 4; ++k) {
             double a = spinAngle * 1.5 + k * M_PI / 2.0;
-            int bx0 = cx + (int)(std::cos(a) * 30), by0 = cy + (int)(std::sin(a) * 30);
-            int bx1 = cx + (int)(std::cos(a) * 78), by1 = cy + (int)(std::sin(a) * 78);
-            SDL_SetRenderDrawColor(r, (Uint8)(br / 2), (Uint8)(bg / 2), (Uint8)(bb / 2), 200);
-            SDL_RenderDrawLine(r, bx0, by0, bx1, by1);
-            // Blade tip diamond
-            int tx = cx + (int)(std::cos(a) * 84), ty = cy + (int)(std::sin(a) * 84);
-            SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, 255);
-            SDL_Point tip[4] = {
-                {tx, ty - 6}, {tx + 4, ty}, {tx, ty + 6}, {tx - 4, ty}
-            };
-            SDL_RenderDrawLines(r, tip, 4);
-            SDL_RenderDrawLine(r, tip[3].x, tip[3].y, tip[0].x, tip[0].y);
+            int bx0 = cx + (int)(std::cos(a) * 28), by0 = cy + (int)(std::sin(a) * 28);
+            int bx1 = cx + (int)(std::cos(a) * 88), by1 = cy + (int)(std::sin(a) * 88);
+            int nx = (int)(-std::sin(a)), ny = (int)(std::cos(a));
+            SDL_Point blade[4] = {{bx0 + nx * 3, by0 + ny * 3}, {bx1 + nx, by1 + ny},
+                                  {bx1 - nx, by1 - ny}, {bx0 - nx * 3, by0 - ny * 3}};
+            ArtFX::fillPoly(r, blade, 4, br / 4 + 6, bg / 4 + 8, bb / 4 + 10, 180);
+            ArtFX::glowLine(r, bx0, by0, bx1, by1, br, bg, bb, 155, 1);
+            int tx = cx + (int)(std::cos(a) * 94), ty = cy + (int)(std::sin(a) * 94);
+            ArtFX::starGlint(r, tx, ty, 2, br, bg, bb, 170);
         }
 
-        // ---- Faint outer ring ----
-        SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, 90);
-        SDL_Point prev;
-        for (int i = 0; i <= 48; ++i) {
-            double a = 2.0 * M_PI * i / 48.0;
-            int sx = cx + (int)(62.0 * std::cos(a));
-            int sy = cy + (int)(62.0 * std::sin(a));
-            if (i > 0) SDL_RenderDrawLine(r, prev.x, prev.y, sx, sy);
-            prev = {sx, sy};
+        // ---- 双层轨道碎片 ----
+        for (int i = 0; i < 12; ++i) {
+            bool outer = (i % 2 == 0);
+            double rr = outer ? 72.0 : 48.0;
+            double a = spinAngle * (outer ? 1.0 : -1.5) + i * M_PI / 6.0;
+            int ox = cx + (int)(rr * std::cos(a));
+            int oy = cy + (int)(rr * 0.62 * std::sin(a));
+            int ss = outer ? 7 : 5;
+            SDL_Point sh[4] = {{ox, oy - ss}, {ox + ss * 2 / 3, oy},
+                               {ox, oy + ss}, {ox - ss * 2 / 3, oy}};
+            ArtFX::fillPoly(r, sh, 4, br / 5 + 6, bg / 5 + 8, bb / 5 + 9, 220);
+            for (int q = 0; q < 4; ++q)
+                ArtFX::glowLine(r, sh[q].x, sh[q].y, sh[(q+1)%4].x, sh[(q+1)%4].y,
+                                br, bg, bb, 160, 1);
+            // 能量系绳
+            int tx = cx + (int)(42.0 * std::cos(a));
+            int ty = cy + (int)(26.0 * std::sin(a));
+            SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, 40);
+            SDL_RenderDrawLine(r, tx, ty, ox, oy);
         }
 
-        // ---- 8 orbiting shard diamonds ----
-        for (int i = 0; i < 8; ++i) {
-            double a = spinAngle + 2.0 * M_PI * i / 8.0;
-            int ox = cx + (int)(std::cos(a) * 62.0);
-            int oy = cy + (int)(std::sin(a) * 62.0);
-            SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, 230);
-            SDL_Point sh[4] = {
-                {ox, oy - 7}, {ox + 5, oy}, {ox, oy + 7}, {ox - 5, oy}
-            };
-            SDL_RenderDrawLines(r, sh, 4);
-            SDL_RenderDrawLine(r, sh[3].x, sh[3].y, sh[0].x, sh[0].y);
-            SDL_RenderDrawLine(r, ox - 5, oy, ox + 5, oy);
-        }
-
-        // ---- Core diamond ----
-        const int cs = 30;
-        SDL_Point core[4] = {
-            {cx, cy - cs}, {cx + cs * 2 / 3, cy},
-            {cx, cy + cs}, {cx - cs * 2 / 3, cy}
+        // ---- 主体：八边形能量躯干 + 中央核心眼 ----
+        const int cs = 42;
+        SDL_Point hull[8] = {
+            {cx, cy - cs},
+            {cx + cs * 2 / 3, cy - cs * 2 / 3},
+            {cx + cs, cy},
+            {cx + cs * 2 / 3, cy + cs * 2 / 3},
+            {cx, cy + cs},
+            {cx - cs * 2 / 3, cy + cs * 2 / 3},
+            {cx - cs, cy},
+            {cx - cs * 2 / 3, cy - cs * 2 / 3}
         };
-        SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, 255);
-        SDL_RenderDrawLines(r, core, 4);
-        SDL_RenderDrawLine(r, core[3].x, core[3].y, core[0].x, core[0].y);
-        SDL_RenderDrawLine(r, cx - cs * 2 / 3, cy, cx + cs * 2 / 3, cy);
-        // Inner cross + hot center
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 210);
-        SDL_RenderDrawLine(r, cx, cy - cs / 2, cx, cy + cs / 2);
-        SDL_RenderDrawLine(r, cx - cs / 3, cy, cx + cs / 3, cy);
-        SDL_SetRenderDrawColor(r, 255, 255, 255, 255);
-        for (int i = 0; i < 8; ++i) {
-            double a = i * M_PI / 4.0;
-            SDL_RenderDrawPoint(r, cx + (int)(3 * std::cos(a)), cy + (int)(3 * std::sin(a)));
+        ArtFX::fillPoly(r, hull, 8, br / 5 + 4, bg / 5 + 7, bb / 5 + 9, 238);
+        for (int i = 0; i < 8; ++i)
+            ArtFX::glowLine(r, hull[i].x, hull[i].y, hull[(i+1)%8].x, hull[(i+1)%8].y,
+                            br, bg, bb, 205, 1);
+        // 内部支撑肋
+        for (int i = 0; i < 4; ++i) {
+            double a = i * M_PI / 2.0 + spinAngle * 0.2;
+            int px = cx + (int)(cs * 0.78 * std::cos(a));
+            int py = cy + (int)(cs * 0.78 * std::sin(a));
+            ArtFX::glowLine(r, cx, cy, px, py, br, bg, bb, 55, 1);
         }
-        SDL_RenderDrawPoint(r, cx, cy);
+        // 核心光环
+        int coreR = 22 + (int)(pulse * (enraged ? 4 : 2));
+        for (int layer = 4; layer >= 0; --layer) {
+            int rr = coreR + 2 + layer * 4;
+            int alpha = 14 + layer * 24;
+            SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)bg, (Uint8)bb, (Uint8)alpha);
+            int px = cx + rr, py = cy;
+            for (int i = 1; i <= 28; ++i) {
+                double a = 2.0 * M_PI * i / 28.0;
+                int nx = cx + (int)(rr * std::cos(a));
+                int ny = cy + (int)(rr * std::sin(a));
+                SDL_RenderDrawLine(r, px, py, nx, ny);
+                px = nx; py = ny;
+            }
+        }
+        // 实心眼：外暗环 + 热瞳孔 + 竖直缝。
+        for (int yy = -coreR; yy <= coreR; ++yy) {
+            int hw = (int)std::sqrt((double)std::max(0, coreR * coreR - yy * yy));
+            ArtFX::fillPoly(r, (SDL_Point[]){{cx - hw, cy + yy}, {cx + hw, cy + yy},
+                                             {cx + hw, cy + yy + 1}, {cx - hw, cy + yy + 1}}, 4,
+                            br / 3, bg / 3, bb / 3, 200);
+        }
+        SDL_SetRenderDrawColor(r, (Uint8)br, (Uint8)(bg + 24), (Uint8)bb, 240);
+        SDL_Rect iris = {cx - 7, cy - 14, 14, 28};
+        SDL_RenderFillRect(r, &iris);
+        SDL_SetRenderDrawColor(r, 244, 255, 255, 220);
+        SDL_RenderDrawLine(r, cx, cy - 11, cx, cy + 11);
+        ArtFX::starGlint(r, cx, cy, 3, 235, 255, 255, 220);
+
+        if (state == DYING) {
+            for (int k = 0; k < 4; ++k) {
+                int px = cx + (int)(std::cos(deathTimer * 0.13 + k * 1.7) * (22 + k * 9));
+                int py = cy + (int)(std::sin(deathTimer * 0.17 + k * 1.7) * (15 + k * 7));
+                ArtFX::starGlint(r, px, py, 1, 255, 160, 105, 180);
+            }
+        }
     }
 
     void drawBullets(SDL_Renderer* r) const {
+        ArtFX::BlendGuard guard(r);
         for (const auto& b : bullets) {
             if (!b.active) continue;
-            int bx = (int)b.x, by = (int)b.y, rad = 4;
-            double hpR = (double)b.hp / 3.0;
-            SDL_SetRenderDrawColor(r, 180, 60, 200, (Uint8)(160 + 95 * hpR));
-            SDL_RenderDrawLine(r, bx - rad, by, bx + rad, by);
-            SDL_RenderDrawLine(r, bx, by - rad, bx, by + rad);
-            SDL_RenderDrawLine(r, bx - 2, by - 2, bx + 2, by + 2);
-            SDL_RenderDrawLine(r, bx + 2, by - 2, bx - 2, by + 2);
-            SDL_SetRenderDrawColor(r, 220, 140, 240, 200);
+            int bx = (int)b.x, by = (int)b.y;
+            int tx = (int)(b.x - b.dx * 4.0);
+            int ty = (int)(b.y - b.dy * 4.0);
+            ArtFX::glowLine(r, tx, ty, bx, by, 164, 67, 212, 80, 1);
+            // 菱形能量弹 + 亮核。
+            SDL_Point orb[4] = {{bx, by - 5}, {bx + 4, by}, {bx, by + 5}, {bx - 4, by}};
+            ArtFX::fillPoly(r, orb, 4, 118, 32, 156, 210);
+            for (int i = 0; i < 4; ++i)
+                ArtFX::glowLine(r, orb[i].x, orb[i].y, orb[(i+1)%4].x, orb[(i+1)%4].y,
+                                219, 126, 245, 200, 1);
+            SDL_SetRenderDrawColor(r, 255, 230, 255, 245);
             SDL_RenderDrawPoint(r, bx, by);
         }
     }
 
     void drawHPBar(SDL_Renderer* renderer, const Font& font) const {
         if (state == INACTIVE || state == DYING) return;
+        ArtFX::BlendGuard guard(renderer);
         const int BAR_W = 300, BAR_H = 14;
         const int BAR_X = CENTER_X - BAR_W / 2, BAR_Y = 8;
-        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-        SDL_Rect bg = {BAR_X, BAR_Y, BAR_W, BAR_H};
+        // 轨道 + 底框
+        SDL_SetRenderDrawColor(renderer, 11, 10, 15, 235);
+        SDL_Rect bg = {BAR_X - 2, BAR_Y - 2, BAR_W + 4, BAR_H + 4};
         SDL_RenderFillRect(renderer, &bg);
-
-        int fillW = (int)((double)hp / maxHp * BAR_W);
-        if (fillW > BAR_W) fillW = BAR_W;
-        SDL_SetRenderDrawColor(renderer, (state == ENRAGED) ? 255 : 220, 30, 30, 255);
-        SDL_Rect fill = {BAR_X, BAR_Y, fillW, BAR_H};
-        SDL_RenderFillRect(renderer, &fill);
-
-        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+        SDL_SetRenderDrawColor(renderer, 84, 35, 58, 220);
         SDL_Rect border = {BAR_X - 1, BAR_Y - 1, BAR_W + 2, BAR_H + 2};
         SDL_RenderDrawRect(renderer, &border);
-
-        const char* name = "MOONWELL WARDEN";
+        int fillW = (int)((double)hp / maxHp * BAR_W);
+        if (fillW > BAR_W) fillW = BAR_W; if (fillW < 0) fillW = 0;
+        if (fillW > 0) {
+            bool enraged = state == ENRAGED;
+            SDL_SetRenderDrawColor(renderer, enraged ? 255 : 188, enraged ? 58 : 35, 74, 255);
+            SDL_Rect fill = {BAR_X, BAR_Y, fillW, BAR_H};
+            SDL_RenderFillRect(renderer, &fill);
+            SDL_SetRenderDrawColor(renderer, 255, enraged ? 128 : 90, 112, 180);
+            SDL_Rect hi = {BAR_X, BAR_Y, fillW, 1};
+            SDL_RenderFillRect(renderer, &hi);
+            SDL_SetRenderDrawColor(renderer, 92, 19, 34, 145);
+            for (int i = 1; i < 14; ++i)
+                SDL_RenderDrawLine(renderer, BAR_X + BAR_W * i / 14, BAR_Y,
+                                   BAR_X + BAR_W * i / 14, BAR_Y + BAR_H - 1);
+        }
+        const char* name = (state == ENRAGED) ? "MOONWELL WARDEN // ENRAGED" : "MOONWELL WARDEN";
         int nameLen = (int)strlen(name);
-        int namePxW = nameLen * 12;  // scale 2, char width 12
+        int namePxW = nameLen * 12;
         int nameX = BAR_X + (BAR_W - namePxW) / 2;
         if (nameX < 4) nameX = 4;
-        for (int i = 0; name[i]; ++i) {
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-            font.drawChar(renderer, name[i], nameX + i * 12, BAR_Y + BAR_H + 5, 2);
-        }
+        font.drawStringColor(renderer, name, nameX, BAR_Y + BAR_H + 5, 2,
+                             state == ENRAGED ? 255 : 212,
+                             state == ENRAGED ? 146 : 231,
+                             state == ENRAGED ? 144 : 239, 240);
     }
 };
 

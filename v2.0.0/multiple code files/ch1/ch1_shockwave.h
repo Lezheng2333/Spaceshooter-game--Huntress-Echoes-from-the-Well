@@ -5,6 +5,7 @@
 #include "../floating_text.h"
 #include "../particles.h"
 #include "../player.h"
+#include "../art_fx.h"
 #include "../renderer.h"
 #include "../types.h"
 
@@ -98,6 +99,7 @@ public:
     }
 
     void draw(SDL_Renderer* renderer) const {
+        ArtFX::BlendGuard guard(renderer);
         const double BASE_B = 75.0;
         for (const auto& sw : shockwaves) {
             if (!sw.active) continue;
@@ -108,18 +110,40 @@ public:
             if (alpha < 8) alpha = 8;
             double swA = perspWidth(sw.y) / 2.0;
             double swB = BASE_B * swA / (perspWidth(WIN_HEIGHT) / 2.0);
-            SDL_SetRenderDrawColor(renderer, 50, 255, 100, (unsigned char)alpha);
-            const int SEG = 80;
             SDL_Point prev;
-            for (int i = 0; i <= SEG; ++i) {
-                double t = (double)i / SEG;
+            // 主波前：外柔光 + 白绿核心 + 内侧第二道波。
+            for (int pass = 0; pass < 2; ++pass) {
+                double mul = pass == 0 ? 1.0 : 0.86;
+                int aa = pass == 0 ? alpha : alpha / 2;
+                SDL_SetRenderDrawColor(renderer, pass == 0 ? 50 : 175, 255,
+                                       pass == 0 ? 100 : 196, (Uint8)aa);
+                for (int i = 0; i <= 80; ++i) {
+                    double t = (double)i / 80.0;
+                    int sx = (int)(CENTER_X + (swA * mul) * (2.0 * t - 1.0));
+                    double ratio = (double)(sx - CENTER_X) / (swA * mul);
+                    if (ratio > 1.0) ratio = 1.0;
+                    if (ratio < -1.0) ratio = -1.0;
+                    int sy = (int)(sw.y - (swB * mul) * std::sqrt(1.0 - ratio * ratio));
+                    if (i > 0) {
+                        if (pass == 0)
+                            ArtFX::glowLine(renderer, prev.x, prev.y, sx, sy, 54, 255, 112, aa, 1);
+                        else
+                            SDL_RenderDrawLine(renderer, prev.x, prev.y, sx, sy);
+                    }
+                    prev = {sx, sy};
+                }
+            }
+            // 波面上的五个高亮节点，帮助玩家读取波前的速度。
+            double phase = progress * 10.0;
+            for (int i = 0; i < 5; ++i) {
+                double t = (i + 0.5) / 5.0;
                 int sx = (int)(CENTER_X + swA * (2.0 * t - 1.0));
                 double ratio = (double)(sx - CENTER_X) / swA;
                 if (ratio > 1.0) ratio = 1.0;
                 if (ratio < -1.0) ratio = -1.0;
                 int sy = (int)(sw.y - swB * std::sqrt(1.0 - ratio * ratio));
-                if (i > 0) SDL_RenderDrawLine(renderer, prev.x, prev.y, sx, sy);
-                prev = {sx, sy};
+                int aa = (int)(alpha * (0.45 + 0.55 * std::fabs(std::sin(phase + i))));
+                ArtFX::starGlint(renderer, sx, sy, 1, 210, 255, 220, aa);
             }
         }
     }

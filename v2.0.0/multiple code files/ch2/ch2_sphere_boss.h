@@ -2,6 +2,7 @@
 
 class Ch2Background;
 
+#include "../audio.h"
 #include "../constants.h"
 #include "../player.h"
 #include "../renderer.h"
@@ -50,7 +51,8 @@ public:
 
     void init(Ch2Background* b, Player* p) { bg = b; playerRef = p; }
     void reset() { state = INACTIVE; stateTimer = 0; cells.clear(); activationByOrder.clear();
-        debris.clear(); activationIdx = shatterIdx = rushIdx = 0; hp = maxHp; }
+        debris.clear(); activationIdx = shatterIdx = rushIdx = 0; hp = maxHp;
+        landAudioCooldown = rumbleAudioTimer = activationAudioTimer = rushAudioCooldown = 0; }
 
     State getState() const { return state; }
     int getStateTimer() const { return stateTimer; }
@@ -139,9 +141,12 @@ public:
         ar.ioNum(bgTargetSpeed);
     }
 
-    void update() {
+    void update(AudioEngine* audio = nullptr) {
         if (state == INACTIVE || state == DONE) return;
         stateTimer++;
+        if (landAudioCooldown > 0) landAudioCooldown--;
+        if (activationAudioTimer > 0) activationAudioTimer--;
+        if (rushAudioCooldown > 0) rushAudioCooldown--;
 
         switch (state) {
         case ENTERING: {
@@ -158,13 +163,19 @@ public:
             if (distToTarget < 8) {
                 cx = targetScreenX; bgTargetSpeed = 0.0;
                 state = ACTIVATING; stateTimer = 0;
+                if (audio) audio->sndSphereLockOn();
             }
             break;
         }
         case ACTIVATING: {
             // Slow stochastic wave from bottom to top (~180 frames)
+            int prevActivation = activationIdx;
             int remaining = (int)cells.size() - activationIdx;
-            if (remaining <= 0) { state = FIGHT; stateTimer = 0; break; }
+            if (remaining <= 0) {
+                state = FIGHT; stateTimer = 0;
+                if (audio) audio->sndSphereLockOn();
+                break;
+            }
             int perFrame = remaining / 160 + 1; // slow pace
             int window = remaining / 20 + 8;     // lookahead window for randomness
             if (window > remaining) window = remaining;
@@ -183,23 +194,31 @@ public:
                        cells[activationByOrder[activationIdx]].activated)
                     activationIdx++;
             }
+            if (audio && activationIdx > prevActivation && activationAudioTimer <= 0) {
+                audio->sndSphereActivateTick();
+                activationAudioTimer = 5;   // ~12 ticks/s at 60 fps, soft glass arpeggio
+            }
             if (activationIdx >= (int)cells.size()) {
                 state = FIGHT; stateTimer = 0;
+                if (audio) audio->sndSphereLockOn();
             }
             break;
         }
         case FIGHT: {
-            updateDebrisPhysics();
+            updateDebrisPhysics(audio);
             bool allOff = true;
             for (auto& c : cells) if (c.onSphere) { allOff = false; break; }
-            if (hp <= 0 || allOff) { state = SHATTERING; stateTimer = 0; shatterIdx = 0; }
+            if (hp <= 0 || allOff) {
+                state = SHATTERING; stateTimer = 0; shatterIdx = 0;
+                if (audio) audio->sndGhostDrift();
+            }
             break;
         }
         case SHATTERING: {
             // Pop remaining cells rapidly
             int perFrame = (int)cells.size() / 60 + 1;
             popDiamonds(perFrame);
-            updateDebrisPhysics();
+            updateDebrisPhysics(audio);
             bool allOff = true;
             for (auto& c : cells) if (c.onSphere) { allOff = false; break; }
             // 血条见底后：黑球先幽灵化飘走，再等最后几块真正落到地面，最后才开始地面震动演出
@@ -216,13 +235,17 @@ public:
                     debris[i].shakeDelay = baseDelay;
                     debris[i].shakePhase = 0;
                 }
+                if (audio) audio->sndGhostVanish();
                 state = SHAKING; stateTimer = 0;
             }
             break;
         }
         case SHAKING: {
             if (debris.empty()) { state = DONE; stateTimer = 0; bgTargetSpeed = 3.5; break; }
+            if (audio && (stateTimer == 1 || (stateTimer % 30 == 0 && stateTimer < 240)))
+                audio->sndDebrisRumble();
             int shakeDuration = 120; // frames each debris shakes before rushing out
+            int launchedThisFrame = 0;
             for (auto& d : debris) {
                 if (d.rushing) {
                     d.x += d.rushVx; d.y += d.rushVy;
@@ -242,8 +265,13 @@ public:
                         d.rushVx = std::cos(angle) * speed;
                         d.rushVy = std::sin(angle) * speed;
                         d.shakePhase = 0;
+                        launchedThisFrame++;
                     }
                 }
+            }
+            if (audio && launchedThisFrame > 0 && rushAudioCooldown <= 0) {
+                audio->sndShardLaunch();
+                rushAudioCooldown = 2;
             }
             // Remove off-screen debris
             debris.erase(std::remove_if(debris.begin(), debris.end(),
@@ -260,15 +288,22 @@ public:
         }
     }
 
-    void updateDebrisPhysics() {
+    void updateDebrisPhysics(AudioEngine* audio = nullptr) {
+        bool landedThisFrame = false;
         for (auto& d : debris) {
             if (d.onGround || d.rushing) continue;
             d.vy += 0.3; d.x += d.vx; d.y += d.vy;
             d.rotAngle += d.rotSpeed;
             if (d.y > d.floorY) {
                 d.y = d.floorY; d.vy *= -0.3; d.vx *= 0.7;
-                if (std::abs(d.vy) < 0.5) { d.vy = 0; d.vx = 0; d.onGround = true; }
+                if (std::abs(d.vy) < 0.5) {
+                    d.vy = 0; d.vx = 0; d.onGround = true; landedThisFrame = true;
+                }
             }
+        }
+        if (audio && landedThisFrame && landAudioCooldown <= 0) {
+            audio->sndDebrisLand();
+            landAudioCooldown = 3;   // cap shard-landing ticks, preserve 48-voice budget
         }
     }
 
@@ -353,6 +388,11 @@ private:
     Ch2Background* bg;
     Player* playerRef;
     double bgTargetSpeed; // speed request for Ch2Background
+    // 纯音频节流计时器：不参与状态机/存档，也不影响任何碰撞或绘制。
+    int landAudioCooldown = 0;
+    int rumbleAudioTimer = 0;
+    int activationAudioTimer = 0;
+    int rushAudioCooldown = 0;
 
     // ---- 小工具 ----
     static double clamp01(double v) { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }

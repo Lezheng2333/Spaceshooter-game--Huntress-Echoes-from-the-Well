@@ -3,6 +3,7 @@
 #include "../audio.h"
 #include "../constants.h"
 #include "../particles.h"
+#include "../art_fx.h"
 #include "../renderer.h"
 #include "../types.h"
 
@@ -160,6 +161,7 @@ public:
     }
 
     void draw(SDL_Renderer* renderer) const {
+        ArtFX::BlendGuard guard(renderer);
         for (const auto& a : aliens) {
             if (!a.active) continue;
             double ax = perspLeft(a.y) + a.t * perspWidth(a.y);
@@ -167,12 +169,12 @@ public:
             double scale = (depthBelow < 0) ? 0.17 : 0.17 + 0.83 * depthBelow;
             if (scale < 0.14) scale = 0.14;
             if (scale > 1.0)  scale = 1.0;
-            int s = (int)(28.0 * scale);
-            if (s < 3) s = 3;
+            int s = (int)(29.0 * scale);
+            if (s < 4) s = 4;
 
-            // Entry trail
+            // Entry trail：保留已有的 3 段残影，但改成逐渐变大的星尘光点。
             if (a.entering && a.enterFrame > 3) {
-                for (int k = 1; k <= 3; ++k) {
+                for (int k = 1; k <= 4; ++k) {
                     double pastRaw = (double)(a.enterFrame - k * 3) / a.enterDuration;
                     if (pastRaw < 0) continue;
                     double pastEased = 1.0 - std::pow(1.0 - pastRaw, 3.0);
@@ -189,27 +191,70 @@ public:
                         double pastT = a.startT + (a.targetT - a.startT) * pastEased;
                         pastX = perspLeft(pastY) + pastT * perspWidth(pastY);
                     }
-                    int alpha = 150 - k * 40;
-                    SDL_SetRenderDrawColor(renderer, 100, 180, 255, (unsigned char)alpha);
-                    SDL_RenderDrawPoint(renderer, (int)pastX, (int)pastY);
+                    int alpha = 130 - k * 25;
+                    if (alpha < 18) continue;
+                    int rr = k == 1 ? 128 : 90;
+                    ArtFX::starGlint(renderer, (int)pastX, (int)pastY, 1 + (k == 1 ? 1 : 0),
+                                     rr, 174, 255, alpha);
                 }
             }
 
-            double hpRatio = (double)a.hp / a.maxHp;
+            double hpRatio = (double)a.hp / (a.maxHp > 0 ? a.maxHp : 1);
             bool inv = a.entering || a.invincibleFrames != 0;
             int r, g, b;
-            if (inv) { r = 100; g = 180; b = 255; }
-            else { r = 255; g = (int)(150 * hpRatio + 80 * (1 - hpRatio)); b = (int)(100 * hpRatio + 30 * (1 - hpRatio)); }
-            SDL_SetRenderDrawColor(renderer, r, g, b, 255);
-
+            if (inv) { r = 98; g = 180; b = 255; }
+            else {
+                r = 255;
+                g = (int)(154 * hpRatio + 70 * (1 - hpRatio));
+                b = (int)(82 * hpRatio + 26 * (1 - hpRatio));
+            }
             int ix = (int)ax, iy = (int)a.y;
-            SDL_Point pts[4] = {
-                {ix, iy - s}, {ix + s * 2 / 3, iy},
-                {ix, iy + s}, {ix - s * 2 / 3, iy}
+
+            // 六边形能量风筝：比旧菱形多两个折面，仍严格围绕原中心点绘制。
+            SDL_Point hull[6] = {
+                {ix, iy - s},
+                {ix + s * 2 / 3, iy - s / 5},
+                {ix + s / 3, iy + s * 2 / 3},
+                {ix, iy + s},
+                {ix - s / 3, iy + s * 2 / 3},
+                {ix - s * 2 / 3, iy - s / 5}
             };
-            SDL_RenderDrawLines(renderer, pts, 4);
-            SDL_RenderDrawLine(renderer, pts[3].x, pts[3].y, pts[0].x, pts[0].y);
-            SDL_RenderDrawLine(renderer, ix - s*2/3, iy, ix + s*2/3, iy);
+            ArtFX::fillPoly(renderer, hull, 6, r / 5 + 8, g / 6 + 6, b / 8 + 6, 224);
+            for (int i = 0; i < 6; ++i) {
+                SDL_Point& p0 = hull[i]; SDL_Point& p1 = hull[(i + 1) % 6];
+                int a0 = (i == 0 || i == 5) ? 245 : 170;
+                ArtFX::glowLine(renderer, p0.x, p0.y, p1.x, p1.y, r, g, b, a0, 1);
+            }
+            // 翼面折线 / 核心。低血量时出现不规则的断裂线，但位置仍然固定。
+            ArtFX::glowLine(renderer, ix - s * 2 / 3, iy - s / 5,
+                            ix, iy + s / 2, r, g, b, 105, 1);
+            ArtFX::glowLine(renderer, ix + s * 2 / 3, iy - s / 5,
+                            ix, iy + s / 2, r, g, b, 105, 1);
+            SDL_Point core[4] = {{ix, iy - s/3}, {ix + s/5, iy}, {ix, iy + s/3}, {ix - s/5, iy}};
+            ArtFX::fillPoly(renderer, core, 4, 255, inv ? 220 : 220, inv ? 255 : 168, 210);
+            if (hpRatio < 0.55 && !inv) {
+                ArtFX::glowLine(renderer, ix - s/2, iy - s/4, ix - s/8, iy + s/6, 255, 210, 138, 115, 1);
+                ArtFX::glowLine(renderer, ix + s/3, iy - s/3, ix + s/2, iy + s/5, 255, 190, 114, 95, 1);
+            }
+            if (inv && !a.entering) {
+                // 吸收/无敌状态：冷蓝六边形护罩。
+                SDL_Point ring[6];
+                int rr = s + 5;
+                for (int i = 0; i < 6; ++i) {
+                    double ang = 2.0 * M_PI * i / 6.0 + M_PI / 6.0;
+                    ring[i] = {ix + (int)(rr * std::cos(ang)), iy + (int)(rr * std::sin(ang))};
+                }
+                for (int i = 0; i < 6; ++i)
+                    ArtFX::glowLine(renderer, ring[i].x, ring[i].y,
+                                    ring[(i+1)%6].x, ring[(i+1)%6].y, 82, 170, 255, 70, 1);
+            }
+            // 后向推进器残烬：从风筝后缘向上散开，强调其朝基地俯冲。
+            if (!inv) {
+                ArtFX::glowLine(renderer, ix - s/4, iy - s * 4/5,
+                                ix - s/5, iy - s - 4, r, g, b, 70, 1);
+                ArtFX::glowLine(renderer, ix + s/4, iy - s * 4/5,
+                                ix + s/5, iy - s - 3, r, g, b, 55, 1);
+            }
         }
     }
 

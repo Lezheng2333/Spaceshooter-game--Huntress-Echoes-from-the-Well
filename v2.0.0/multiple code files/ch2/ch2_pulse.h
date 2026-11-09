@@ -2,6 +2,7 @@
 
 #include "../audio.h"
 #include "../particles.h"
+#include "../art_fx.h"
 #include "../renderer.h"
 #include "../types.h"
 
@@ -62,8 +63,8 @@ public:
 
     // Breathing: bright green ↔ dark green when full (for HUD rendering)
     float getBreathAlpha() const {
-        if (!isFull()) return 1.0f;
-        return 0.6f + 0.4f * (float)std::sin(SDL_GetTicks() * 0.008);
+        // 状态派生值：满能量时固定为高亮，避免绘制依赖真实时间。
+        return isFull() ? 1.0f : 0.75f;
     }
 
     void release(double px, double py, ParticleManager& pm, AudioEngine& audio) {
@@ -100,32 +101,55 @@ public:
     }
 
     void draw(SDL_Renderer* r) const {
+        ArtFX::BlendGuard guard(r);
         for (const auto& w : waves) {
             if (!w.active) continue;
-            double progress = (w.radius - 20.0) / 500.0; // 0→1 over life
+            double progress = (w.radius - 20.0) / 500.0;
             if (progress > 1.0) progress = 1.0;
-            int alpha = (int)(220.0 * (1.0 - progress)); if (alpha < 10) alpha = 10;
-            SDL_SetRenderDrawColor(r, 255, 255, 255, (Uint8)alpha);
-            const int SEG = 64;
-            SDL_Point prev;
+            if (progress < 0.0) progress = 0.0;
+            int alpha = (int)(235.0 * (1.0 - progress));
+            if (alpha < 10) alpha = 10;
             int cx = (int)w.x, cy = (int)w.y;
-            for (int i = 0; i <= SEG; ++i) {
-                double a = 2.0 * M_PI * i / SEG;
-                int sx = cx + (int)(w.radius * std::cos(a));
-                int sy = cy + (int)(w.radius * std::sin(a));
-                if (i > 0) SDL_RenderDrawLine(r, prev.x, prev.y, sx, sy);
-                prev = {sx, sy};
+            const int SEG = 72;
+            for (int ring = 0; ring < 2; ++ring) {
+                double rad = ring == 0 ? w.radius : w.radius * 0.87;
+                int aa = ring == 0 ? alpha : alpha * 2 / 3;
+                SDL_SetRenderDrawColor(r, ring == 0 ? 196 : 94,
+                                       ring == 0 ? 255 : 230,
+                                       ring == 0 ? 226 : 255, (Uint8)aa);
+                int prevX = cx + (int)rad, prevY = cy;
+                for (int i = 1; i <= SEG; ++i) {
+                    double a = 2.0 * M_PI * i / SEG;
+                    int sx = cx + (int)(rad * std::cos(a));
+                    int sy = cy + (int)(rad * std::sin(a));
+                    if (ring == 0)
+                        ArtFX::glowLine(r, prevX, prevY, sx, sy, 105, 255, 180, aa, 1);
+                    else
+                        SDL_RenderDrawLine(r, prevX, prevY, sx, sy);
+                    prevX = sx; prevY = sy;
+                }
             }
-            // Second ring (thinner, slightly smaller)
-            double r2 = w.radius * 0.85;
-            int alpha2 = (int)(140.0 * (1.0 - progress)); if (alpha2 < 8) alpha2 = 8;
-            SDL_SetRenderDrawColor(r, 255, 255, 255, (Uint8)alpha2);
-            for (int i = 0; i <= SEG; ++i) {
-                double a = 2.0 * M_PI * i / SEG;
-                int sx = cx + (int)(r2 * std::cos(a));
-                int sy = cy + (int)(r2 * std::sin(a));
-                if (i > 0) SDL_RenderDrawLine(r, prev.x, prev.y, sx, sy);
-                prev = {sx, sy};
+            // 波面上的能量刻度与中心冲击环。
+            for (int i = 0; i < 12; ++i) {
+                double a = i * M_PI / 6.0 + progress * 2.2;
+                int x0 = cx + (int)(w.radius * std::cos(a));
+                int y0 = cy + (int)(w.radius * std::sin(a));
+                int x1 = cx + (int)((w.radius + 7) * std::cos(a));
+                int y1 = cy + (int)((w.radius + 7) * std::sin(a));
+                ArtFX::glowLine(r, x0, y0, x1, y1, 138, 255, 200, alpha / 2, 1);
+            }
+            for (int k = 1; k <= 3; ++k) {
+                int rr = (int)(w.radius * 0.23 * k);
+                if (rr < 2) continue;
+                SDL_SetRenderDrawColor(r, 170, 255, 215, (Uint8)(alpha / (k + 2)));
+                int px = cx + rr, py = cy;
+                for (int i = 1; i <= 24; ++i) {
+                    double a = 2.0 * M_PI * i / 24.0;
+                    int nx = cx + (int)(rr * std::cos(a));
+                    int ny = cy + (int)(rr * std::sin(a));
+                    SDL_RenderDrawLine(r, px, py, nx, ny);
+                    px = nx; py = ny;
+                }
             }
         }
     }

@@ -4,6 +4,7 @@
 #include "../bullets.h"
 #include "../floating_text.h"
 #include "../particles.h"
+#include "../art_fx.h"
 #include "../player.h"
 #include "../renderer.h"
 #include "../types.h"
@@ -112,7 +113,11 @@ public:
                 if (a.invincibleFrames <= 0) a.fireVolleyTimer = 0;
             } else {
                 a.x -= 0.35;
-                if (a.x < -40) { a.active = false; a.defeated = true; continue; }
+                if (a.x < -40) {
+                    a.active = false; a.defeated = true;
+                    audio.sndAlienEscape();
+                    continue;
+                }
                 if (a.fireBurstCount > 0) {
                     a.fireBurstTimer--;
                     if (a.fireBurstTimer <= 0) {
@@ -153,9 +158,10 @@ public:
     }
 
     void drawEnemy(SDL_Renderer* r) const {
+        ArtFX::BlendGuard guard(r);
         for (const auto& a : aliens) {
             if (!a.active) continue;
-            int ex = (int)a.x, ey = (int)a.y, sz = 12;
+            int ex = (int)a.x, ey = (int)a.y, sz = 13;
             int rCol, gCol, bCol;
             bool shardEnter = a.entering && a.startY > WIN_HEIGHT - 20;
             if (a.entering || a.invincibleFrames > 0) {
@@ -166,26 +172,57 @@ public:
                 int tr = shardEnter ? 238 : 100;
                 int tg = shardEnter ? 164 : 180;
                 int tb = shardEnter ? 82 : 255;
-                for (int k = 1; k <= 3; ++k) {
+                for (int k = 1; k <= 4; ++k) {
                     double pRaw = (double)(a.enterFrame - k*3) / a.enterDuration;
                     if (pRaw < 0) continue;
                     double pE = 1.0 - std::pow(1.0 - pRaw, 3.0);
                     int px = (int)(a.startX + (a.targetX - a.startX) * pE);
                     int py = (int)(a.startY + (a.targetY - a.startY) * pE);
-                    SDL_SetRenderDrawColor(r, (Uint8)tr, (Uint8)tg, (Uint8)tb,
-                                           (Uint8)(150 - k*40));
-                    SDL_RenderDrawPoint(r, px, py);
+                    ArtFX::starGlint(r, px, py, k <= 2 ? 1 : 0,
+                                     tr, tg, tb, 150 - k*26);
                 }
             }
-            SDL_SetRenderDrawColor(r, (Uint8)rCol, (Uint8)gCol, (Uint8)bCol, 255);
             int hw = sz * 2 / 3;
-            SDL_Point pts[4] = {
-                {ex, ey - sz}, {ex + hw, ey},
-                {ex, ey + sz}, {ex - hw, ey}
+            SDL_Point hull[6] = {
+                {ex, ey - sz},
+                {ex + hw, ey - sz / 4},
+                {ex + hw / 2, ey + sz * 2 / 3},
+                {ex, ey + sz},
+                {ex - hw / 2, ey + sz * 2 / 3},
+                {ex - hw, ey - sz / 4}
             };
-            SDL_RenderDrawLines(r, pts, 4);
-            SDL_RenderDrawLine(r, pts[3].x, pts[3].y, pts[0].x, pts[0].y);
-            SDL_RenderDrawLine(r, ex - hw, ey, ex + hw, ey);
+            ArtFX::fillPoly(r, hull, 6, rCol / 5 + 8, gCol / 6 + 7, bCol / 8 + 7, 225);
+            for (int i = 0; i < 6; ++i) {
+                SDL_Point& p0 = hull[i]; SDL_Point& p1 = hull[(i + 1) % 6];
+                ArtFX::glowLine(r, p0.x, p0.y, p1.x, p1.y, rCol, gCol, bCol,
+                                (i == 0 || i == 5) ? 235 : 155, 1);
+            }
+            // 中心能量孔 + 横向翼梁。
+            ArtFX::glowLine(r, ex - hw, ey - sz/4, ex + hw, ey - sz/4, rCol, gCol, bCol, 100, 1);
+            SDL_Point core[4] = {{ex, ey - sz/3}, {ex + 3, ey}, {ex, ey + sz/3}, {ex - 3, ey}};
+            ArtFX::fillPoly(r, core, 4, 255, 220, 168, 215);
+            // 朝玩家运动的侧滚体感：右侧两条短推进尾迹。
+            if (!a.entering && a.invincibleFrames <= 0) {
+                ArtFX::glowLine(r, ex + hw + 2, ey - 3, ex + hw + 8, ey - 4, rCol, gCol, bCol, 85, 1);
+                ArtFX::glowLine(r, ex + hw + 2, ey + 4, ex + hw + 7, ey + 5, rCol, gCol, bCol, 65, 1);
+            }
+            if (a.invincibleFrames > 0) {
+                SDL_Point ring[8];
+                int rr = sz + 5;
+                for (int i = 0; i < 8; ++i) {
+                    double ang = 2.0 * M_PI * i / 8.0;
+                    ring[i] = {ex + (int)(rr * std::cos(ang)), ey + (int)(rr * std::sin(ang))};
+                }
+                for (int i = 0; i < 8; ++i)
+                    ArtFX::glowLine(r, ring[i].x, ring[i].y, ring[(i+1)%8].x, ring[(i+1)%8].y,
+                                    92, 176, 255, 80, 1);
+            }
+            // 球体残片升起的第一波保留橙色暖光，以衔接上一段演出。
+            if (shardEnter) {
+                SDL_SetRenderDrawColor(r, 255, 166, 78, 125);
+                SDL_RenderDrawPoint(r, ex - 2, ey - 1);
+                SDL_RenderDrawPoint(r, ex + 2, ey + 1);
+            }
         }
     }
 };

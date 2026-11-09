@@ -90,8 +90,11 @@ public:
             double sp = 2.0 + (rand() % 300) / 100.0;
             pm.spawnWhiteParticle(ix, iy, std::cos(a)*sp, std::sin(a)*sp, 12+rand()%15);
         }
-        audio.sndHit();
-        if (shieldHp <= 0) breakShield(pm);
+        audio.sndShieldHit();
+        if (shieldHp <= 0) {
+            breakShield(pm);
+            audio.sndCrystalCrush();
+        }
     }
 
     void breakShield(ParticleManager& pm) {
@@ -175,9 +178,11 @@ public:
             }
         }
         // Main core fill (yellow-white breathing, with edge gradient)
-        int br = 180 + (int)(40 * std::sin(SDL_GetTicks() * 0.010));
+        // 呼吸亮度由存档内状态决定，保证读档后的同一帧像素一致。
+        int breathSeed = (int)(x * 7.0 + y * 11.0) + shieldHp * 13 + absorbTimer * 3;
+        int br = 180 + (int)(40.0 * std::sin(breathSeed * 0.07));
         if (state == CORE || state == ABSORBING) {
-            br = 180 + (int)(75 * std::sin(SDL_GetTicks() * 0.015));
+            br = 180 + (int)(75.0 * std::sin(breathSeed * 0.11));
         }
         for (int dy = -rsz; dy <= rsz; ++dy) {
             int dx = (int)std::sqrt((double)std::max(0, rsz*rsz - dy*dy));

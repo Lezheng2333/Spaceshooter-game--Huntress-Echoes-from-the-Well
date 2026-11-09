@@ -5,6 +5,7 @@
 #include "../constants.h"
 #include "../font.h"
 #include "../particles.h"
+#include "../art_fx.h"
 #include "../renderer.h"
 #include "../types.h"
 #include "../ch1/ch1_aliens.h"
@@ -312,109 +313,233 @@ public:
 
     void drawCircularShockwave(SDL_Renderer* renderer) const {
         if (shakeTimer <= 0) return;
+        ArtFX::BlendGuard guard(renderer);
         double progress = 1.0 - (double)shakeTimer / 120.0;
         if (progress > 1.0) progress = 1.0;
-        double radius = 40.0 + progress * 520.0;
-        int alpha = (int)(180.0 * (1.0 - progress));
-        if (alpha < 8) return;
-        SDL_SetRenderDrawColor(renderer, 255, 80, 80, (unsigned char)alpha);
-        const int SEG = 64;
-        SDL_Point prev;
-        for (int i = 0; i <= SEG; ++i) {
-            double angle = 2.0 * M_PI * i / SEG;
-            double sy = y + std::sin(angle) * radius;
-            double rx = radius * perspWidth(sy) / perspWidth(y);
-            int sx = (int)(x + std::cos(angle) * rx);
-            if (i > 0) SDL_RenderDrawLine(renderer, prev.x, prev.y, sx, (int)sy);
-            prev = {sx, (int)sy};
+        if (progress < 0.0) progress = 0.0;
+        for (int ring = 0; ring < 3; ++ring) {
+            double radius = 40.0 + progress * (520.0 + ring * 34.0);
+            int alpha = (int)(185.0 * (1.0 - progress) / (ring + 1));
+            if (alpha < 5) continue;
+            const int SEG = 64;
+            int prevX = -10000, prevY = 0;
+            for (int i = 0; i <= SEG; ++i) {
+                double angle = 2.0 * M_PI * i / SEG;
+                double sy = y + std::sin(angle) * radius;
+                double rx = radius * perspWidth(sy) / perspWidth(y);
+                int sx = (int)(x + std::cos(angle) * rx);
+                if (i > 0) {
+                    if (ring == 0)
+                        ArtFX::glowLine(renderer, prevX, prevY, sx, (int)sy, 255, 74, 78, alpha, 1);
+                    else {
+                        SDL_SetRenderDrawColor(renderer, 255, 74, 78, (Uint8)alpha);
+                        SDL_RenderDrawLine(renderer, prevX, prevY, sx, (int)sy);
+                    }
+                }
+                prevX = sx; prevY = (int)sy;
+            }
         }
     }
 
     void drawCh1HealWaves(SDL_Renderer* renderer) const {
+        ArtFX::BlendGuard guard(renderer);
         for (const auto& hw : healWaves) {
             if (!hw.active) continue;
-            SDL_SetRenderDrawColor(renderer, 255, 60, 60, 80);
-            const int SEG = 60;
-            SDL_Point prev;
+            const int SEG = 64;
+            int prevX = -10000, prevY = 0;
             for (int i = 0; i <= SEG; ++i) {
                 double angle = 2.0 * M_PI * i / SEG;
                 double sy = y + std::sin(angle) * hw.radius;
                 double rx = hw.radius * perspWidth(sy) / perspWidth(y);
                 int sx = (int)(x + std::cos(angle) * rx);
-                if (i > 0) SDL_RenderDrawLine(renderer, prev.x, prev.y, sx, (int)sy);
-                prev = {sx, (int)sy};
+                if (i > 0) {
+                    ArtFX::glowLine(renderer, prevX, prevY, sx, (int)sy, 255, 82, 98, 72, 1);
+                    if (i % 8 == 0) {
+                        SDL_SetRenderDrawColor(renderer, 255, 186, 178, 90);
+                        SDL_RenderDrawLine(renderer, prevX, prevY, sx, (int)sy);
+                    }
+                }
+                prevX = sx; prevY = (int)sy;
             }
         }
     }
 
     void drawBody(SDL_Renderer* renderer) const {
-        if (!active || y < -100) return;
+        if (!active || y < -125) return;
+        ArtFX::BlendGuard guard(renderer);
         double scale = 0.5 + 0.5 * ((y + 100) / 200.0);
         if (scale > 1.0) scale = 1.0;
+        if (scale < 0.18) scale = 0.18;
         int s = (int)((cfg ? cfg->size : 80.0) * scale);
         if (s < 20) s = 20;
         int ix = (int)x, iy = (int)y;
+        bool hot = flashTimer > 0;
+        bool p2 = phase2Triggered;
+        int br = hot ? 255 : (p2 ? 255 : 210);
+        int bg = hot ? 226 : (p2 ? 92 : 60);
+        int bb = hot ? 210 : (p2 ? 82 : 62);
 
-        if (flashTimer > 0)
-            SDL_SetRenderDrawColor(renderer, 255, 200, 200, 255);
-        else
-            SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
-        SDL_Point pts[4] = {
-            {ix, iy - s}, {ix + s*2/3, iy},
-            {ix, iy + s/2}, {ix - s*2/3, iy}
+        // 防御奇点：两圈不对称的赤红轨道。它们纯粹是视觉护盾，
+        // 不参与 hit test，因此不会改变 Boss 的命中窗口。
+        double orbit = moveTime * (p2 ? 1.65 : 1.05);
+        for (int ring = 0; ring < 2; ++ring) {
+            int rr = (int)(s * (1.48 + ring * 0.28));
+            int alpha = ring == 0 ? 72 : 48;
+            int px = ix + rr, py = iy;
+            for (int i = 1; i <= 56; ++i) {
+                double a = 2.0 * M_PI * i / 56.0 + orbit * (ring == 0 ? 1.0 : -0.65);
+                int nx = ix + (int)(rr * std::cos(a));
+                int ny = iy + (int)(rr * 0.72 * std::sin(a));
+                if (i > 1 && (i % 8 != 0)) {
+                    SDL_SetRenderDrawColor(renderer, 255, 72, 84, (Uint8)alpha);
+                    SDL_RenderDrawLine(renderer, px, py, nx, ny);
+                }
+                if (i % 8 == 0) {
+                    ArtFX::starGlint(renderer, nx, ny, ring == 0 ? 2 : 1, 255, 113, 112, 120);
+                }
+                px = nx; py = ny;
+            }
+        }
+
+        // 船体：层叠的暗红装甲。上宽下窄，保持"堡垒"而不是放大敌机的剪影。
+        SDL_Point hull[8] = {
+            {ix, iy - s},
+            {ix + s * 5 / 9, iy - s * 7 / 10},
+            {ix + s * 9 / 10, iy - s / 5},
+            {ix + s * 3 / 4, iy + s / 3},
+            {ix, iy + s * 2 / 3},
+            {ix - s * 3 / 4, iy + s / 3},
+            {ix - s * 9 / 10, iy - s / 5},
+            {ix - s * 5 / 9, iy - s * 7 / 10}
         };
-        SDL_RenderDrawLines(renderer, pts, 4);
-        SDL_RenderDrawLine(renderer, pts[3].x, pts[3].y, pts[0].x, pts[0].y);
-        SDL_RenderDrawLine(renderer, ix - s*2/3, iy, ix + s*2/3, iy);
-        SDL_RenderDrawLine(renderer, ix, iy - s, ix, iy + s/2);
+        ArtFX::fillPoly(renderer, hull, 8, 36, 7, 13, 245);
+        for (int i = 0; i < 8; ++i) {
+            SDL_Point& a = hull[i]; SDL_Point& b = hull[(i + 1) % 8];
+            ArtFX::glowLine(renderer, a.x, a.y, b.x, b.y, br, bg, bb, hot ? 245 : 195, 1);
+        }
+        // 肩部装甲舱与下方龙骨。
+        SDL_Point lPod[4] = {{ix - s * 8 / 10, iy - s / 5}, {ix - s * 5 / 9, iy - s * 6 / 10},
+                             {ix - s * 4 / 9, iy - s / 3}, {ix - s * 5 / 9, iy + s / 8}};
+        SDL_Point rPod[4] = {{ix + s * 8 / 10, iy - s / 5}, {ix + s * 5 / 9, iy - s * 6 / 10},
+                             {ix + s * 4 / 9, iy - s / 3}, {ix + s * 5 / 9, iy + s / 8}};
+        ArtFX::fillPoly(renderer, lPod, 4, 58, 13, 20, 225);
+        ArtFX::fillPoly(renderer, rPod, 4, 58, 13, 20, 225);
+        for (int i = 0; i < 4; ++i) {
+            ArtFX::glowLine(renderer, lPod[i].x, lPod[i].y, lPod[(i+1)%4].x, lPod[(i+1)%4].y, br, bg, bb, 155, 1);
+            ArtFX::glowLine(renderer, rPod[i].x, rPod[i].y, rPod[(i+1)%4].x, rPod[(i+1)%4].y, br, bg, bb, 155, 1);
+        }
+        // 舰艏与肩部之间的装甲脊线。
+        ArtFX::glowLine(renderer, ix, iy - s, ix, iy + s * 2 / 3, br, bg, bb, 90, 1);
+        ArtFX::glowLine(renderer, ix - s * 9 / 10, iy - s / 5, ix + s * 9 / 10, iy - s / 5, br, bg, bb, 70, 1);
+        ArtFX::glowLine(renderer, ix - s * 3 / 4, iy + s / 3, ix + s * 3 / 4, iy + s / 3, br, bg, bb, 65, 1);
 
-        SDL_SetRenderDrawColor(renderer, 255, 100, 100, 100);
-        int r = (int)(s * 0.9);
-        for (int i = 0; i < 2; ++i) {
-            int rr = r + i * 10;
-            SDL_Point ring[6] = {
-                {ix, iy - rr}, {ix + rr*3/4, iy - rr/2},
-                {ix + rr*3/4, iy + rr/2}, {ix, iy + rr},
-                {ix - rr*3/4, iy + rr/2}, {ix - rr*3/4, iy - rr/2}
-            };
-            SDL_RenderDrawLines(renderer, ring, 6);
-            SDL_RenderDrawLine(renderer, ring[5].x, ring[5].y, ring[0].x, ring[0].y);
+        // 中央核心：双层环 + 竖缝，鲜明的"有生命的堡垒"焦点。
+        double pulse = 0.5 + 0.5 * std::sin(moveTime * 2.8);
+        int cr = hot ? 255 : (p2 ? 255 : (int)(185 + pulse * 40));
+        int cg = hot ? 238 : (p2 ? 118 : (int)(48 + pulse * 16));
+        int cb = hot ? 224 : (p2 ? 98 : 66);
+        ArtFX::fillPoly(renderer, hull, 8, 18, 3, 7, 120); // 内层暗色，压住背景纹理
+        int coreR = (int)(s * 0.34);
+        // 四层羽化光环
+        for (int layer = 4; layer >= 0; --layer) {
+            int rr = coreR + 4 + layer * 4;
+            int al = 18 + layer * 24;
+            SDL_SetRenderDrawColor(renderer, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)al);
+            int px = ix + rr, py = iy;
+            for (int i = 1; i <= 28; ++i) {
+                double a = 2.0 * M_PI * i / 28.0;
+                int nx = ix + (int)(rr * std::cos(a));
+                int ny = iy + (int)(rr * std::sin(a));
+                SDL_RenderDrawLine(renderer, px, py, nx, ny);
+                px = nx; py = ny;
+            }
+        }
+        // 实心核心 + 竖直瞳孔缝
+        for (int yy = -coreR; yy <= coreR; ++yy) {
+            int hw = (int)std::sqrt((double)std::max(0, coreR * coreR - yy * yy));
+            ArtFX::fillPoly(renderer, (SDL_Point[]){{ix - hw, iy + yy}, {ix + hw, iy + yy},
+                                                    {ix + hw, iy + yy + 1}, {ix - hw, iy + yy + 1}}, 4,
+                            cr / 3, cg / 3, cb / 3, 210);
+        }
+        SDL_SetRenderDrawColor(renderer, (Uint8)cr, (Uint8)(cg + 20), (Uint8)cb, 245);
+        SDL_Rect slit = {ix - s / 12, iy - s / 5, std::max(2, s / 6), std::max(5, s * 2 / 5)};
+        SDL_RenderFillRect(renderer, &slit);
+        SDL_SetRenderDrawColor(renderer, 255, 239, 220, 210);
+        SDL_RenderDrawLine(renderer, ix, iy - s / 5, ix, iy + s / 5);
+        // 核心外的刻度环。
+        for (int i = 0; i < 12; ++i) {
+            double a = i * 2.0 * M_PI / 12.0 + orbit * 0.4;
+            int x0 = ix + (int)((coreR + 2) * std::cos(a));
+            int y0 = iy + (int)((coreR + 2) * std::sin(a));
+            int x1 = ix + (int)((coreR + 6) * std::cos(a));
+            int y1 = iy + (int)((coreR + 6) * std::sin(a));
+            ArtFX::glowLine(renderer, x0, y0, x1, y1, cr, cg, cb, 150, 1);
+        }
+
+        // 吸收中的蓝色能量悬浮在核心周围，提示"它在回血"。
+        if (bonusHp > 0 || hot) {
+            int rr = (int)(s * 0.58);
+            for (int i = 0; i < 8; ++i) {
+                double a = i * M_PI / 4.0 + moveTime * 0.45;
+                int px = ix + (int)(rr * std::cos(a));
+                int py = iy + (int)(rr * 0.55 * std::sin(a));
+                ArtFX::starGlint(renderer, px, py, 1, 90, 180, 255, 75);
+            }
+        }
+        // 肩部推进器微光。
+        for (int side = -1; side <= 1; side += 2) {
+            int px = ix + side * (s * 5 / 9);
+            int py = iy + s / 16;
+            ArtFX::glowLine(renderer, px, py, px + side * 5, py + 8, 255, 88, 68, 95, 1);
         }
     }
 
     void drawHPBar(SDL_Renderer* renderer, const Font& font) const {
         if (!active) return;
+        ArtFX::BlendGuard guard(renderer);
         const int BAR_W = 400, BAR_H = 14;
         const int BAR_X = CENTER_X - BAR_W / 2, BAR_Y = 8;
-        SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
-        SDL_Rect bg = {BAR_X, BAR_Y, BAR_W, BAR_H};
+        SDL_SetRenderDrawColor(renderer, 12, 7, 9, 235);
+        SDL_Rect bg = {BAR_X - 2, BAR_Y - 2, BAR_W + 4, BAR_H + 4};
         SDL_RenderFillRect(renderer, &bg);
+        SDL_SetRenderDrawColor(renderer, 84, 31, 35, 220);
+        SDL_Rect border = {BAR_X - 1, BAR_Y - 1, BAR_W + 2, BAR_H + 2};
+        SDL_RenderDrawRect(renderer, &border);
 
-        int baseW = (int)((double)hp / maxHp * BAR_W);
-        if (baseW > BAR_W) baseW = BAR_W;
-        int bonusW = (int)((double)bonusHp / maxHp * BAR_W);
-
-        SDL_SetRenderDrawColor(renderer, 220, 30, 30, 255);
-        SDL_Rect baseR = {BAR_X, BAR_Y, baseW, BAR_H};
-        SDL_RenderFillRect(renderer, &baseR);
-        if (bonusHp > 0 && bonusW > 0) {
-            SDL_SetRenderDrawColor(renderer, 255, 140, 140, 255);
+        int baseW = (int)((double)hp / (maxHp > 0 ? maxHp : 1) * BAR_W);
+        if (baseW > BAR_W) baseW = BAR_W; if (baseW < 0) baseW = 0;
+        int bonusW = (int)((double)bonusHp / (maxHp > 0 ? maxHp : 1) * BAR_W);
+        if (baseW + bonusW > BAR_W) bonusW = BAR_W - baseW;
+        if (baseW > 0) {
+            SDL_SetRenderDrawColor(renderer, 188, 26, 35, 255);
+            SDL_Rect baseR = {BAR_X, BAR_Y, baseW, BAR_H};
+            SDL_RenderFillRect(renderer, &baseR);
+            SDL_SetRenderDrawColor(renderer, 255, 92, 88, 180);
+            SDL_Rect hi = {BAR_X, BAR_Y, baseW, 1};
+            SDL_RenderFillRect(renderer, &hi);
+        }
+        if (bonusW > 0) {
+            SDL_SetRenderDrawColor(renderer, 255, 145, 164, 255);
             SDL_Rect bonusR = {BAR_X + baseW, BAR_Y, bonusW, BAR_H};
             SDL_RenderFillRect(renderer, &bonusR);
+            SDL_SetRenderDrawColor(renderer, 255, 220, 225, 145);
+            SDL_Rect hi = {BAR_X + baseW, BAR_Y, bonusW, 1};
+            SDL_RenderFillRect(renderer, &hi);
         }
-        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
-        int borderW = baseW + bonusW + 2;
-        if (borderW < BAR_W + 2) borderW = BAR_W + 2;
-        SDL_Rect border = {BAR_X-1, BAR_Y-1, borderW, BAR_H+2};
-        SDL_RenderDrawRect(renderer, &border);
+        SDL_SetRenderDrawColor(renderer, 70, 13, 18, 145);
+        for (int i = 1; i < 20; ++i)
+            SDL_RenderDrawLine(renderer, BAR_X + BAR_W * i / 20, BAR_Y,
+                               BAR_X + BAR_W * i / 20, BAR_Y + BAR_H - 1);
         if (cfg && cfg->name) {
             int nameLen = (int)strlen(cfg->name);
-            int namePxW = nameLen * 6 * 2;  // font size 2, each char 12px
-            int nameX = BAR_X - namePxW - 8;
-            for (int i = 0; cfg->name[i]; ++i) {
-                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                font.drawChar(renderer, cfg->name[i], nameX + i * 12, BAR_Y + 1, 2);
-            }
+            int namePxW = nameLen * 6 * 2;
+            int nameX = BAR_X - namePxW - 10;
+            if (nameX < 4) nameX = 4;
+            font.drawStringColor(renderer, cfg->name, nameX, BAR_Y + 1, 2,
+                                 236, 208, 198, 255);
+            SDL_SetRenderDrawColor(renderer, 255, 92, 88, 110);
+            SDL_RenderDrawLine(renderer, nameX, BAR_Y + BAR_H + 1,
+                               nameX + namePxW - 4, BAR_Y + BAR_H + 1);
         }
     }
 

@@ -2,6 +2,7 @@
 
 #include "font.h"
 #include "renderer.h"
+#include "art_fx.h"
 #include "types.h"
 
 // ============== ParticleManager ==============
@@ -109,25 +110,45 @@ public:
     }
 
     void draw(SDL_Renderer* renderer) const {
+        ArtFX::BlendGuard guard(renderer);
         for (const auto& p : particles) {
             if (!p.active) continue;
+            // 旧代码 life 可超过 35（烟花），fade 超过 1 会让颜色分量溢出；
+            // clamp 后既修掉这个老问题，也让长寿命火花自然淡出。
             double fade = (double)p.life / 35.0;
+            if (fade > 1.0) fade = 1.0;
             if (fade < 0.0) fade = 0.0;
-            int brightness = (int)(255 * fade);
+            int brightness = (int)(255.0 * fade);
+            int cr, cg, cb;
+            bool bright = p.whiteParticle || p.greenParticle || p.redParticle;
             if (p.whiteParticle) {
-                SDL_SetRenderDrawColor(renderer, brightness, brightness, brightness, 255);
+                cr = brightness; cg = brightness; cb = brightness;
             } else if (p.greenParticle) {
-                SDL_SetRenderDrawColor(renderer, (int)(brightness * 0.2), brightness, (int)(brightness * 0.3), 255);
+                cr = (int)(brightness * 0.16); cg = brightness; cb = (int)(brightness * 0.42);
             } else if (p.redParticle) {
-                SDL_SetRenderDrawColor(renderer, brightness, (int)(brightness * 0.2), (int)(brightness * 0.2), 255);
+                cr = brightness; cg = (int)(brightness * 0.20); cb = (int)(brightness * 0.18);
             } else {
-                int r = brightness, g = (int)(brightness * 0.55), b = (int)(brightness * 0.1);
-                SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+                cr = brightness; cg = (int)(brightness * 0.55); cb = (int)(brightness * 0.12);
             }
-            int sz = (int)((p.whiteParticle || p.greenParticle) ? 5.0 * fade : 3.5 * fade);
-            if (sz < 1) sz = 1;
-            SDL_Rect rect = {(int)(p.x - sz/2), (int)(p.y - sz/2), sz, sz};
+            int a = (int)(255.0 * fade);
+            if (a < 12) a = 12;
+            int x = (int)p.x, y = (int)p.y;
+            // 运动拖尾：用速度反推一条短线，视觉上从方块升级为火花。
+            int tx = x - (int)(p.vx * 0.35);
+            int ty = y - (int)(p.vy * 0.35);
+            if (std::abs(tx - x) + std::abs(ty - y) < 2) { tx = x - (int)(p.vx * 0.8); ty = y - (int)(p.vy * 0.8); }
+            if (!bright || fade > 0.45) {
+                SDL_SetRenderDrawColor(renderer, (Uint8)(cr / 2), (Uint8)(cg / 2), (Uint8)(cb / 2), (Uint8)(a / 2));
+                SDL_RenderDrawLine(renderer, x, y, tx, ty);
+            }
+            SDL_SetRenderDrawColor(renderer, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)a);
+            int sz = bright ? (fade > 0.5 ? 3 : 2) : 2;
+            SDL_Rect rect = {x - sz / 2, y - sz / 2, sz, sz};
             SDL_RenderFillRect(renderer, &rect);
+            if (bright && fade > 0.7) {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, (Uint8)(a / 2));
+                SDL_RenderDrawPoint(renderer, x, y);
+            }
         }
     }
 

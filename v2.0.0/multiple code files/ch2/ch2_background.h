@@ -154,6 +154,7 @@ public:
         drawFloor(r);
         drawPillars(r);
         drawAmbient(r);
+        drawSpeedMotes(r);
         drawForegroundRail(r);
         drawVignette(r);
 
@@ -1255,6 +1256,37 @@ private:
                     lineR(r, sx0 + 2, sy0 + 4 + q * 5, sx0 + 7, sy0 + 4 + q * 5,
                           92, 190, 214, 110);
             }
+        }
+    }
+
+    // ---------------- 漂浮尘埃 / 速度光点 ----------------
+    // 全部由已存档的 scrollX 推导，读档后位置一致；作为廊桥高速移动的
+    // 微弱视觉证据，不参与任何碰撞或生成逻辑。
+    void drawSpeedMotes(SDL_Renderer* r) {
+        const double W = WIN_WIDTH + 80.0;
+        for (int i = 0; i < 52; ++i) {
+            double depth = 0.15 + 0.85 * hash01(i * 13 + 1);
+            double speed = 0.06 + depth * 0.38;
+            double base = hash01(i * 7 + 3) * W;
+            double x = base - std::fmod(scrollX * speed, W);
+            if (x < -40.0) x += W;
+            double y = 82.0 + hash01(i * 11 + 7) * 430.0;
+            int len = 1 + (int)(depth * 11.0);
+            int a = 18 + (int)(depth * 52.0);
+            if (i % 9 == 0)
+                lineR(r, (int)x, (int)y, (int)(x + len), (int)y, 162, 218, 236, a);
+            else if (i % 4 == 0)
+                lineR(r, (int)x, (int)y, (int)(x + len), (int)y, 118, 194, 154, a / 2);
+            else
+                fillR(r, (int)x, (int)y, 1, 1, 116, 166, 182, a);
+        }
+        // 贴近地面的暖色微粒，与冷色玻璃形成一点点色彩平衡。
+        for (int i = 0; i < 14; ++i) {
+            double base = hash01(i * 31 + 17) * W;
+            double x = base - std::fmod(scrollX * (0.4 + hash01(i + 5) * 0.5), W);
+            if (x < -20.0) x += W;
+            double y = 300.0 + hash01(i * 23 + 9) * 220.0;
+            fillR(r, (int)x, (int)y, 1, 1, 226, 176, 96, 28 + (i % 5) * 8);
         }
     }
 
