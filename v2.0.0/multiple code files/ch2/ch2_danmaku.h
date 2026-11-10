@@ -154,7 +154,7 @@ public:
                     if (!b.active || !b.canDamage) continue;
                     int bx = (int)b.x, by = (int)b.y;
                     if (bx >= ex - fl && bx <= ex + nl && by >= ey - nl + vl && by <= ey + nl) {
-                        b.active = false; b.canDamage = false; e.hp--; hitCount++;
+                        b.active = false; b.canDamage = false; e.hp--; hitCount += 2;
                         particleMgr.spawnExplosion(b.x, b.y, 3); audio.sndHit();
                         if (e.hp <= 0) {
                             e.defeated = true; e.active = false;

@@ -137,7 +137,7 @@ public:
                     if (!b.active || !b.canDamage) continue;
                     double dx = b.x - a.x, dy = b.y - a.y;
                     if (dx*dx + dy*dy < 22.0*22.0) {
-                        b.active = false; b.canDamage = false; a.hp--; hitCount++;
+                        b.active = false; b.canDamage = false; a.hp--; hitCount += 2;
                         particleMgr.spawnExplosion(b.x, b.y, 3); audio.sndHit();
                         if (a.hp <= 0) {
                             a.defeated = true; a.active = false;

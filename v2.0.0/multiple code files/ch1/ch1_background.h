@@ -113,33 +113,42 @@ class Ch1Background {
     void drawStarField(SDL_Renderer* r, bool menu) const {
         float brightness = chapterCfg.starBrightness;
         for (size_t i = 0; i < stars.size(); ++i) {
+            // 第一章星光保持"稀疏导航星"而非满屏礼花：只绘制一部分星点，
+            // 并降低闪烁对比度；战斗时比标题菜单再少一些。
+            if (menu) {
+                if ((int)((i * 7 + 1) % 10) < 3) continue;
+            } else {
+                if ((int)((i * 7 + 1) % 10) < 5) continue;
+            }
             const auto& s = stars[i];
             int hy = menu ? WIN_HEIGHT : chapterCfg.horizonY;
             if (s.y >= hy) continue;
-            float bright = 0.48f + 0.52f * std::fabs(std::sin(s.phase));
-            int base = (int)(bright * 205 * brightness);
-            if (base < 44) base = 44;
+            float osc = 0.5f + 0.5f * std::sin(s.phase * 0.55f + i * 1.37f);
+            float bright = 0.58f + 0.42f * osc;
+            int base = (int)(bright * 174 * brightness);
+            if (base < 42) base = 42;
+            if (base > 210) base = 210;
             unsigned h = ArtFX::hashU((unsigned)i * 2654435761u + (unsigned)(s.x * 7));
             int cr = base, cg = base, cb = base;
-            if ((h % 9) == 0) { cr = base / 2 + 40; cg = base; cb = (int)(base * 1.05f); }
-            else if ((h % 13) == 0) { cr = base; cg = (int)(base * 0.82f); cb = (int)(base * 0.55f); }
+            if ((h % 11) == 0) { cr = base / 2 + 38; cg = base; cb = (int)(base * 1.02f); }
+            else if ((h % 17) == 0) { cr = base; cg = (int)(base * 0.84f); cb = (int)(base * 0.60f); }
             int x = (int)s.x, y = (int)s.y;
             fillA(r, x, y, 1, 1, cr, cg, cb, 255);
-            if ((h % 23) == 0) {
-                ArtFX::starGlint(r, x, y, 2 + (int)(h % 3), cr, cg, cb, (int)(bright * 160));
-            } else if ((h % 11) == 0 && bright > 0.72f) {
-                SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, 80);
+            // 十字星芒非常稀少，避免前景高亮星持续抢视线。
+            if ((h % 71) == 0 && bright > 0.90f) {
+                ArtFX::starGlint(r, x, y, 1 + (int)(h % 2), cr, cg, cb, 62);
+            } else if ((h % 19) == 0 && bright > 0.82f) {
+                SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, 52);
                 SDL_RenderDrawPoint(r, x - 1, y);
                 SDL_RenderDrawPoint(r, x + 1, y);
             }
         }
+        // 战斗层不再叠第二套 90 星尘；仅保留极少的静态微尘维持深空层次。
         if (!menu) {
-            // 更远的星尘层：用星点相位映射到固定的低亮度网格，不新增状态。
-            for (int i = 0; i < 90; ++i) {
+            for (int i = 0; i < 22; ++i) {
                 int x = (int)(ArtFX::hash01(i * 17 + 3) * WIN_WIDTH);
                 int y = (int)(ArtFX::hash01(i * 31 + 11) * (chapterCfg.horizonY - 12));
-                float tw = 0.30f + 0.25f * std::fabs(std::sin(stars.empty() ? 0.0f : stars[i % stars.size()].phase + i));
-                fillA(r, x, y, 1, 1, 74, 92, 104, (int)(tw * 110));
+                fillA(r, x, y, 1, 1, 66, 82, 92, 28);
             }
         }
     }
@@ -223,7 +232,8 @@ public:
 
     void update() {
         for (auto& s : stars) {
-            s.phase += s.twinkleSpeed;
+            // 慢速相位推进：保留星星呼吸感，但不再快速频闪干扰瞄准。
+            s.phase += s.twinkleSpeed * 0.55f;
             if (s.phase > 2.0f * M_PI) s.phase -= 2.0f * M_PI;
             s.x += s.driftSpeed;
             if (s.x < -10) s.x = WIN_WIDTH + 10;

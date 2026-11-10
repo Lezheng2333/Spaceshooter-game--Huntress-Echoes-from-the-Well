@@ -151,14 +151,16 @@ public:
             switch (pattern) {
             case 0: {   // Radial burst
                 if (patternTimer >= cycle) {
-                    fireRadial(enraged ? 20 : 14, enraged ? 1.9 : 1.5, spinAngle * 0.5);
+                    // Overall Warden bullet density down ~20%.
+                    int radialCount = enraged ? 16 : 11;
+                    fireRadial(radialCount, enraged ? 1.9 : 1.5, spinAngle * 0.5);
                     audio.sndWardenBurst();
                     pattern = 1; patternTimer = 0;
                 }
                 break;
             }
             case 1: {   // Aimed volleys
-                if (patternTimer > 0 && patternTimer % 42 == 0) {
+                if (patternTimer > 0 && patternTimer % 46 == 0) {
                     fireAimed(pl, 2.2, 0.0);
                     if (enraged) {
                         fireAimed(pl, 2.2, 0.22);
@@ -175,12 +177,17 @@ public:
             }
             case 2: {   // Spiral
                 if (patternTimer > 0 && patternTimer % 7 == 0) {
-                    double a = patternTimer * 0.13 + spinAngle;
-                    fireBullet(a, 1.6);
-                    fireBullet(a + M_PI, 1.6);
-                    if (enraged) {
-                        fireBullet(a + M_PI / 2, 1.6);
-                        fireBullet(a - M_PI / 2, 1.6);
+                    // Skip every 5th spiral volley: exactly 20% fewer spiral bullets,
+                    // while preserving the visual rhythm and bullet speed.
+                    int volleyIndex = patternTimer / 7;
+                    if ((volleyIndex % 5) != 4) {
+                        double a = patternTimer * 0.13 + spinAngle;
+                        fireBullet(a, 1.6);
+                        fireBullet(a + M_PI, 1.6);
+                        if (enraged) {
+                            fireBullet(a + M_PI / 2, 1.6);
+                            fireBullet(a - M_PI / 2, 1.6);
+                        }
                     }
                 }
                 if (patternTimer >= cycle) {

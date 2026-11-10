@@ -1862,11 +1862,6 @@ private:
         ArtFX::BlendGuard guard(r);
         // 顶部/底部仪器框：给极简标题画面一个"驾驶舱终端"的舞台。
         ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 26, 72, 190, 116, 120);
-        SDL_SetRenderDrawColor(r, 28, 82, 62, 150);
-        SDL_RenderDrawLine(r, 64, 43, 300, 43);
-        SDL_RenderDrawLine(r, 500, 43, 736, 43);
-        font.drawStringColor(r, "MOONWELL DEFENSE NETWORK", 64, 32, 1, 77, 157, 119, 210);
-        font.drawStringColor(r, "TACTICAL LINK // ONLINE", 530, 32, 1, 77, 157, 119, 210);
 
         // 标题：深色投影 + 双层荧光，形成明确的视觉中心。
         int titleW = 8 * 6 * 5;
@@ -1876,9 +1871,6 @@ private:
         int subW = 13 * 6 * 3;
         int subX = CENTER_X - subW / 2;
         font.drawStringColor(r, "SPACE SHOOTER", subX, 116, 3, 184, 255, 207, 235);
-        const char* initiative = "MOONWELL DEFENSE INITIATIVE";
-        int iw = (int)strlen(initiative) * 6;
-        font.drawStringColor(r, initiative, CENTER_X - iw / 2, 151, 1, 96, 144, 123, 180);
 
         // 分隔线中央留一个菱形准星。
         SDL_SetRenderDrawColor(r, 54, 168, 108, 180);
@@ -1923,6 +1915,11 @@ private:
             int w = (int)strlen(startItemLabel(startItemId[i])) * 6 * 4;
             if (w > maxW) maxW = w;
         }
+        // 一整块切角玻璃菜单底板：选中项在其内部形成一层更亮的浮起面板。
+        int menuPanelW = maxW + 112;
+        int menuPanelH = (startItemCount - 1) * GAP + 62;
+        ArtFX::techPanel(r, CENTER_X - menuPanelW / 2, MENU_Y0 - 16,
+                         menuPanelW, menuPanelH, 3, 11, 12, 47, 150, 98, 235);
         for (int i = 0; i < startItemCount; ++i) {
             const char* label = startItemLabel(startItemId[i]);
             int itemW = (int)strlen(label) * 6 * 4;
@@ -1930,36 +1927,30 @@ private:
             int itemY = MENU_Y0 + i * GAP;
             bool sel = (i == startMenuSelection);
             if (sel) {
-                ArtFX::techPanel(r, CENTER_X - maxW / 2 - 34, itemY - 7,
-                                 maxW + 68, 38, 3, 12, 12, 68, 214, 130);
-                ArtFX::bracket(r, CENTER_X - maxW / 2 - 42, itemY - 11,
-                               maxW + 84, 46, 9, 100, 255, 163, 150);
+                ArtFX::techPanel(r, CENTER_X - maxW / 2 - 30, itemY - 8,
+                                 maxW + 60, 42, 4, 18, 17, 84, 234, 148, 245);
+                ArtFX::bracket(r, CENTER_X - maxW / 2 - 38, itemY - 13,
+                               maxW + 76, 52, 12, 126, 255, 176, 145);
             }
-            char idx[8];
-            snprintf(idx, sizeof(idx), "%02d", i + 1);
-            font.drawStringColor(r, idx, CENTER_X - maxW / 2 - 26, itemY + 7, 1,
-                                 sel ? 148 : 58, sel ? 255 : 103, sel ? 186 : 81, sel ? 230 : 140);
             font.drawStringColor(r, label, itemX, itemY, 4,
-                                 sel ? 236 : 128, sel ? 255 : 151, sel ? 243 : 144,
-                                 sel ? 255 : 170);
+                                 sel ? 238 : 130, sel ? 255 : 167, sel ? 245 : 158,
+                                 sel ? 255 : 185);
             if (sel) {
                 UIRenderer::drawMenuCursor(r, itemX - 42, itemY + 14, 12);
                 UIRenderer::drawMenuUnderline(r, itemX, itemY + 33, itemW);
             }
         }
 
-        // 底部主导航提示 + 左右状态灯。
-        SDL_SetRenderDrawColor(r, 34, 92, 68, 150);
-        SDL_RenderDrawLine(r, 64, 466, 736, 466);
+        // 底部主导航提示 + 几何状态灯。保留功能提示，不添加装饰性小字。
+        SDL_SetRenderDrawColor(r, 34, 92, 68, 120);
+        SDL_RenderDrawLine(r, 64, 486, 736, 486);
         const char* help = "W/S SELECT   ENTER CONFIRM   F2 CRT";
         int helpW = (int)strlen(help) * 6 * 2;
-        font.drawStringColor(r, help, CENTER_X - helpW / 2, 482, 2, 118, 183, 149, 220);
-        font.drawStringColor(r, "Ver 1.2.27", 55, WIN_HEIGHT - 62, 2, 83, 126, 106, 170);
-        font.drawStringColor(r, SaveSystem::baseDir().c_str(), 55, WIN_HEIGHT - 46, 1, 56, 86, 74, 180);
-        // 两个小的系统状态灯，打破标题左右完全对称。
-        SDL_SetRenderDrawColor(r, 83, 238, 141, 215);
+        font.drawStringColor(r, help, CENTER_X - helpW / 2, 500, 2, 118, 183, 149, 220);
+        font.drawStringColor(r, "Ver 1.2.28", 55, WIN_HEIGHT - 52, 2, 83, 126, 106, 170);
+        SDL_SetRenderDrawColor(r, 83, 238, 141, 195);
         SDL_Rect l1 = {54, 204, 3, 3}; SDL_RenderFillRect(r, &l1);
-        SDL_SetRenderDrawColor(r, 238, 164, 76, 180);
+        SDL_SetRenderDrawColor(r, 238, 164, 76, 160);
         SDL_Rect l2 = {742, 410, 3, 3}; SDL_RenderFillRect(r, &l2);
     }
 
@@ -1998,12 +1989,11 @@ private:
         font.drawStringColor(r, title, CENTER_X - tw / 2, 50, 4, 228, 247, 237, 255);
         SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
         SDL_RenderDrawLine(r, CENTER_X - 180, 98, CENTER_X + 180, 98);
-        font.drawStringColor(r, "MOONWELL CAMPAIGN // OPERATION ARCHIVE", CENTER_X - 144, 108, 1,
-                             80, 147, 116, 195);
 
         const char* chLabels[5] = {"CHAPTER 1", "CHAPTER 2", "CHAPTER 3", "CHAPTER 4", "CHAPTER 5"};
-        const char* chSub[5] = {"FIRST FLIGHT", "DEEP SPACE", "ENEMY FORTRESS", "ASTEROID BELT", "FINAL ASSAULT"};
-        const int Y0 = 146, GAP = 55;
+        const int Y0 = 150, GAP = 56;
+        ArtFX::techPanel(r, 92, 128, WIN_WIDTH - 184, 294,
+                         3, 11, 12, 47, 150, 98, 235);
         for (int i = 0; i < 5; ++i) {
             bool locked = !chapterMgr.isUnlocked(i);
             bool sel = (i == chapterSelection);
@@ -2011,26 +2001,31 @@ private:
             int itemX = CENTER_X - itemW / 2;
             int itemY = Y0 + i * GAP;
             if (sel) {
-                ArtFX::techPanel(r, 110, itemY - 9, WIN_WIDTH - 220, 42, 4, 16, 14, 62, 218, 129);
-                ArtFX::bracket(r, 102, itemY - 13, WIN_WIDTH - 204, 50, 10, 120, 255, 168, 140);
+                ArtFX::techPanel(r, 108, itemY - 8, WIN_WIDTH - 216, 42,
+                                 4, 18, 17, 84, 234, 148, 245);
+                ArtFX::bracket(r, 100, itemY - 13, WIN_WIDTH - 200, 52,
+                               12, 126, 255, 176, 145);
             } else {
-                SDL_SetRenderDrawColor(r, 27, 62, 46, 95);
-                SDL_RenderDrawLine(r, 126, itemY + 35, WIN_WIDTH - 126, itemY + 35);
+                SDL_SetRenderDrawColor(r, 36, 88, 65, 70);
+                SDL_RenderDrawLine(r, 128, itemY + 35, WIN_WIDTH - 128, itemY + 35);
             }
-            char num[8];
-            snprintf(num, sizeof(num), "%02d", i + 1);
-            font.drawStringColor(r, num, 138, itemY + 5, 1, locked ? 62 : 72,
-                                 locked ? 82 : (sel ? 255 : 164), locked ? 72 : (sel ? 182 : 122), 180);
             font.drawStringColor(r, chLabels[i], itemX, itemY, 3,
                                  locked ? 86 : (sel ? 228 : 165),
                                  locked ? 103 : (sel ? 255 : 195),
                                  locked ? 94 : (sel ? 194 : 178),
                                  locked ? 145 : 230);
             if (locked) {
-                font.drawStringColor(r, "LOCKED", itemX + itemW + 22, itemY + 4, 1, 176, 88, 76, 195);
-            } else {
-                font.drawStringColor(r, chSub[i], itemX + itemW + 22, itemY + 4, 1,
-                                     sel ? 170 : 93, sel ? 236 : 148, sel ? 189 : 126, 190);
+                // 不用装饰性小字“LOCKED”，以简洁锁形图标表达锁定状态。
+                int lx = 704, ly = itemY + 4;
+                SDL_SetRenderDrawColor(r, 150, 76, 68, 190);
+                SDL_Rect body = {lx, ly + 6, 11, 9};
+                SDL_RenderDrawRect(r, &body);
+                SDL_RenderDrawLine(r, lx + 3, ly + 6, lx + 3, ly + 2);
+                SDL_RenderDrawLine(r, lx + 8, ly + 6, lx + 8, ly + 2);
+                SDL_RenderDrawLine(r, lx + 3, ly + 2, lx + 8, ly + 2);
+                SDL_SetRenderDrawColor(r, 235, 133, 110, 210);
+                SDL_Rect key = {lx + 5, ly + 9, 2, 4};
+                SDL_RenderFillRect(r, &key);
             }
             if (sel) {
                 UIRenderer::drawMenuCursor(r, itemX - 30, itemY + 10, 10);
@@ -2612,18 +2607,19 @@ private:
         font.drawStringColor(r, title, CENTER_X - tw / 2, 42, 4, 228, 247, 237, 255);
         SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
         SDL_RenderDrawLine(r, CENTER_X - 180, 84, CENTER_X + 180, 84);
-        font.drawStringColor(r, "PILOT INTERFACE / AUDIO SYSTEM", CENTER_X - 114, 96, 1,
-                             80, 147, 116, 195);
 
         const char* labels[3] = {"AIM ASSIST", "VOICE LANG", "SOUND"};
         const int Y0 = 134, GAP = 76;
+        ArtFX::techPanel(r, CENTER_X - 300, 112, 600, 218,
+                         3, 11, 12, 47, 150, 98, 235);
         for (int i = 0; i < 3; ++i) {
             int ly = Y0 + i * GAP;
             int lx = CENTER_X - 230;
             bool sel = (i == optionCursor);
             if (sel) {
-                ArtFX::techPanel(r, CENTER_X - 300, ly - 11, 600, 46, 4, 16, 14, 61, 214, 128);
-                ArtFX::bracket(r, CENTER_X - 306, ly - 15, 612, 54, 10, 120, 255, 168, 135);
+                ArtFX::techPanel(r, CENTER_X - 284, ly - 11, 568, 46,
+                                 4, 18, 17, 84, 234, 148, 245);
+                ArtFX::bracket(r, CENTER_X - 292, ly - 15, 584, 54, 12, 126, 255, 176, 145);
             }
             font.drawStringColor(r, labels[i], lx, ly, 3,
                                  sel ? 224 : 158, sel ? 255 : 192, sel ? 237 : 180, 240);
@@ -2698,18 +2694,19 @@ private:
         font.drawStringColor(r, title, CENTER_X - tw / 2, 40, 4, 228, 247, 237, 255);
         SDL_SetRenderDrawColor(r, 49, 166, 106, 185);
         SDL_RenderDrawLine(r, CENTER_X - 180, 84, CENTER_X + 180, 84);
-        font.drawStringColor(r, "DYNAMIC MIXER // MASTER EQ", CENTER_X - 96, 96, 1,
-                             80, 147, 116, 195);
 
         const char* labels[6] = {"BGM VOL", "SFX VOL", "EQ LOW", "EQ MID", "EQ HIGH", "BACK"};
         const int Y0 = 120, GAP = 54;
+        ArtFX::techPanel(r, CENTER_X - 306, 102, 612, 332,
+                         3, 11, 12, 47, 150, 98, 235);
         for (int i = 0; i < 6; ++i) {
             int ly = Y0 + i * GAP;
             int lx = CENTER_X - 225;
             bool sel = (i == soundCursor);
             if (sel) {
-                ArtFX::techPanel(r, CENTER_X - 300, ly - 10, 600, 42, 4, 16, 14, 61, 214, 128);
-                ArtFX::bracket(r, CENTER_X - 306, ly - 14, 612, 50, 10, 120, 255, 168, 135);
+                ArtFX::techPanel(r, CENTER_X - 288, ly - 10, 576, 42,
+                                 4, 18, 17, 84, 234, 148, 245);
+                ArtFX::bracket(r, CENTER_X - 296, ly - 14, 592, 50, 12, 126, 255, 176, 145);
             }
             font.drawStringColor(r, labels[i], lx, ly, 3,
                                  sel ? 224 : 158, sel ? 255 : 192, sel ? 237 : 180, 240);
@@ -2865,9 +2862,11 @@ private:
             playerHitCount = 0;
             pulseSystem.update();
             pulseSystem.collideWithBullets(
-                const_cast<std::vector<Ch2EnemyBullet>&>(ch2AlienMgr.getBullets()), particleMgr);
+                const_cast<std::vector<Ch2EnemyBullet>&>(ch2AlienMgr.getBullets()), particleMgr,
+                &playerHitCount);
             pulseSystem.collideWithBullets(
-                const_cast<std::vector<Ch2EnemyBullet>&>(dmMgr.getBullets()), particleMgr);
+                const_cast<std::vector<Ch2EnemyBullet>&>(dmMgr.getBullets()), particleMgr,
+                &playerHitCount);
             pulseSystem.collideWithAliens(ch2AlienMgr, particleMgr, audio, score, playerHitCount);
             pulseSystem.collideWithDanmaku(dmMgr, particleMgr, audio, score, playerHitCount);
 
@@ -3825,7 +3824,12 @@ private:
                 if (!eb.active) continue;
                 if (std::abs(b.x - eb.x) < 10 && std::abs(b.y - eb.y) < 10) {
                     b.active = false; b.canDamage = false; eb.hp--;
-                    if (eb.hp <= 0) { eb.active = false; particleMgr.spawnExplosion(eb.x, eb.y, 4); audio.sndCrystalCrush(); }
+                    if (eb.hp <= 0) {
+                        eb.active = false;
+                        particleMgr.spawnExplosion(eb.x, eb.y, 4);
+                        audio.sndCrystalCrush();
+                        playerHitCount += 1;   // destroying an enemy bullet grants 1 energy
+                    }
                     break;
                 }
             }
@@ -3839,7 +3843,7 @@ private:
                 if (dx*dx + dy*dy < wardenBoss.getRadius() * wardenBoss.getRadius()) {
                     b.active = false; b.canDamage = false;
                     wardenBoss.takeDamage(1, &audio);
-                    playerHitCount++;
+                    playerHitCount += 2;
                     audio.sndBossHit();
                     particleMgr.spawnExplosion(b.x, b.y, 4);
                 }
@@ -3847,7 +3851,7 @@ private:
         }
 
         // Pulse vs boss bullets + boss body
-        pulseSystem.collideWithBullets(wardenBoss.bullets, particleMgr);
+        pulseSystem.collideWithBullets(wardenBoss.bullets, particleMgr, &playerHitCount);
         for (auto& w : pulseSystem.waves) {
             if (!w.active) continue;
             if (wardenBoss.lastHitByPulse == w.id) continue;
@@ -3856,7 +3860,7 @@ private:
             if (dx*dx + dy*dy < (w.radius + wardenBoss.getRadius()) * (w.radius + wardenBoss.getRadius())) {
                 wardenBoss.lastHitByPulse = w.id;
                 wardenBoss.takeDamage(1, &audio);
-                playerHitCount++;
+                playerHitCount += 2;
                 particleMgr.spawnExplosion(wardenBoss.getX(), wardenBoss.getY(), 4);
                 audio.sndShockwaveHit();
             }
@@ -4065,8 +4069,9 @@ private:
         if (!gameOver) {
             if (isSide && sideBg) {
                 if (ch2Flow == C2_GATE) {
-                    // Gate scene: full-screen starfield + vacuum door
-                    if (background) background->drawStarsFullscreen(renderer.get());
+                    // Gate scene: dedicated full-screen deep space + vacuum door.
+                    // 不再复用第一章只覆盖上半屏的星空。
+                    sideBg->drawGateBackdrop(renderer.get());
                     gateScene.drawDoor(renderer.get());
                 } else if (ch2Flow == C2_LAB || ch2Flow == C2_BOSS || ch2Flow == C2_ENDED) {
                     // 研究室的圆厅一直保留到 Warden 战与击破演出
@@ -4476,7 +4481,6 @@ private:
         // === Left half: menu ===
         bool menuFocus = !pauseHistoryFocused;
         font.drawStringColor(r, "PAUSED", 50, 100, 3, 226, 248, 238, 255);
-        font.drawStringColor(r, "FLIGHT OPS // LINK STANDBY", 200, 106, 1, 72, 160, 119, 195);
         SDL_SetRenderDrawColor(r, 45, 143, 91, 130);
         SDL_RenderDrawLine(r, 48, 134, 372, 134);
         const char* items[7] = {"RESUME", "SAVE GAME", "LOAD GAME", "RESTART",
@@ -4488,7 +4492,9 @@ private:
             int itemY = MENU_Y0 + i * GAP;
             bool sel = menuFocus && i == pauseMenuSelection;
             if (sel) {
-                ArtFX::techPanel(r, 36, itemY - 6, 342, 34, 4, 17, 14, 66, 224, 132);
+                ArtFX::techPanel(r, 36, itemY - 6, 342, 34,
+                                 4, 18, 17, 84, 234, 148, 245);
+                ArtFX::bracket(r, 30, itemY - 10, 354, 42, 10, 126, 255, 176, 145);
                 UIRenderer::drawMenuCursor(r, itemX - 20, itemY + 10, 8);
                 UIRenderer::drawMenuUnderline(r, itemX, itemY + 24, itemW);
             }
@@ -4501,20 +4507,14 @@ private:
         // === Right half: dialogue history ===
         const int RX = 420;
         font.drawStringColor(r, "HISTORY DIALOGUE", RX, 100, 3, 186, 226, 242, 250);
-        font.drawStringColor(r, "RECORDED TRANSMISSIONS", RX, 124, 1,
-                             pauseHistoryFocused ? 138 : 74,
-                             pauseHistoryFocused ? 210 : 124,
-                             pauseHistoryFocused ? 240 : 148, 200);
         SDL_SetRenderDrawColor(r, 49, 117, 152, 115);
         SDL_RenderDrawLine(r, RX, 136, 756, 136);
 
         auto& hist = dialogueSys.history;
         int total = (int)hist.size();
         if (total == 0) {
-            font.drawStringColor(r, "NO TRANSMISSIONS RECORDED", RX + 8, 170, 2,
+            font.drawStringColor(r, "NO TRANSMISSIONS", RX + 8, 184, 2,
                                  86, 122, 133, 185);
-            font.drawStringColor(r, "FLIGHT LOG WILL APPEAR HERE", RX + 8, 192, 1,
-                                 63, 94, 105, 165);
         } else {
             const int CH_W = 12, CH_H = 14;
             const int RY_TOP = 152;
@@ -4686,9 +4686,7 @@ private:
         char buf[32];
         snprintf(buf, sizeof(buf), "SCORE:%-4d", score);
         int scoreW = (int)strlen(buf) * 6 * 3;
-        font.drawStringColor(r, buf, CENTER_X - scoreW/2, 210, 3, 226, 239, 232, 240);
-        font.drawStringColor(r, "SIGNAL LOST // AIRFRAME DOWN", CENTER_X - 120, 246, 1,
-                             184, 99, 86, 190);
+        font.drawStringColor(r, buf, CENTER_X - scoreW/2, 216, 3, 226, 239, 232, 240);
         const char* items[2] = {"PLAY AGAIN", "BACK TO MAIN MENU"};
         const int MENU_Y0 = 312;
         for (int i = 0; i < 2; ++i) {
@@ -4732,9 +4730,7 @@ private:
             int titleW = (int)strlen(title) * 6 * 3;
             font.drawStringColor(r, title, CENTER_X - titleW / 2, 148, 3, 168, 255, 193, 255);
             SDL_SetRenderDrawColor(r, 105, 216, 145, 175);
-            SDL_RenderDrawLine(r, CENTER_X - 160, 190, CENTER_X + 160, 190);
-            font.drawStringColor(r, "THE MOONWELL LINE HOLDS", CENTER_X - 102, 206, 1,
-                                 107, 174, 138, 195);
+            SDL_RenderDrawLine(r, CENTER_X - 160, 192, CENTER_X + 160, 192);
             char scoreBuf[48];
             snprintf(scoreBuf, sizeof(scoreBuf), "SCORE %-4d", score);
             int sw = (int)strlen(scoreBuf) * 6 * 2;

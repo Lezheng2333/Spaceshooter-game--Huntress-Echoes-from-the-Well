@@ -53,7 +53,9 @@ QA：游戏 `--selftest` 包含第二章 25 项回归、七段主流程与廊桥
 
 > macOS 11.0+
 
-[Download v1.2.27](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.27) (latest)
+[Download v1.2.28](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.28) (latest)
+
+[Download v1.2.27](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.27)
 
 [Download v1.2.26](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.26)
 
@@ -73,27 +75,21 @@ QA：游戏 `--selftest` 包含第二章 25 项回归、七段主流程与廊桥
 
 [Download v1.2.17](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.17)
 
-Download the `.zip`, unzip, and run `Shooter ver1.2.27.app`.
+Download the `.zip`, unzip, and run `Shooter ver1.2.28.app`.
 
-下载 `.zip` 后解压，直接运行 `Shooter ver1.2.27.app`。
+下载 `.zip` 后解压，直接运行 `Shooter ver1.2.28.app`。
 
-## What's New / 最近更新 (v1.2.27)
+## What's New / 最近更新 (v1.2.28)
 
-- **全画面表现层强化**：统一 CRT 扫描线 + 暗角，`F2` 可开关；标题、章节、选项、暂停、存读档、对话与旁白的终端化 UI。
-- **第一章美术重做**：深空星云/行星/远景前哨、装甲基地与机库灯光、玩家机/敌机/弹幕/冲击波细节，以及分层 Telamondo 堡垒 Boss。
-- **第二章细节强化**：Warden 能量躯干与核心眼、敌方弹尾迹、脉冲环、技能球、廊桥速度尘埃，以及球体 Boss 幽灵退场的音画衔接。
-- **音乐与音效**：第一章 BGM 全面移植 demo 的 92 BPM CH1 / 132 BPM Boss 乐句与三层强度；重做打字机、基地光波，并补齐球体激活/幽灵飘走/碎片落地·震动·起飞、Warden 狂暴与弹幕模式、技能球护罩/吸收、敌机入场/逃逸等细节音。
-- **兼容性**：玩法、碰撞、输入、生成和流程状态机未改；未新增游戏存档字段，`SAVE_FORMAT_VERSION` 不变，读档同帧像素回归 `maxdiff=0`。
-- **QA**：`make` 零警告；`--selftest` 全绿（存档字节/像素、Ch1 Boss、第二章 25 项流程、音频压力巡检）；Asset Studio `--verify-all` 78/78。
-
-## Presentation Pass / 表现层强化（v1.2.27）
-
-- 全局 CRT 扫描线 + 暗角后处理，按 `F2` 开关；标题、菜单、战斗、对话与存档界面统一为同一套终端视觉语言。
-- 第一章重绘深空、行星、基地、玩家机、敌机、Telamondo 堡垒、弹道/爆炸/冲击波；第二章强化 Warden、敌方弹、脉冲环、技能球与廊桥速度尘埃。
-- 第一章 BGM 全面切换为 demo 的 92 BPM CH1 / 132 BPM Boss 乐句与三层强度编排；第二章与标题保留各自氛围层。全部音效继续纯代码实时合成，并扩展三角波、锯齿波、窄脉冲与低通噪声音色。
-- 重做打字机、基地光波与第二章细节音：球体登场/激活/幽灵飘走/碎片落地/地面震动/碎片起飞、Warden 狂暴与弹幕模式提示、技能球护罩/吸收、敌机入场/逃逸等。
-- 本轮只改表现层：碰撞、输入、生成、流程状态机与存档字段均未改动；所有新增战斗动画由已存档状态或纯常量推导，读档同帧像素仍与存档时一致。
-- QA：`make` 零警告，`./shooter --selftest` 全绿（含存档字节/像素一致性、第二章 25 项、音频压力巡检）；Asset Studio `--verify-all` 78/78。
+- **叙事字体重制**：吸收 demo 的程序化 stroke font，章节开场旁白与角色对白正文全部改用新字体；角色名继续保持原 5×7 像素字体。
+- **无边框角色对白**：移除对话面板、外框、切角、光标和装饰标签，只保留角色名与发言正文，并用低透明度文字阴影保证可读性。
+- **菜单视觉统一**：标题、章节、OPTIONS、SOUND、暂停、存读档、GAME OVER、MISSION COMPLETE 与章前旁白统一为切角熏黑玻璃 HUD；加入冷色渐变、细扫描纹理、双层细轮廓和双层角线，移除所有装饰性小字。
+- **第二章门禁独立背景**：新增全屏深空场景，使用少量慢速导航星、静态微尘和低对比度遥远星体，下半屏不再复用第一章的空白背景。
+- **星光降噪**：第一章战斗星数约减半、闪烁对比度降低、星相推进变慢，十字星芒改为极少数出现，减少对瞄准和弹幕读取的干扰。
+- **NightElf 充能调整**：直接命中敌人 +2 能量，摧毁敌方子弹 +1 能量；白色能量条上限 50 → 100，纯命中充能时间保持不变；绿色 Pulse 条上限仍为 30，冲击波伤害保持 1。
+- **Warden 难度调整**：暗夜精灵阶段的 Warden 子弹发射密度整体降低约 20%；环形弹、瞄准弹间隔与螺旋齐射均已调整，弹速、伤害和模式顺序不变。
+- **同时包含 v1.2.27 表现层强化**：全局 CRT/暗角、终端化 UI、第一章与第二章美术重制、demo 的 92 BPM CH1 / 132 BPM Boss BGM，以及球体、幽灵、碎片、Warden、技能球等细节音效。
+- **兼容性 / QA**：未新增游戏存档字段，`SAVE_FORMAT_VERSION` 不变；`make -Wall -Wextra` 零警告，`--selftest` 全绿，Asset Studio `--verify-all` 78/78。
 
 ## Build from Source / 从源码编译
 
@@ -126,7 +122,7 @@ Requires SDL2: `brew install sdl2`
 │   ├── space_shooting ver1.0.0.cpp
 │   ├── Shooter ver1.0.0.app/
 │   └── Shooter ver1.0.0.zip
-└── v2.0.0/                                            # 当前开发主线 (v1.2.27)
+└── v2.0.0/                                            # 当前开发主线 (v1.2.28)
     ├── multiple code files/                            # ★ 当前开发源码（多文件架构）
     │   ├── main.cpp                                    # 入口 + #include 所有头文件
     │   ├── game.h                                      # Game 类与流程/存档/QA
@@ -170,7 +166,8 @@ Requires SDL2: `brew install sdl2`
         ├── Shooter ver1.2.24.app/ + .zip                # v1.2.24
         ├── Shooter ver1.2.25.app/ + .zip                # v1.2.25
         ├── Shooter ver1.2.26.app/ + .zip                # v1.2.26
-        └── Shooter ver1.2.27.app/ + .zip                # v1.2.27 (最新)
+        ├── Shooter ver1.2.27.app/ + .zip                # v1.2.27
+        └── Shooter ver1.2.28.app/ + .zip                # v1.2.28 (最新)
 ```
 
 ## License

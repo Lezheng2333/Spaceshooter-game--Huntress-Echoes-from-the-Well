@@ -155,7 +155,8 @@ public:
     }
 
     // Collision: pulse vs enemy bullets → destroy all bullets in radius
-    void collideWithBullets(std::vector<Ch2EnemyBullet>& bullets, ParticleManager& pm) {
+    void collideWithBullets(std::vector<Ch2EnemyBullet>& bullets, ParticleManager& pm,
+                            int* energyHits = nullptr) {
         for (auto& w : waves) {
             if (!w.active) continue;
             for (auto& b : bullets) {
@@ -164,6 +165,7 @@ public:
                 if (dx*dx + dy*dy < (w.radius+4.0)*(w.radius+4.0)) {
                     b.active = false;
                     pm.spawnExplosion(b.x, b.y, 2);
+                    if (energyHits) (*energyHits) += 1;   // destroying an enemy bullet grants 1 energy
                 }
             }
         }
@@ -181,7 +183,7 @@ public:
                 double dx = a.x - w.x, dy = a.y - w.y;
                 if (dx*dx + dy*dy < (w.radius+22.0)*(w.radius+22.0)) {
                     a.lastHitByPulse = w.id;
-                    a.hp -= 1; hitCount++;
+                    a.hp -= 1; hitCount += 2;
                     pm.spawnExplosion(a.x, a.y, 4);
                     audio.sndShockwaveHit();
                     if (a.hp <= 0) {
@@ -210,7 +212,7 @@ public:
                 double hitR = e.nearLeg + 10.0;
                 if (dx*dx + dy*dy < (w.radius+hitR)*(w.radius+hitR)) {
                     e.lastHitByPulse = w.id;
-                    e.hp -= 1; hitCount++;
+                    e.hp -= 1; hitCount += 2;
                     pm.spawnExplosion(e.x, e.y, 4);
                     audio.sndShockwaveHit();
                     if (e.hp <= 0) {

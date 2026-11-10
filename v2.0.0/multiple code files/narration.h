@@ -1,6 +1,7 @@
 #pragma once
 
 #include "art_fx.h"
+#include "demo_stroke_font.h"
 #include "constants.h"
 #include "font.h"
 #include "renderer.h"
@@ -120,63 +121,62 @@ public:
     }
 
     void draw(SDL_Renderer* r, const Font& font) {
+        (void)font;   // 旁白面板正文使用 demo stroke font；像素 font 仍由外部 UI 使用
         if (!active && bgAlpha <= 0) return;
         if (lines.empty() || curLine >= (int)lines.size()) return;
         auto& cur = lines[curLine];
-        int charW = 18, charH = 21, lineGap = 6;
+
+        // 旁白正文改用 demo 的 stroke font；UI 标题/进度点仍使用像素字体与像素图形。
+        const float BODY_PX = 25.0f;
+        const int BODY_ADV = (int)(DemoStrokeFont::advance(BODY_PX) + 0.5f);
+        const int BODY_LINE = 30;
         int maxLineLen = 0;
         for (auto& vl : cur.vlines)
             if ((int)vl.length() > maxLineLen) maxLineLen = (int)vl.length();
 
         double popScale = marioEase((double)cur.popupTimer / POPUP_FRAMES);
-        int boxW = maxLineLen * charW + 64;
+        int boxW = maxLineLen * BODY_ADV + 72;
         if (boxW < 300) boxW = 300;
         if (boxW > 760) boxW = 760;
-        int boxH = cur.numLines * charH + (cur.numLines - 1) * lineGap + 74;
+        int boxH = cur.numLines * BODY_LINE + 58;
         int boxX = CENTER_X - boxW / 2, boxY = WIN_HEIGHT / 2 - boxH / 2;
         int drawW = (int)(boxW * popScale), drawH = (int)(boxH * popScale);
         int drawX = boxX + (boxW - drawW) / 2, drawY = boxY + (boxH - drawH) / 2;
         if (drawW < 10 || drawH < 10) return;
 
         Uint8 ba = (Uint8)bgAlpha;
-        ArtFX::BlendGuard guard(r);
-        SDL_SetRenderDrawColor(r, 3, 13, 10, (Uint8)(ba * 0.88));
-        SDL_Rect bgRect = {drawX, drawY, drawW, drawH};
-        SDL_RenderFillRect(r, &bgRect);
-        SDL_SetRenderDrawColor(r, 34, 110, 74, (Uint8)(ba * 0.8));
-        SDL_Rect outer = {drawX - 2, drawY - 2, drawW + 4, drawH + 4};
-        SDL_RenderDrawRect(r, &outer);
-        SDL_SetRenderDrawColor(r, 77, 212, 132, (Uint8)(ba * 0.72));
-        SDL_RenderDrawLine(r, drawX, drawY, drawX + drawW, drawY);
-        SDL_RenderDrawLine(r, drawX, drawY + drawH - 1, drawX + drawW, drawY + drawH - 1);
-        SDL_SetRenderDrawColor(r, 53, 168, 106, (Uint8)(ba * 0.65));
-        SDL_RenderDrawLine(r, drawX + 22, drawY + 36, drawX + drawW - 22, drawY + 36);
-        ArtFX::bracket(r, drawX + 7, drawY + 7, drawW - 14, drawH - 14, 14,
-                       104, 235, 151, (int)(ba * 0.75));
-        font.drawStringColor(r, "MISSION LOG // ARCHIVE TRANSMISSION", drawX + 25, drawY + 14, 1,
-                             85, 169, 121, (int)(ba * 0.9));
+        int panelA = (int)ba * 3 / 2;
+        if (panelA > 255) panelA = 255;
+        ArtFX::techPanel(r, drawX, drawY, drawW, drawH,
+                         3, 13, 11, 78, 206, 132, panelA);
         if (cur.popupTimer < POPUP_FRAMES) return;
 
-        SDL_SetRenderDrawColor(r, 66, 214, 126, 255);
+        // 旁白正文用 demo 的居中排版与 25px stroke font；面板只保留几何细节，
+        // 不再放任何标签/小字。
         int charsLeft = cur.revealed;
         for (int li = 0; li < cur.numLines && charsLeft > 0; ++li) {
+            int fullLen = (int)cur.vlines[li].length();
             int show = charsLeft;
-            if (show > (int)cur.vlines[li].length()) show = (int)cur.vlines[li].length();
-            drawTextLine(r, font, cur.vlines[li].substr(0, show),
-                         drawX + 25, drawY + 48 + li * (charH + lineGap), 3, 1, charW);
+            if (show > fullLen) show = fullLen;
+            int lineW = fullLen * BODY_ADV;
+            int lineX = drawX + (drawW - lineW) / 2;
+            DemoStrokeFont::get().drawStringShadow(
+                r, cur.vlines[li].substr(0, show),
+                lineX, drawY + 28 + li * BODY_LINE, BODY_PX,
+                86, 224, 144, 255, 2);
             charsLeft -= show;
         }
         // 页面进度点：让玩家知道当前旁白在整段中的位置。
         int total = (int)lines.size();
         int dots = total > 12 ? 12 : total;
-        int dotY = drawY + drawH - 13;
-        int startX = drawX + drawW / 2 - dots * 5;
+        int dotY = drawY + drawH - 16;
+        int startX = drawX + drawW / 2 - (dots - 1) * 7 / 2;
         for (int i = 0; i < dots; ++i) {
             int real = (total > 12) ? i * total / dots : i;
             bool on = (real == curLine);
             SDL_SetRenderDrawColor(r, on ? 150 : 49, on ? 255 : 131,
-                                   on ? 185 : 88, on ? 235 : 130);
-            SDL_Rect dot = {startX + i * 10, dotY, on ? 5 : 3, 3};
+                                   on ? 185 : 88, on ? 235 : (Uint8)(90 * ba / 180));
+            SDL_Rect dot = {startX + i * 7, dotY, on ? 9 : 4, on ? 3 : 2};
             SDL_RenderFillRect(r, &dot);
         }
     }

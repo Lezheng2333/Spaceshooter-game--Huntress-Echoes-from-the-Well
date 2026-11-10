@@ -161,6 +161,23 @@ public:
         SDL_SetRenderDrawBlendMode(r, prev);
     }
 
+    // 第二章门禁场景专用深空背景：不画廊桥室内结构，只保留全屏、
+    // 稀疏、慢速的导航星与远处 Moonwell 星体，避免遮住右侧门禁和左侧玩家。
+    void drawGateBackdrop(SDL_Renderer* r) const {
+        SDL_BlendMode prev;
+        SDL_GetRenderDrawBlendMode(r, &prev);
+        SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
+        drawGateSpaceGradient(r);
+        drawGateNebula(r);
+        drawGatePlanet(r);
+        drawGateStars(r);
+        drawGateDust(r);
+        // 极轻的边缘压暗，不改变星场的全屏覆盖。
+        fillR(r, 0, 0, WIN_WIDTH, 3, 0, 0, 0, 70);
+        fillR(r, 0, WIN_HEIGHT - 3, WIN_WIDTH, 3, 0, 0, 0, 90);
+        SDL_SetRenderDrawBlendMode(r, prev);
+    }
+
 private:
     // ---------------- 绘制小工具 ----------------
     static void fillR(SDL_Renderer* r, int x, int y, int w, int h,
@@ -223,6 +240,103 @@ private:
         return x;
     }
     static double hash01(int x) { return (hashU((unsigned)x) % 4096) / 4096.0; }
+
+    // ---------------- 门禁专用深空背景 ----------------
+    void drawGateSpaceGradient(SDL_Renderer* r) const {
+        for (int i = 0; i < 24; ++i) {
+            int y0 = WIN_HEIGHT * i / 24;
+            int y1 = WIN_HEIGHT * (i + 1) / 24;
+            int rr = 2 + i * 4 / 23;
+            int gg = 5 + i * 7 / 23;
+            int bb = 10 + i * 7 / 23;
+            fillR(r, 0, y0, WIN_WIDTH, y1 - y0, rr, gg, bb, 255);
+        }
+    }
+
+    void drawGateNebula(SDL_Renderer* r) const {
+        // 大而暗的星云只负责给下半屏一点层次，不产生亮斑。
+        fillEllipseR(r, 250, 380, 330, 160, 16, 34, 40, 15);
+        fillEllipseR(r, 230, 400, 230, 105, 20, 44, 50, 10);
+        fillEllipseR(r, 630, 170, 230, 115, 31, 27, 55, 8);
+        fillEllipseR(r, 520, 300, 170, 90, 24, 38, 46, 7);
+        fillEllipseR(r, 470, 520, 310, 95, 14, 32, 39, 8);
+        for (int i = 0; i < 5; ++i) {
+            double y = 300.0 + i * 22.0;
+            int a = 6 + i;
+            lineR(r, 0, (int)y, WIN_WIDTH, (int)(y + 8), 46, 77, 83, a);
+        }
+    }
+
+    void drawGatePlanet(SDL_Renderer* r) const {
+        const double cx = 205.0, cy = 492.0, rx = 188.0, ry = 142.0;
+        fillEllipseR(r, cx, cy, rx + 24, ry + 18, 23, 52, 63, 10);
+        fillEllipseR(r, cx, cy, rx, ry, 6, 14, 21, 232);
+        fillEllipseR(r, cx - 18, cy - 16, rx - 16, ry - 15, 9, 21, 29, 120);
+        // 暗色云带。
+        fillEllipseR(r, cx - 4, cy - 48, rx * 0.84, 16, 26, 50, 57, 22);
+        fillEllipseR(r, cx - 12, cy - 12, rx * 0.92, 13, 20, 42, 50, 18);
+        fillEllipseR(r, cx - 20, cy + 28, rx * 0.78, 18, 24, 48, 55, 16);
+        // 右上侧受光边缘。
+        int px = 0, py = 0;
+        for (int i = 0; i <= 54; ++i) {
+            double a = -M_PI * 0.95 + M_PI * 0.90 * i / 54.0;
+            int nx = (int)(cx + rx * std::cos(a));
+            int ny = (int)(cy + ry * std::sin(a));
+            if (i > 0) {
+                lineR(r, px, py, nx, ny, 40, 96, 116, 68);
+                lineR(r, px + 3, py + 2, nx + 3, ny + 2, 58, 122, 140, 32);
+            }
+            px = nx; py = ny;
+        }
+        // 远处 Moonwell 环站：两条极淡的椭圆环，部分穿过星体。
+        ellipseR(r, 210, 466, 258, 38, 31, 68, 81, 36);
+        ellipseR(r, 210, 466, 274, 43, 24, 53, 66, 21);
+        for (int i = 1; i < 6; ++i) {
+            if (i == 3) continue;
+            double t = i / 6.0;
+            int x = (int)(210 + 250 * std::cos(t * M_PI * 2.0));
+            int y = (int)(466 + 37 * std::sin(t * M_PI * 2.0));
+            fillR(r, x, y, 2, 2, 78, 125, 137, 65);
+        }
+    }
+
+    void drawGateStars(SDL_Renderer* r) const {
+        // 只取已有 400 颗星中的约 1/5；亮度低、闪烁幅度小、无频繁十字星芒。
+        for (size_t i = 0; i < stars.size(); ++i) {
+            if ((i % 5) != 0) continue;
+            const auto& s = stars[i];
+            double sx = std::fmod(s.wx - scrollX * 0.012 + 6000.0, WIN_WIDTH + 80.0) - 40.0;
+            double sy = s.wy;
+            if (sx < -2 || sx > WIN_WIDTH + 2 || sy < 0 || sy > WIN_HEIGHT) continue;
+            double tw = 0.76 + 0.24 * std::sin(s.phase * 0.28 + i * 0.91);
+            int b = 50 + (int)(tw * 98.0);
+            int cr = b, cg = b + 5, cb = b + 14;
+            if (cr > 150) cr = 150;
+            if (cg > 162) cg = 162;
+            if (cb > 180) cb = 180;
+            fillR(r, (int)sx, (int)sy, 1, 1, cr, cg, cb, 255);
+            if ((i % 97) == 0) {
+                int a = 30 + (int)(tw * 24);
+                lineR(r, (int)sx - 2, (int)sy, (int)sx + 2, (int)sy, cr, cg, cb, a);
+                lineR(r, (int)sx, (int)sy - 2, (int)sx, (int)sy + 2, cr, cg, cb, a);
+            }
+        }
+    }
+
+    void drawGateDust(SDL_Renderer* r) const {
+        // 固定哈希微尘：铺满全屏但不闪烁，补足下半屏的深空密度。
+        for (int i = 0; i < 108; ++i) {
+            int x = (int)(hash01(i * 23 + 5) * WIN_WIDTH);
+            int y = (int)(hash01(i * 41 + 11) * WIN_HEIGHT);
+            int a = 14 + (int)(hash01(i * 19 + 3) * 18);
+            fillR(r, x, y, 1, 1, 66, 89, 101, a);
+        }
+        for (int i = 0; i < 16; ++i) {
+            int x = (int)(hash01(i * 37 + 19) * WIN_WIDTH);
+            int y = (int)(hash01(i * 53 + 7) * WIN_HEIGHT);
+            fillR(r, x, y, 1, 1, 96, 120, 130, 28);
+        }
+    }
 
     // 灯带按世界坐标等距排列；廊桥滚动时灯随结构一起移动
     template <class F> void forEachLamp(F f) const {

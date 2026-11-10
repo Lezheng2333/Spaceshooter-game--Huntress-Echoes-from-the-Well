@@ -102,42 +102,110 @@ static inline void starGlint(SDL_Renderer* r, int x, int y, int radius,
     SDL_SetRenderDrawBlendMode(r, prev);
 }
 
-// 带切角的深色信息面板。只作为 HUD/菜单底层，不改变原本文字坐标。
+// 切角深色玻璃面板：低饱和底色 + 极淡纵向渐变 + 细扫描纹理 +
+// 单层发光轮廓 + 内嵌细线。所有装饰都是几何线，不使用装饰性小字。
 static inline void techPanel(SDL_Renderer* r, int x, int y, int w, int h,
-                             int cr, int cg, int cb, int accentR, int accentG, int accentB) {
-    if (!r || w <= 2 || h <= 2) return;
+                             int cr, int cg, int cb, int accentR, int accentG, int accentB,
+                             int alpha = 255) {
+    if (!r || w <= 4 || h <= 4) return;
+    if (alpha <= 0) return;
+    if (alpha > 255) alpha = 255;
+    int cut = std::min(12, std::min(w, h) / 4);
+    if (cut < 3) cut = 3;
+    SDL_Point p[8] = {
+        {x + cut, y}, {x + w - cut, y}, {x + w, y + cut}, {x + w, y + h - cut},
+        {x + w - cut, y + h}, {x + cut, y + h}, {x, y + h - cut}, {x, y + cut}
+    };
+
     SDL_BlendMode prev;
     SDL_GetRenderDrawBlendMode(r, &prev);
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, 168);
-    SDL_Rect body = {x, y, w, h}; SDL_RenderFillRect(r, &body);
-    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB, 150);
-    SDL_RenderDrawLine(r, x + 4, y, x + w - 5, y);
-    SDL_RenderDrawLine(r, x + 4, y + h - 1, x + w - 5, y + h - 1);
-    SDL_RenderDrawLine(r, x, y + 4, x, y + h - 5);
-    SDL_RenderDrawLine(r, x + w - 1, y + 4, x + w - 1, y + h - 5);
-    int tick = std::min(14, std::min(w / 3, h / 2));
-    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB, 230);
-    SDL_RenderDrawLine(r, x, y, x + tick, y);
-    SDL_RenderDrawLine(r, x + w - tick, y + h - 1, x + w - 1, y + h - 1);
+
+    // 1) 半透明熏黑玻璃底。
+    fillPoly(r, p, 8, cr, cg, cb, 168 * alpha / 255);
+
+    // 2) 极轻的冷色顶部渐变与 4px 扫描纹理，制造“玻璃内屏”质感。
+    for (int yy = 0; yy < h; ++yy) {
+        int inset = 0;
+        if (yy < cut) inset = cut - yy;
+        if (yy >= h - cut) inset = yy - (h - cut) + 1;
+        int rx = x + inset;
+        int rw = w - inset * 2;
+        if (rw <= 0) continue;
+        int tint = (int)((1.0f - (float)yy / (float)h) * 26.0f + 4.0f);
+        SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB,
+                               (Uint8)(tint * alpha / 255));
+        SDL_RenderDrawLine(r, rx, y + yy, rx + rw - 1, y + yy);
+        if ((yy & 3) == 0) {
+            SDL_SetRenderDrawColor(r, 0, 0, 0, (Uint8)(10 * alpha / 255));
+            SDL_RenderDrawLine(r, rx, y + yy, rx + rw - 1, y + yy);
+        }
+    }
+
+    // 3) 轮廓与内侧细线。切角让矩形更像舰载/终端 HUD，而不是普通卡片。
+    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB,
+                           (Uint8)(164 * alpha / 255));
+    for (int i = 0; i < 8; ++i)
+        SDL_RenderDrawLine(r, p[i].x, p[i].y, p[(i + 1) % 8].x, p[(i + 1) % 8].y);
+
+    int ix = 3, iy = 3;
+    int ic = cut > 5 ? cut - 2 : 2;
+    SDL_Point inner[8] = {
+        {x + ix + ic, y + iy}, {x + w - ix - ic, y + iy},
+        {x + w - ix, y + iy + ic}, {x + w - ix, y + h - iy - ic},
+        {x + w - ix - ic, y + h - iy}, {x + ix + ic, y + h - iy},
+        {x + ix, y + h - iy - ic}, {x + ix, y + iy + ic}
+    };
+    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB,
+                           (Uint8)(34 * alpha / 255));
+    for (int i = 0; i < 8; ++i)
+        SDL_RenderDrawLine(r, inner[i].x, inner[i].y, inner[(i + 1) % 8].x, inner[(i + 1) % 8].y);
+
+    // 4) 顶部一条极细高光，以及左缘一道短光轨，保持克制但强化层次。
+    SDL_SetRenderDrawColor(r, (Uint8)std::min(255, accentR + 60),
+                           (Uint8)std::min(255, accentG + 60),
+                           (Uint8)std::min(255, accentB + 60),
+                           (Uint8)(126 * alpha / 255));
+    SDL_RenderDrawLine(r, x + cut + 12, y + 1, x + w - cut - 12, y + 1);
+    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB,
+                           (Uint8)(72 * alpha / 255));
+    SDL_RenderDrawLine(r, x + 5, y + cut + 10, x + 5, y + h - cut - 10);
+    SDL_SetRenderDrawColor(r, (Uint8)accentR, (Uint8)accentG, (Uint8)accentB,
+                           (Uint8)(55 * alpha / 255));
+    SDL_RenderDrawLine(r, x + cut + 12, y + h - 2, x + w - cut - 12, y + h - 2);
+
     SDL_SetRenderDrawBlendMode(r, prev);
 }
 
 static inline void bracket(SDL_Renderer* r, int x, int y, int w, int h, int len,
                            int cr, int cg, int cb, int alpha) {
-    if (!r) return;
+    if (!r || w <= 0 || h <= 0 || alpha <= 0) return;
+    int L = std::min(len, std::min(w / 2, h / 2));
+    if (L < 3) L = 3;
     SDL_BlendMode prev;
     SDL_GetRenderDrawBlendMode(r, &prev);
     SDL_SetRenderDrawBlendMode(r, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)alpha);
-    SDL_RenderDrawLine(r, x, y, x + len, y);
-    SDL_RenderDrawLine(r, x, y, x, y + len);
-    SDL_RenderDrawLine(r, x + w - len, y, x + w, y);
-    SDL_RenderDrawLine(r, x + w, y, x + w, y + len);
-    SDL_RenderDrawLine(r, x, y + h - len, x, y + h);
-    SDL_RenderDrawLine(r, x, y + h, x + len, y + h);
-    SDL_RenderDrawLine(r, x + w - len, y + h, x + w, y + h);
-    SDL_RenderDrawLine(r, x + w, y + h - len, x + w, y + h);
+    SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)clampI(alpha, 0, 255));
+    SDL_RenderDrawLine(r, x, y, x + L, y);
+    SDL_RenderDrawLine(r, x, y, x, y + L);
+    SDL_RenderDrawLine(r, x + w - L, y, x + w, y);
+    SDL_RenderDrawLine(r, x + w, y, x + w, y + L);
+    SDL_RenderDrawLine(r, x, y + h - L, x, y + h);
+    SDL_RenderDrawLine(r, x, y + h, x + L, y + h);
+    SDL_RenderDrawLine(r, x + w - L, y + h, x + w, y + h);
+    SDL_RenderDrawLine(r, x + w, y + h - L, x + w, y + h);
+    // 内嵌的第二层短角线，做出“双层金属框”的厚度感。
+    SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb,
+                           (Uint8)(alpha * 42 / 100));
+    int o = 3, m = L > 8 ? 5 : 3;
+    SDL_RenderDrawLine(r, x + o, y + o, x + o + m, y + o);
+    SDL_RenderDrawLine(r, x + o, y + o, x + o, y + o + m);
+    SDL_RenderDrawLine(r, x + w - o - m, y + o, x + w - o, y + o);
+    SDL_RenderDrawLine(r, x + w - o, y + o, x + w - o, y + o + m);
+    SDL_RenderDrawLine(r, x + o, y + h - o - m, x + o, y + h - o);
+    SDL_RenderDrawLine(r, x + o, y + h - o, x + o + m, y + h - o);
+    SDL_RenderDrawLine(r, x + w - o - m, y + h - o, x + w - o, y + h - o);
+    SDL_RenderDrawLine(r, x + w - o, y + h - o - m, x + w - o, y + h - o);
     SDL_SetRenderDrawBlendMode(r, prev);
 }
 

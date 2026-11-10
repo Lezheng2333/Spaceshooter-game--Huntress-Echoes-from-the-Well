@@ -1,6 +1,7 @@
 #pragma once
 
 #include "art_fx.h"
+#include "demo_stroke_font.h"
 
 // Forward declaration
 class Font;
@@ -224,7 +225,9 @@ public:
         auto& l = queue[idx];
         if (l.vlines.empty()) return;
 
-        const int CH_W = 12, CH_H = 14, LINE_GAP = 4;
+        const int CH_W = 12, CH_H = 14;
+        const int BODY_PX = 17;
+        const int BODY_LINE = 23;
         double bright = 1.0;
         int floatOff = 0;
         if (l.state == 4) {
@@ -235,72 +238,33 @@ public:
         int drawY = (int)l.y - floatOff;
         if (l.state == 1) return;
 
-        int maxChars = 0;
-        for (auto& vl : l.vlines)
-            if ((int)vl.length() > maxChars) maxChars = (int)vl.length();
-        int speakerH = l.speaker.empty() ? 0 : CH_H + 5;
-        int boxW = maxChars * CH_W + 34;
-        int boxH = l.numLines * (CH_H + LINE_GAP) + speakerH + 18;
-        int boxX = 8, boxY = drawY - 9;
-        if (boxX + boxW > 390) boxW = 382;
-
-        int bgA = (int)(215 * bright);
+        // 无文本框：仅角色名 + 对白。用低 alpha 阴影替代背景板，
+        // 让 demo stroke font 的细线在廊桥/星场上仍然清晰可读。
         ArtFX::BlendGuard guard(r);
-        SDL_SetRenderDrawColor(r, 3, 12, 10, (Uint8)bgA);
-        SDL_Rect bg = {boxX, boxY, boxW, boxH};
-        SDL_RenderFillRect(r, &bg);
-        SDL_SetRenderDrawColor(r, 42, 163, 96, (Uint8)(190 * bright));
-        SDL_RenderDrawLine(r, boxX, boxY, boxX + boxW, boxY);
-        SDL_RenderDrawLine(r, boxX, boxY + boxH - 1, boxX + boxW, boxY + boxH - 1);
-        SDL_SetRenderDrawColor(r, 41, 102, 72, (Uint8)(150 * bright));
-        SDL_RenderDrawLine(r, boxX + 1, boxY + 1, boxX + 1, boxY + boxH - 2);
-        SDL_SetRenderDrawColor(r, 121, 255, 166, (Uint8)(190 * bright));
-        SDL_Rect accent = {boxX, boxY, 3, boxH};
-        SDL_RenderFillRect(r, &accent);
-        ArtFX::bracket(r, boxX + 5, boxY + 5, boxW - 10, boxH - 10, 9,
-                       78, 205, 128, (int)(115 * bright));
-        // 小型通讯标识，不占用任何游戏逻辑字段。
-        font.drawStringColor(r, "COMMS // INCOMING", boxX + 12, boxY + 6, 1,
-                             91, 188, 126, (int)(180 * bright));
+        int textX = 18;
+        int textY = drawY;
+        int a = (int)(255.0 * bright);
 
-        const int TR = 66, TG = 210, TB = 126;
-        int rr = (int)(TR * bright), gg = (int)(TG * bright), bb = (int)(TB * bright);
-        int sr = (int)(166 * bright), sg = (int)(228 * bright), sb = (int)(196 * bright);
-        int textX = boxX + 10;
-        int textY = boxY + 18;
-
-        // Speaker
         if (!l.speaker.empty()) {
-            SDL_SetRenderDrawColor(r, (Uint8)sr, (Uint8)sg, (Uint8)sb, 255);
+            int sr = (int)(166 * bright), sg = (int)(228 * bright), sb = (int)(196 * bright);
+            SDL_SetRenderDrawColor(r, 2, 7, 5, (Uint8)(a * 70 / 100));
+            drawTextLine(r, font, l.speaker, textX + 1, textY + 1, 1, 2, CH_W);
+            SDL_SetRenderDrawColor(r, (Uint8)sr, (Uint8)sg, (Uint8)sb, (Uint8)a);
             drawTextLine(r, font, l.speaker, textX, textY, 1, 2, CH_W);
-            textY += speakerH;
+            textY += CH_H + 5;
         }
-        // Content
+
+        const int TR = 92, TG = 220, TB = 142;
+        int rr = (int)(TR * bright), gg = (int)(TG * bright), bb = (int)(TB * bright);
         int charsLeft = l.revealed;
-        SDL_SetRenderDrawColor(r, (Uint8)rr, (Uint8)gg, (Uint8)bb, 255);
         for (int li = 0; li < l.numLines && charsLeft > 0; ++li) {
             int show = charsLeft;
             if (show > (int)l.vlines[li].length()) show = (int)l.vlines[li].length();
-            drawTextLine(r, font, l.vlines[li].substr(0, show),
-                         textX, textY + li * (CH_H + LINE_GAP), 1, 2, CH_W);
+            DemoStrokeFont::get().drawStringShadow(
+                r, l.vlines[li].substr(0, show),
+                textX, textY + li * BODY_LINE, (float)BODY_PX,
+                rr, gg, bb, a, 1);
             charsLeft -= show;
-        }
-        // 打字机光标：只依赖已显示字符数，读档帧保持确定性。
-        if (l.state == 2 && (l.revealed / 4) % 2 == 0) {
-            int visible = l.revealed;
-            int cx = textX, cy = textY;
-            int curLine = 0;
-            for (; curLine < l.numLines; ++curLine) {
-                int len = (int)l.vlines[curLine].length();
-                if (visible <= len) break;
-                visible -= len;
-                cy += CH_H + LINE_GAP;
-            }
-            if (curLine >= l.numLines) { curLine = l.numLines - 1; visible = (int)l.vlines[curLine].length(); cy = textY + curLine * (CH_H + LINE_GAP); }
-            cx = textX + visible * CH_W;
-            SDL_SetRenderDrawColor(r, 150, 255, 188, (Uint8)(210 * bright));
-            SDL_Rect caret = {cx, cy + 2, 6, 9};
-            SDL_RenderFillRect(r, &caret);
         }
     }
 };

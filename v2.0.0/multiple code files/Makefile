@@ -5,7 +5,7 @@ TARGET = shooter
 
 all: $(TARGET)
 
-$(TARGET): main.cpp types.h constants.h art_fx.h font.h renderer.h audio.h floating_text.h \
+$(TARGET): main.cpp types.h constants.h art_fx.h demo_stroke_font.h font.h renderer.h audio.h floating_text.h \
 		dialogue.h narration.h particles.h aim_assist.h player.h bullets.h \
 		ch1/ch1_shockwave.h ch1/ch1_aliens.h ch1/ch1_boss.h ch1/ch1_background.h \
 		ch2/ch2_background.h ch2/ch2_shooter_base.h ch2/ch2_hud.h \

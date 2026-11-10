@@ -17,7 +17,7 @@ protected:
     bool& goRef;
 
     void updateBullets(BulletManager& bulletMgr, ParticleManager& particleMgr, AudioEngine& audio,
-                       Player& pl, FloatingTextManager& ftMgr, int* = nullptr) {
+                       Player& pl, FloatingTextManager& ftMgr, int* energyHits = nullptr) {
         for (auto& b : bullets) {
             if (!b.active) continue;
             b.x += b.dx; b.y += b.dy;
@@ -32,7 +32,12 @@ protected:
                 if (!eb.active) continue;
                 if (std::abs(b.x-eb.x) < 10 && std::abs(b.y-eb.y) < 10) {
                     b.active = false; b.canDamage = false; eb.hp--;
-                    if (eb.hp <= 0) { eb.active = false; particleMgr.spawnExplosion(eb.x, eb.y, 4); audio.sndCrystalCrush(); }
+                    if (eb.hp <= 0) {
+                        eb.active = false;
+                        particleMgr.spawnExplosion(eb.x, eb.y, 4);
+                        audio.sndCrystalCrush();
+                        if (energyHits) (*energyHits) += 1;   // destroying an enemy bullet grants 1 energy
+                    }
                     break;
                 }
             }
@@ -91,7 +96,7 @@ public:
 // ============== NightElfEnergy [DORMANT — NightElf 激活后联动] ==============
 class NightElfEnergy {
 public:
-    static const int MAX_ENERGY = 50;
+    static const int MAX_ENERGY = 100;      // 直接命中 +2，上限翻倍，纯命中充能时间保持不变
     static const int HIT_WINDOW = 30;       // 0.5s at 60fps without hit → decay
     static const int TRIPLE_DURATION = 900;  // 15s at 60fps
     static const int COUNTDOWN_START = 180;  // last 3s countdown beeps
@@ -125,13 +130,13 @@ public:
             }
             lastHitFrame = frameCounter;
         } else if (frameCounter - lastHitFrame > HIT_WINDOW && energy > 0) {
-            // Decay: 50 energy in 5 seconds → 0.1667 per frame
+            // Full bar decays in 5 seconds at the new 100-point cap.
             energy -= MAX_ENERGY / 300.0; // MAX_ENERGY / (5*60)
             if (energy < 0) energy = 0;
         }
     }
 
-    void onHit() { if (!tripleActive) { energy += 1.0; if (energy >= MAX_ENERGY) energy = MAX_ENERGY; } lastHitFrame = frameCounter; }
+    void onHit() { if (!tripleActive) { energy += 2.0; if (energy >= MAX_ENERGY) energy = MAX_ENERGY; } lastHitFrame = frameCounter; }
     void checkTripleTrigger() {
         if (!tripleActive && energy >= MAX_ENERGY) {
             tripleActive = true; tripleTimer = TRIPLE_DURATION; tripleJustEntered = true;

@@ -156,10 +156,8 @@ public:
                 dim = !metas[i + 1].valid;
             } else if (load && i == SaveSystem::SLOT_COUNT) {
                 label = "BROWSE FILE...";
-                info = "load any .sav on this computer";
             } else if (!load && i == 6) {
                 label = "SAVE AS...";
-                info = "export to any folder";
             } else {
                 label = "BACK";
             }
