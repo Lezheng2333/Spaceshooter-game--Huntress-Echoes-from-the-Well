@@ -4129,13 +4129,20 @@ private:
         SDL_SetRenderDrawColor(r, 76, 214, 137, 175);
         SDL_RenderDrawLine(r, px + 42, 203, px + pw - 42, 203);
 
-        centerText("SHIFT: RELEASE WHEN BAR IS FULL", 226, 2, 196, 239, 224);
-        centerText("CLEARS ENEMY BULLETS IN A RADIUS", 252, 2, 196, 239, 224);
-        centerText("HITS AND BULLET KILLS CHARGE ENERGY", 278, 2, 196, 239, 224);
-        centerText("EACH RELEASE RESTORES 1 HP", 308, 2, 168, 255, 196);
-        centerText("DAMAGE: 1 PER TARGET", 334, 2, 240, 210, 184);
+        centerText("Shift: release when bar is full", 226, 2, 196, 239, 224);
+        centerText("Clears enemy bullets in a radius", 252, 2, 196, 239, 224);
+        centerText("Hits and bullet kills charge energy", 278, 2, 196, 239, 224);
+        // “1 HP” is the healing payoff: keep the sentence normal but flag HP in red.
+        const char* hpPrefix = "Each release restores ";
+        const char* hpValue = "1 HP";
+        int hpPrefixW = (int)strlen(hpPrefix) * 6 * 2;
+        int hpValueW = (int)strlen(hpValue) * 6 * 2;
+        int hpX = CENTER_X - (hpPrefixW + hpValueW) / 2;
+        font.drawStringColor(r, hpPrefix, hpX, 308, 2, 168, 255, 196, 255);
+        font.drawStringColor(r, hpValue, hpX + hpPrefixW, 308, 2, 255, 78, 96, 255);
+        centerText("Damage: 1 per target", 334, 2, 240, 210, 184);
 
-        centerText("ENTER / ESC: CONTINUE", 402, 2, 126, 222, 168);
+        centerText("Enter / Esc: continue", 402, 2, 126, 222, 168);
     }
 
     // 技能球核心可吸收时，在画面正中间下方显示呼吸提示。

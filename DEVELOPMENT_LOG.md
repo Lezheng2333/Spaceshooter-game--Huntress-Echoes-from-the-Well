@@ -1739,3 +1739,7 @@ Ver 1.0.1 | 2026-05-08
 
     - 文案修正：技能球吸收提示 "press SHIFT to obsorb" → "press SHIFT to absorb"（拼写修正，重新打包）
     - absorb 拼写修正新 zip SHA-256：f7182e35213035c7fb68ff04c3937092899123942a90d7084f725bd6b31ac1ee
+    - 技能说明卡排版：标题 PULSE SKILL ACQUIRED 保持全大写；正文改为句首大写；
+      “Each release restores 1 HP”中的“1 HP”改为红色强调，表示回血
+    - 同步更新 narration_scripts.xlsx 中技能说明卡实际中英文本与红色 HP 备注
+    - 本次重新打包新 zip SHA-256：e6721ee2b100be62f28c14e566ad5121899a83012c67a92d8eacf959267c9343
