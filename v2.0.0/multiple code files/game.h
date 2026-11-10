@@ -4148,7 +4148,7 @@ private:
 
         SDL_Renderer* r = renderer.get();
         ArtFX::BlendGuard guard(r);
-        const char* text = "press SHIFT to obsorb";
+        const char* text = "press SHIFT to absorb";
         int tw = (int)strlen(text) * 6 * 2;
         int tx = CENTER_X - tw / 2;
         int ty = WIN_HEIGHT / 2 + 110;

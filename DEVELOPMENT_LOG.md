@@ -1720,7 +1720,7 @@ Ver 1.0.1 | 2026-05-08
       Ch1 基地完整度继续使用绿色分段条，不变
 
     - 技能球核心处于可吸收范围时，在画面水平中心、垂直中心下方显示
-      "press SHIFT to obsorb"；文字 alpha 使用已存档 playFrames / absorbTimer
+      "press SHIFT to absorb"；文字 alpha 使用已存档 playFrames / absorbTimer
       做呼吸闪烁，读档帧像素对比保持确定
 
     - 吸收完成、获得 Pulse 技能后，在追逐战内弹出技能说明卡并冻结世界更新：
@@ -1736,3 +1736,6 @@ Ver 1.0.1 | 2026-05-08
     - 重新打包校验：App 内与解压 zip 内 --selftest 均 PASS（4 场景 frame=OK / maxdiff=0，
       25 项第二章流程含技能弹窗断言 PASS）
     - 新 zip SHA-256：ea0a4740ea48810f78cfe6bc60cf1d774c420c562b89de27805930aa298d27b3
+
+    - 文案修正：技能球吸收提示 "press SHIFT to obsorb" → "press SHIFT to absorb"（拼写修正，重新打包）
+    - absorb 拼写修正新 zip SHA-256：f7182e35213035c7fb68ff04c3937092899123942a90d7084f725bd6b31ac1ee
