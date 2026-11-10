@@ -51,18 +51,45 @@ public:
                 }
             }
         } else {
-            // 第二章玩家生命：红色菱形，与右侧状态板形成清晰的危险色。
+            // 第二章玩家生命：回到早期版本一眼可认的像素爱心，但加上清晰的
+            // 暗红描边、亮红填充与左上高光；三个爱心仍严格右对齐在原 HUD 槽位。
+            static const char* HEART[7] = {
+                "0220220",
+                "2442342",
+                "2333332",
+                "2333332",
+                "0233320",
+                "0023200",
+                "0002000"
+            };
+            const int CELL = 2;
+            const int HEART_W = 7 * CELL;
+            const int GAP = 3;
             for (int i = 0; i < maxHp; ++i) {
-                int hx = rightEdge - 11 - i * 14;
-                SDL_Point p[4] = {{hx, y}, {hx + 5, y + 4}, {hx, y + 8}, {hx - 5, y + 4}};
-                ArtFX::fillPoly(r, p, 4, i < hp ? 255 : 52, i < hp ? 48 : 32,
-                                i < hp ? 54 : 38, 255);
-                SDL_SetRenderDrawColor(r, i < hp ? 255 : 80, i < hp ? 130 : 62,
-                                       i < hp ? 120 : 62, 210);
-                SDL_RenderDrawLine(r, p[0].x, p[0].y, p[1].x, p[1].y);
-                SDL_RenderDrawLine(r, p[1].x, p[1].y, p[2].x, p[2].y);
-                SDL_RenderDrawLine(r, p[2].x, p[2].y, p[3].x, p[3].y);
-                SDL_RenderDrawLine(r, p[3].x, p[3].y, p[0].x, p[0].y);
+                int hx = rightEdge - HEART_W - i * (HEART_W + GAP);
+                int hy = y;
+                bool full = (i < hp);
+                for (int row = 0; row < 7; ++row) {
+                    for (int col = 0; col < 7; ++col) {
+                        char q = HEART[row][col];
+                        if (q == '0') continue;
+                        int cr, cg, cb;
+                        if (!full) {
+                            // 空槽仍保留完整心形轮廓，但内部压暗。
+                            if (q == '2') { cr = 68; cg = 27; cb = 34; }
+                            else          { cr = 35; cg = 16; cb = 22; }
+                        } else if (q == '2') {
+                            cr = 122; cg = 16; cb = 34;
+                        } else if (q == '4') {
+                            cr = 255; cg = 146; cb = 158;
+                        } else {
+                            cr = 224; cg = 38; cb = 62;
+                        }
+                        SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, 255);
+                        SDL_Rect px = {hx + col * CELL, hy + row * CELL, CELL, CELL};
+                        SDL_RenderFillRect(r, &px);
+                    }
+                }
             }
         }
     }

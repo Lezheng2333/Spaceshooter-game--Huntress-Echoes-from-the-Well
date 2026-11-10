@@ -116,6 +116,7 @@ class Game {
     int wallAnimFrame;     // animates lightning/sparks while touching
 
     // Ch2 enemy systems
+    static const int CH2_PLAYER_MAX_HP = 3;
     int ch2PlayerHP; bool ch2GameOver;
     Ch2AlienManager ch2AlienMgr;
     Ch2DanmakuManager dmMgr;
@@ -130,6 +131,8 @@ class Game {
     bool pulseOrbDropped; // first danmaku has dropped the orb
     bool shiftWas;        // Shift key edge detection
     bool shiftJustPressed; // true for one frame when Shift first pressed
+    bool pulseTutorialActive;   // transient modal; never serialized
+    bool pulseTutorialEnterWas; // transient enter edge for the modal
 
     // Ch2 scripted flow state machine
     int ch2Flow;
@@ -209,6 +212,7 @@ public:
           ch2AlienMgr(ch2PlayerHP, ch2GameOver), dmMgr(ch2PlayerHP, ch2GameOver),
           dmFireCooldown(0), sphereBossActive(false), playerHitCount(0), tripleBeepCounter(0),
           pulseOrbDropped(false), shiftWas(true), shiftJustPressed(false),
+          pulseTutorialActive(false), pulseTutorialEnterWas(false),
           ch2Flow(C2_GATE), ch2PhaseTimer(0), ch2FadeTimer(0),
           ch2GateInitDone(false), ch2LabInitDone(false),
           labUpgradeState(0), labUpgradeTimer(0), ch2EpilogueStarted(false),
@@ -314,6 +318,7 @@ public:
         sphereBoss.reset(); sphereBossActive = false;
         nightElfEnergy.reset(); playerHitCount = 0; tripleBeepCounter = 0;
         pulseSystem.reset(); skillOrb.reset(); pulseOrbDropped = false; shiftWas = true;
+        pulseTutorialActive = false; pulseTutorialEnterWas = false;
         ch2Flow = C2_GATE; ch2PhaseTimer = 0; ch2FadeTimer = 0;
         ch2GateInitDone = false; ch2LabInitDone = false;
         gateScene.reset(); labScene.reset(); wardenBoss.reset();
@@ -380,6 +385,7 @@ public:
             bool startTheme = atStartScreen || atChapterSelect ||
                 ((atOptionScreen || atSoundMenu) && !optionFromPause);
             bool bgmMuted = atTestSelect || atSaveLoadScreen || paused || gameOver || missionComplete ||
+                pulseTutorialActive ||
                 ((atOptionScreen || atSoundMenu) && optionFromPause);
             audio.setStartBgm(startTheme);
             audio.setBgmOff(bgmMuted);
@@ -405,7 +411,7 @@ public:
                 // ESC skips entire opening narration
                 narration.reset(); inNarration = false;
                 audio.stopVoice();
-            } else if (escPressed && !inNarration && !gameOver && !atStartScreen && !atTestSelect && !atChapterSelect
+            } else if (escPressed && !pulseTutorialActive && !inNarration && !gameOver && !atStartScreen && !atTestSelect && !atChapterSelect
                 && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !missionComplete) {
                 if (paused && countdown == -1) {
                     countdown = 3; countdownFrame = 0;
@@ -422,12 +428,12 @@ public:
             // 菜单、暂停和倒计时冻结世界；旁白由 updateNarration 单独推进背景。
             bool gameplayScreen = !atStartScreen && !atTestSelect && !atChapterSelect &&
                 !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver && !inNarration;
-            if (!paused && !atSaveLoadScreen && !atOptionScreen && !atSoundMenu && !gameOver && !inNarration) {
+            if (!paused && !pulseTutorialActive && !atSaveLoadScreen && !atOptionScreen && !atSoundMenu && !gameOver && !inNarration) {
                 if (background) background->update();
                 if (gameplayScreen && sideBg) sideBg->update();
             }
             // TAB 跳过门禁，ESC 始终保留暂停/恢复功能（包括门禁存档）。
-            if (gameplayScreen && !paused && chapterMgr.getConfig().isSideScrolling &&
+            if (gameplayScreen && !paused && !pulseTutorialActive && chapterMgr.getConfig().isSideScrolling &&
                 ch2Flow == C2_GATE && !gateScene.isOpen() && keys[SDL_SCANCODE_TAB]) {
                 dialogueSys.reset(); audio.stopVoice();
                 gateScene.skipToOpen();
@@ -467,6 +473,11 @@ public:
                 drawGameplayFrame();
                 if (countdown >= 0) drawCountdown();
                 else if (paused) drawPauseMenu();
+            } else if (pulseTutorialActive) {
+                // 技能说明弹窗：背景游戏完全冻结，只处理弹窗关闭输入。
+                updatePulseTutorial(keys, escPressed);
+                drawGameplayFrame();
+                if (pulseTutorialActive) drawPulseTutorial();
             } else {
                 // ======== GAMEPLAY ========
                 playFrames++;
@@ -882,7 +893,35 @@ public:
             bulletMgr.all().push_back(b);
         };
         bool lab = false;
+        bool sawPulseTutorial = false;
+        bool sawAbsorbHintShot = false;
         for (int i = 0; i < 18000 && ch2Flow == C2_CHASE; ++i) {
+            if (skillOrb.state == Ch2SkillOrb::ABSORBING && !sawAbsorbHintShot) {
+                sawAbsorbHintShot = true;
+                if (shotBegin()) {
+                    drawGameplayFrame();
+                    captureBmp("/tmp/sfss_ch2_qa/03b2_orb_absorb_hint.bmp");
+                    shotEnd();
+                }
+            }
+            if (pulseTutorialActive) {
+                if (!sawPulseTutorial && shotBegin()) {
+                    drawGameplayFrame();
+                    drawPulseTutorial();
+                    captureBmp("/tmp/sfss_ch2_qa/03c_pulse_tutorial.bmp");
+                    shotEnd();
+                }
+                sawPulseTutorial = true;
+                // The modal ignores keys already held when it appears; simulate a
+                // release + fresh confirm so the rest of the flow QA can continue.
+                for (int g = 0; g < 4 && pulseTutorialActive; ++g) {
+                    std::vector<Uint8> tk = k;
+                    tk[SDL_SCANCODE_RETURN] = (g % 2 == 0) ? 1 : 0;
+                    nodeStep(tk.data());
+                }
+                continue;
+            }
+
             nodeHealCh2();
             for (const auto& a : ch2AlienMgr.getAliens())
                 if (a.active && !a.entering) hitAt(a.x, a.y);
@@ -910,6 +949,7 @@ public:
         }
         lab = ch2Flow == C2_LAB;
         check(lab && pulseSystem.unlocked && score >= 30, "waves/orb/absorption/reinforcements to lab");
+        check(sawPulseTutorial, "pulse tutorial shown after orb absorption");
         if (lab) {
             // 转场中段：飞机从左侧飞入研究室（灯柱正在逐段通电）
             nodeRunUntil(k, 300, [this]{ return ch2FadeTimer >= 55; });
@@ -2443,6 +2483,7 @@ private:
         pUpWas = pDownWas = pEnterWas = pLeftWas = pRightWas = true;
         bkspWas = true;
         shiftWas = true; shiftJustPressed = false;
+        pulseTutorialActive = false; pulseTutorialEnterWas = false;
         dialogueSys.suppressEnter();
         narration.suppressEnter();
         if (sphereBossActive) {
@@ -2855,6 +2896,9 @@ private:
             shiftWas = shiftNow;
             if (pulseSystem.unlocked && pulseSystem.isFull() && shiftJustPressed) {
                 pulseSystem.release((float)player->getX(), (float)player->getY(), particleMgr, audio);
+                // Pulse is also a small emergency repair: one HP per actual release,
+                // capped at the existing three-heart maximum.
+                if (ch2PlayerHP < CH2_PLAYER_MAX_HP) ch2PlayerHP++;
             }
 
             // ==== Pulse energy from hits + pulse update + collisions ====
@@ -3668,11 +3712,14 @@ private:
             }
         }
 
-        // Pulse unlock dialogue
+        // Pulse unlock tutorial: wait until any current comms line finishes, then
+        // freeze the chase and show the skill card. dPulseQueued is already saved,
+        // so this tutorial is naturally shown once per campaign save.
         if (pulseSystem.unlocked && !dPulseQueued && !dialogueSys.isActive()) {
             dPulseQueued = true;
-            dialogueSys.queueDialogue("Ally (ai copilot)", "Pulse skill online! Full bar + SHIFT to release.");
-            dialogueSys.start();
+            pulseTutorialActive = true;
+            pulseTutorialEnterWas = true;   // require a fresh ENTER/ESC press after popup opens
+            audio.stopVoice();
         }
 
         // ==== Transition to the central lab ====
@@ -4054,6 +4101,69 @@ private:
         shockwaveMgr.removeInactive();
     }
 
+    // ======== PULSE TUTORIAL / ORB HINT ========
+    void updatePulseTutorial(const Uint8* keys, bool escPressed) {
+        bool confirmNow = keys[SDL_SCANCODE_RETURN] || escPressed;
+        if (confirmNow && !pulseTutorialEnterWas) {
+            pulseTutorialActive = false;
+            audio.sndMenuConfirm();
+        }
+        pulseTutorialEnterWas = confirmNow;
+    }
+
+    void drawPulseTutorial() {
+        SDL_Renderer* r = renderer.get();
+        ArtFX::BlendGuard guard(r);
+        UIRenderer::drawHalfTransparentOverlay(r, 188);
+
+        const int px = 108, py = 142, pw = 584, ph = 306;
+        ArtFX::techPanel(r, px, py, pw, ph, 3, 12, 13, 76, 222, 140, 250);
+        ArtFX::bracket(r, px - 8, py - 8, pw + 16, ph + 16, 18, 126, 255, 176, 150);
+
+        auto centerText = [&](const char* text, int y, int scale, int cr, int cg, int cb) {
+            int w = (int)strlen(text) * 6 * scale;
+            font.drawStringColor(r, text, CENTER_X - w / 2, y, scale, cr, cg, cb, 255);
+        };
+
+        centerText("PULSE SKILL ACQUIRED", 166, 3, 230, 255, 240);
+        SDL_SetRenderDrawColor(r, 76, 214, 137, 175);
+        SDL_RenderDrawLine(r, px + 42, 203, px + pw - 42, 203);
+
+        centerText("SHIFT: RELEASE WHEN BAR IS FULL", 226, 2, 196, 239, 224);
+        centerText("CLEARS ENEMY BULLETS IN A RADIUS", 252, 2, 196, 239, 224);
+        centerText("HITS AND BULLET KILLS CHARGE ENERGY", 278, 2, 196, 239, 224);
+        centerText("EACH RELEASE RESTORES 1 HP", 308, 2, 168, 255, 196);
+        centerText("DAMAGE: 1 PER TARGET", 334, 2, 240, 210, 184);
+
+        centerText("ENTER / ESC: CONTINUE", 402, 2, 126, 222, 168);
+    }
+
+    // 技能球核心可吸收时，在画面正中间下方显示呼吸提示。
+    // 相位取自已存档的 playFrames / absorbTimer，读档帧对比仍然确定。
+    void drawOrbAbsorbHint() {
+        if (!skillOrb.isCore() || skillOrb.pulseUnlocked()) return;
+        double dx = skillOrb.x - player->getX();
+        double dy = skillOrb.y - player->getY();
+        if (dx*dx + dy*dy > 220.0*220.0) return;
+
+        SDL_Renderer* r = renderer.get();
+        ArtFX::BlendGuard guard(r);
+        const char* text = "press SHIFT to obsorb";
+        int tw = (int)strlen(text) * 6 * 2;
+        int tx = CENTER_X - tw / 2;
+        int ty = WIN_HEIGHT / 2 + 110;
+        int phase = (skillOrb.state == Ch2SkillOrb::ABSORBING)
+                    ? skillOrb.absorbTimer : playFrames;
+        float breath = 0.5f + 0.5f * std::sin((float)phase * 0.14f);
+        int a = 108 + (int)(137.0f * breath);
+        // 暗色投影保持可读，主文字用偏青的荧光绿做呼吸。
+        font.drawStringColor(r, text, tx + 1, ty + 2, 2, 2, 7, 5, (Uint8)(a * 65 / 100));
+        font.drawStringColor(r, text, tx, ty, 2,
+                             166 + (int)(40.0f * breath),
+                             255,
+                             200 + (int)(25.0f * breath), (Uint8)a);
+    }
+
     // ======== DRAW GAMEPLAY ========
     void drawGameplayFrame() {
         bool isSide = chapterMgr.getConfig().isSideScrolling;
@@ -4126,7 +4236,8 @@ private:
                 // Ch2 HUD: all aligned to rightEdge = WIN_WIDTH - 10
                 HUDBase::drawStatusPanel(renderer.get(), WIN_WIDTH - 10, 4, 60);
                 HUDBase::drawScore(renderer.get(), font, score, WIN_WIDTH - 10, 10);
-                HUDBase::drawHPHearts(renderer.get(), font, ch2PlayerHP, 3, WIN_WIDTH - 10, 28);
+                HUDBase::drawHPHearts(renderer.get(), font, ch2PlayerHP, CH2_PLAYER_MAX_HP,
+                                      WIN_WIDTH - 10, 28);
                 float eFill = pulseSystem.getFill();
                 HUDBase::drawEnergyBar(renderer.get(), WIN_WIDTH - 10, 46, 10*14, 6,
                     eFill, pulseSystem.isFull());
@@ -4148,6 +4259,7 @@ private:
                 }
                 // Warden boss HP bar
                 if (ch2Flow == C2_BOSS) wardenBoss.drawHPBar(renderer.get(), font);
+                drawOrbAbsorbHint();
                 if (aimAssistOn) drawAimAssistSide();
                 dialogueSys.draw(renderer.get(), font);
                 // Scene-transition fade (white for gate/corridor, black for lab)
