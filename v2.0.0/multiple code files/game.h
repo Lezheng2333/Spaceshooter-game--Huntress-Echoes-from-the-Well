@@ -2906,11 +2906,9 @@ private:
             playerHitCount = 0;
             pulseSystem.update();
             pulseSystem.collideWithBullets(
-                const_cast<std::vector<Ch2EnemyBullet>&>(ch2AlienMgr.getBullets()), particleMgr,
-                &playerHitCount);
+                const_cast<std::vector<Ch2EnemyBullet>&>(ch2AlienMgr.getBullets()), particleMgr);
             pulseSystem.collideWithBullets(
-                const_cast<std::vector<Ch2EnemyBullet>&>(dmMgr.getBullets()), particleMgr,
-                &playerHitCount);
+                const_cast<std::vector<Ch2EnemyBullet>&>(dmMgr.getBullets()), particleMgr);
             pulseSystem.collideWithAliens(ch2AlienMgr, particleMgr, audio, score, playerHitCount);
             pulseSystem.collideWithDanmaku(dmMgr, particleMgr, audio, score, playerHitCount);
 
@@ -3898,7 +3896,7 @@ private:
         }
 
         // Pulse vs boss bullets + boss body
-        pulseSystem.collideWithBullets(wardenBoss.bullets, particleMgr, &playerHitCount);
+        pulseSystem.collideWithBullets(wardenBoss.bullets, particleMgr);
         for (auto& w : pulseSystem.waves) {
             if (!w.active) continue;
             if (wardenBoss.lastHitByPulse == w.id) continue;

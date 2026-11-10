@@ -154,9 +154,9 @@ public:
         }
     }
 
-    // Collision: pulse vs enemy bullets → destroy all bullets in radius
-    void collideWithBullets(std::vector<Ch2EnemyBullet>& bullets, ParticleManager& pm,
-                            int* energyHits = nullptr) {
+    // Collision: pulse vs enemy bullets → destroy all bullets in radius.
+    // Clearing bullets with the pulse intentionally grants no energy.
+    void collideWithBullets(std::vector<Ch2EnemyBullet>& bullets, ParticleManager& pm) {
         for (auto& w : waves) {
             if (!w.active) continue;
             for (auto& b : bullets) {
@@ -165,7 +165,6 @@ public:
                 if (dx*dx + dy*dy < (w.radius+4.0)*(w.radius+4.0)) {
                     b.active = false;
                     pm.spawnExplosion(b.x, b.y, 2);
-                    if (energyHits) (*energyHits) += 1;   // destroying an enemy bullet grants 1 energy
                 }
             }
         }

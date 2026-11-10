@@ -1743,3 +1743,9 @@ Ver 1.0.1 | 2026-05-08
       “Each release restores 1 HP”中的“1 HP”改为红色强调，表示回血
     - 同步更新 narration_scripts.xlsx 中技能说明卡实际中英文本与红色 HP 备注
     - 本次重新打包新 zip SHA-256：e6721ee2b100be62f28c14e566ad5121899a83012c67a92d8eacf959267c9343
+
+    - 能量规则修正：Pulse 冲击波清除敌方子弹不再增加能量；
+      玩家子弹摧毁敌方子弹仍 +1，直接命中敌人仍 +2。
+      同步更新 README、流程 TXT 与发布说明中的能量描述。
+    - Pulse 清弹不回能修正后的 v1.2.28 zip SHA-256：
+      352ade69fa6cf04e1dbe54fc59ff6735c0b3fcca956641e8f16f4d48f54ab573
