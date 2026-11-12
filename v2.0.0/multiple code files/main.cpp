@@ -53,14 +53,14 @@ int main(int argc, char** argv) {
         else if (strcmp(argv[i], "--mknodes") == 0) mkNodes = true;
     }
     // 自检把存档目录重定向到临时目录，避免覆盖玩家真实存档
-    if (selfTest) setenv("SFSS_SAVE_DIR", "/tmp/sfss_selftest", 1);
+    if (selfTest) setenv("HUNTRESS_SAVE_DIR", "/tmp/sfss_selftest", 1);
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         SDL_Log("SDL_Init Error: %s", SDL_GetError());
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("星际火狐 极简版",
+    SDL_Window* window = SDL_CreateWindow(GAME_TITLE,
                                           SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED,
                                           WIN_WIDTH, WIN_HEIGHT,

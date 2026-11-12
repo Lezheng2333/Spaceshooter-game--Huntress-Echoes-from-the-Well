@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-voice_pipeline.py — 星际火狐 旁白/对话 双语语音生成管线
+voice_pipeline.py — Huntress 旁白/对话 双语语音生成管线
 ========================================================
 从 game.h 自动提取全部旁白页 + 对话行(英文原文),配合内置中英对照表,
 按"角色 → 音色"映射,合成 voice/zh/<crc32>.wav 与 voice/en/<crc32>.wav。

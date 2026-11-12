@@ -1,4 +1,4 @@
-# STAR FOX SPACE SHOOTER — 游戏设计文档
+# HUNTRESS: ECHOES FROM THE WELL — 游戏设计文档
 
 > 本文档供剧情编写参考。详细描述了游戏的视觉风格、核心机制、关卡设计、角色/敌人/Boss 的造型颜色等。
 
@@ -6,7 +6,7 @@
 
 ## 一、游戏概览
 
-- **标题**：STAR FOX SPACE SHOOTER（星际火狐 极简版）
+- **标题**：HUNTRESS: ECHOES FROM THE WELL（Huntress: Echoes from the Well）
 - **类型**：2.5D 透视空间射击 / 横版射击 / 俯视角平面射击 （可能存在多视角转换）
 - **画面风格**：简约背景 + 镂空线条（wireframe），一般无大色块填充，有些场景会绘制细节的背景图，类似矢量/雷达屏风格
 - **分辨率**：800×600
@@ -193,7 +193,7 @@
   - 满级时：整条亮绿
 
 ### 菜单系统
-- **开始画面**：标题 "STAR FOX" + 副标题 "SPACE SHOOTER"，下方菜单选项（PLAY/CHAPTER/TEST/OPTIONS/EXIT）
+- **开始画面**：标题 "HUNTRESS" + 副标题 "ECHOES FROM THE WELL"，下方菜单选项（PLAY/CHAPTER/TEST/OPTIONS/EXIT）
 - **章节选择**：5 个章节选项，未解锁的显示为灰色 + "(LOCKED)" 标记
 - **暂停菜单**：半透明遮罩 + Resume/Restart/Options/Back to Menu/Exit
 - **Game Over**：半透明遮罩 + "GAME OVER" + 分数 + "PLAY AGAIN"/"EXIT"

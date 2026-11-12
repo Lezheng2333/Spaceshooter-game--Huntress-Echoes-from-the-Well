@@ -1,5 +1,5 @@
 #!/bin/bash
-# === STAR FOX SPACE SHOOTER — Release Script ===
+# === Huntress: Echoes from the Well — Release Script ===
 # Usage: .claude/skills/release.sh <version> <title>
 # Example: .claude/skills/release.sh 1.2.9 "Ver 1.2.9: description"
 #
@@ -25,8 +25,10 @@ fi
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SRC_DIR="$PROJECT_ROOT/v2.0.0"
 RELEASE_DIR="$SRC_DIR/Release Version"
-APP_NAME="Shooter ver${VERSION}.app"
-ZIP_NAME="Shooter ver${VERSION}.zip"
+GAME_NAME="Huntress: Echoes from the Well"
+GITHUB_REPO="Spaceshooter-game--Huntress-Echoes-from-the-Well"
+APP_NAME="${GAME_NAME} ver${VERSION}.app"
+ZIP_NAME="${GAME_NAME} ver${VERSION}.zip"
 SRC_FILE="main.cpp"
 SRC_SUBDIR="multiple code files"
 
@@ -34,7 +36,7 @@ SRC_SUBDIR="multiple code files"
 SDL_TEMP=$(mktemp -d)
 trap 'rm -rf "$SDL_TEMP"' EXIT
 SDL_LIB="$SDL_TEMP/libSDL2-2.0.0.dylib"
-RELEASE_BIN="$SDL_TEMP/shooter"
+RELEASE_BIN="$SDL_TEMP/huntress"
 unzip -p "$PROJECT_ROOT/v1.0.0/Shooter ver1.0.0.zip" \
     'Shooter ver1.0.0.app/Contents/Frameworks/libSDL2-2.0.0.dylib' > "$SDL_LIB"
 echo "=== Step 1: Compile ==="
@@ -51,17 +53,17 @@ mkdir -p "$APP_DIR/Contents/MacOS"
 mkdir -p "$APP_DIR/Contents/Frameworks"
 mkdir -p "$APP_DIR/Contents/Resources"
 
-cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/shooter"
+cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/huntress"
 # Finder 启动时 cwd 不固定：启动器进入 Resources，语音相对路径保持有效；存档放用户目录。
 cat > "$APP_DIR/Contents/MacOS/launch" <<'LAUNCH'
 #!/bin/bash
 set -e
-if [ -z "${SFSS_SAVE_DIR:-}" ]; then
-    export SFSS_SAVE_DIR="$HOME/Library/Application Support/StarFoxSpaceShooter/saves"
+if [ -z "${HUNTRESS_SAVE_DIR:-}" ]; then
+    export HUNTRESS_SAVE_DIR="$HOME/Library/Application Support/HuntressEchoesFromTheWell/saves"
 fi
-mkdir -p "$SFSS_SAVE_DIR"
+mkdir -p "$HUNTRESS_SAVE_DIR"
 cd "$(dirname "$0")/../Resources"
-exec ../MacOS/shooter "$@"
+exec ../MacOS/huntress "$@"
 LAUNCH
 chmod +x "$APP_DIR/Contents/MacOS/launch"
 if [ -d voice ]; then
@@ -79,9 +81,11 @@ cat > "$APP_DIR/Contents/Info.plist" << PLEOF
     <key>CFBundleExecutable</key>
     <string>launch</string>
     <key>CFBundleIdentifier</key>
-    <string>com.starfox.spaceshooter</string>
+    <string>com.lezheng2333.huntress-echoes-from-the-well</string>
     <key>CFBundleName</key>
-    <string>Shooter</string>
+    <string>${GAME_NAME}</string>
+    <key>CFBundleDisplayName</key>
+    <string>${GAME_NAME}</string>
     <key>CFBundleVersion</key>
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
@@ -131,4 +135,4 @@ else
     gh release create "v${VERSION}" --title "$TITLE" "$RELEASE_DIR/$ZIP_NAME"
 fi
 echo "=== Release v${VERSION} complete! ==="
-echo "URL: https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v${VERSION}"
+echo "URL: https://github.com/Lezheng2333/${GITHUB_REPO}/releases/tag/v${VERSION}"

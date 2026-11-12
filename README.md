@@ -1,6 +1,6 @@
-# STAR FOX SPACE SHOOTER
+# HUNTRESS: ECHOES FROM THE WELL
 
-> 星际火狐 极简版 — A 2D space shooting game built with C++ and SDL2.
+> Huntress: Echoes from the Well — A 2D space shooting game built with C++ and SDL2.
 
 ## Gameplay / 玩法
 
@@ -53,34 +53,35 @@ QA：游戏 `--selftest` 包含第二章 25 项回归、七段主流程与廊桥
 
 > macOS 11.0+
 
-[Download v1.2.28](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.28) (latest)
+[Download v1.2.28](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.28) (latest)
 
-[Download v1.2.27](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.27)
+[Download v1.2.27](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.27)
 
-[Download v1.2.26](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.26)
+[Download v1.2.26](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.26)
 
-[Download v1.2.25](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.25)
+[Download v1.2.25](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.25)
 
-[Download v1.2.24](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.24)
+[Download v1.2.24](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.24)
 
-[Download v1.2.23](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.23)
+[Download v1.2.23](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.23)
 
-[Download v1.2.21](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.21)
+[Download v1.2.21](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.21)
 
-[Download v1.2.20](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.20)
+[Download v1.2.20](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.20)
 
-[Download v1.2.19](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.19)
+[Download v1.2.19](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.19)
 
-[Download v1.2.18](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.18)
+[Download v1.2.18](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.18)
 
-[Download v1.2.17](https://github.com/Lezheng2333/starfox_spaceshooter/releases/tag/v1.2.17)
+[Download v1.2.17](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.17)
 
-Download the `.zip`, unzip, and run `Shooter ver1.2.28.app`.
+Download the `.zip`, unzip, and run `Huntress: Echoes from the Well ver1.2.28.app`.
 
-下载 `.zip` 后解压，直接运行 `Shooter ver1.2.28.app`。
+下载 `.zip` 后解压，直接运行 `Huntress: Echoes from the Well ver1.2.28.app`。
 
 ## What's New / 最近更新 (v1.2.28)
 
+- **品牌重构**：游戏正式更名为 **Huntress: Echoes from the Well**；开始页以 **HUNTRESS** 为主标题，`ECHOES FROM THE WELL` 作为副标题。
 - **叙事字体重制**：吸收 demo 的程序化 stroke font，章节开场旁白与角色对白正文全部改用新字体；角色名继续保持原 5×7 像素字体。
 - **无边框角色对白**：移除对话面板、外框、切角、光标和装饰标签，只保留角色名与发言正文，并用低透明度文字阴影保证可读性。
 - **菜单视觉统一**：标题、章节、OPTIONS、SOUND、暂停、存读档、GAME OVER、MISSION COMPLETE 与章前旁白统一为切角熏黑玻璃 HUD；加入冷色渐变、细扫描纹理、双层细轮廓和双层角线，移除所有装饰性小字。
@@ -120,10 +121,9 @@ Requires SDL2: `brew install sdl2`
 ├── README.md
 ├── DEVELOPMENT_LOG.md
 ├── CLAUDE.md
-├── v1.0.0/                                            # v1.0.0 稳定归档
+├── v1.0.0/                                            # v1.0.0 历史归档（保留旧发布名）
 │   ├── space_shooting ver1.0.0.cpp
-│   ├── Shooter ver1.0.0.app/
-│   └── Shooter ver1.0.0.zip
+│   └── 历史 .app/.zip 构建产物
 └── v2.0.0/                                            # 当前开发主线 (v1.2.28)
     ├── multiple code files/                            # ★ 当前开发源码（多文件架构）
     │   ├── main.cpp                                    # 入口 + #include 所有头文件
@@ -147,29 +147,8 @@ Requires SDL2: `brew install sdl2`
     ├── space_shooting ver1.2.20 single-file archive.cpp # v1.2.20 单文件存档
     ├── space_shooting ver2.0.0 deprecated.cpp           # 原始代码 (已废弃)
     └── Release Version/                                 # 发布版本
-        ├── Shooter ver1.1.0.app/ + .zip                 # v1.1.0
-        ├── Shooter ver1.2.2.app/ + .zip                 # v1.2.2
-        ├── Shooter ver1.2.4.app/ + .zip                 # v1.2.4
-        ├── Shooter ver1.2.5.app/ + .zip                 # v1.2.5
-        ├── Shooter ver1.2.7.app/ + .zip                 # v1.2.7
-        ├── Shooter ver1.2.8.app/ + .zip                 # v1.2.8
-        ├── Shooter ver1.2.9.app/ + .zip                 # v1.2.9
-        ├── Shooter ver1.2.10.app/ + .zip                # v1.2.10
-        ├── Shooter ver1.2.11.app/ + .zip                # v1.2.11
-        ├── Shooter ver1.2.14.app/ + .zip                # v1.2.14
-        ├── Shooter ver1.2.15.app/ + .zip                # v1.2.15
-        ├── Shooter ver1.2.16.app/ + .zip                # v1.2.16
-        ├── Shooter ver1.2.17.app/ + .zip                # v1.2.17
-        ├── Shooter ver1.2.18.app/ + .zip                # v1.2.18
-        ├── Shooter ver1.2.19.app/ + .zip                # v1.2.19
-        ├── Shooter ver1.2.20.app/ + .zip                # v1.2.20
-        ├── Shooter ver1.2.21.app/ + .zip                # v1.2.21
-        ├── Shooter ver1.2.23.app/ + .zip                # v1.2.23
-        ├── Shooter ver1.2.24.app/ + .zip                # v1.2.24
-        ├── Shooter ver1.2.25.app/ + .zip                # v1.2.25
-        ├── Shooter ver1.2.26.app/ + .zip                # v1.2.26
-        ├── Shooter ver1.2.27.app/ + .zip                # v1.2.27
-        └── Shooter ver1.2.28.app/ + .zip                # v1.2.28 (最新)
+        ├── 历史 .app/.zip（保留发布时的旧名称）          # v1.1.0 → v1.2.27
+        └── Huntress: Echoes from the Well ver1.2.28.app/ + .zip  # 当前版本
 ```
 
 ## License

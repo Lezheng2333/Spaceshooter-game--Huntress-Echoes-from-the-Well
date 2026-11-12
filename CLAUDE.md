@@ -1,4 +1,4 @@
-# STAR FOX SPACE SHOOTER — Claude Code 备忘录
+# HUNTRESS: ECHOES FROM THE WELL — Claude Code 备忘录
 
 ## 项目信息
 
@@ -22,7 +22,7 @@
   ./shooter --mknodes    # 生成/刷新 34 个节点存档到 saves/（替代旧 TEST 模式的跳关）
   ```
 - **SDL2 安装**：`brew install sdl2`
-- **GitHub 仓库**：`Lezheng2333/starfox_spaceshooter`
+- **GitHub 仓库**：`Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well`
 
 ## 配套工具：Asset Studio 素材工坊
 
@@ -56,7 +56,7 @@
 - **当前发布版本 v1.2.28：叙事/菜单视觉重制 + 门禁深空背景 + 战斗能量与 Warden 难度调整（2026-11-10）**
   - 第一章 BGM 已移植 demo 的 92 BPM CH1 / 132 BPM Boss 乐句与三层强度；打字机、基地光波、Ch2 球体/碎片/Warden/技能球细节音已重做
   - 玩法、碰撞、输入、生成、流程状态机未改；未新增存档字段，SAVE_FORMAT_VERSION 不变
-  - 发布包：`v2.0.0/Release Version/Shooter ver1.2.28.app` + `.zip`；Asset Studio v0.1.3
+  - 发布包：`v2.0.0/Release Version/Huntress: Echoes from the Well ver1.2.28.app` + `.zip`；Asset Studio v0.1.3
   - v1.2.28 内容：吸收 demo stroke font 用于旁白/对白正文；游戏内角色对白去掉文本框，角色名继续用像素字体；全部菜单/章前旁白面板统一为无装饰小字的切角玻璃 HUD 风格；第二章门禁新增独立全屏深空背景，第一/二章星光密度与闪烁强度整体降噪；NightElf 直接命中 +2 能量、摧毁敌弹 +1 能量，白条上限 100；Pulse 释放回复 1 HP；技能球吸收 SHIFT 呼吸提示 + 获得技能后的暂停说明弹窗；玩家血量改为像素爱心；Warden 弹幕密度降低约 20%
 - **2026-11-07 v1.2.25 音频优化**：BGM/音效继续使用纯代码实时合成；三套乐谱安全淡变、流程强度分层、对白 ducking、48 声部与柔性限幅已接入，`--selftest` 包含音频渲染压力巡检。
 - **2026-11-07 v1.2.25 第二章门禁演出升级**：真空大门改为分层硬表面（装甲带/倒角八边形门洞/门柱肩部/夹具/状态灯柱），扫描与开门重做（重启灯柱、红束断续充能锁定、验证转绿、夹具解锁+门板缓动、纵深通道）；动画全部由既有存档字段推导，存档格式未变。
@@ -240,8 +240,8 @@ main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --s
     payload 首部是 SaveMeta 摘要（章节/分数/血量/流程段落/时间），列表只读摘要
   - 槽位：AUTO + SLOT 1-6；另可进入游戏内文件浏览器自由读档 / 另存为任意路径
   - 自动存档点：每章开始 + Ch2 每次 `enterCh2Flow()` 段落切换（结局段除外）
-  - 存档目录 ./saves/，不可写回退 ~/Library/Application Support/StarFoxSpaceShooter/saves/，
-    环境变量 SFSS_SAVE_DIR 可强制指定（--selftest 用它写到 /tmp）
+  - 存档目录 ./saves/，不可写回退 ~/Library/Application Support/HuntressEchoesFromTheWell/saves/，
+    环境变量 HUNTRESS_SAVE_DIR 可强制指定（兼容旧 SFSS_SAVE_DIR；--selftest 用它写到 /tmp）
   - 布局规则：改动 serializeAll 字段顺序/类型必须 +1 SAVE_FORMAT_VERSION（只按格式版本拒绝旧档）
 - **节点存档生成器（--mknodes，Ver 1.2.23 补充）**：TEST 模式跳关功能的替代方案，
   把 34 个测试节点直接生成为存档文件（saves/nXX_*.sav），读档即等于跳到该节点

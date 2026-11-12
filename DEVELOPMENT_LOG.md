@@ -1,5 +1,5 @@
 ================================================================
-  SPACE SHOOTER — 开发日志
+  HUNTRESS: ECHOES FROM THE WELL — 开发日志
 
 ================================================================
 
@@ -241,7 +241,7 @@ Ver 0.0.1 | 2026-05-06
 
     - 烟花 2 秒后淡入结束画面
 
-    - 结束标题："STAR FOX SPACE SHOOTER"
+    - 结束标题："HUNTRESS: ECHOES FROM THE WELL"
 
     - BUGFIX: Boss 血条见底游戏不结束修复
 
@@ -271,9 +271,9 @@ Ver 0.0.1 | 2026-05-06
 
     - 新增 12 个字符：/ - + . b d h j k w z
 
-    - 窗口标题："星际火狐 极简版"
+    - 窗口标题："Huntress: Echoes from the Well"
 
-    - 游戏内标题："STAR FOX SPACE SHOOTER"
+    - 游戏内标题："HUNTRESS: ECHOES FROM THE WELL"
 
     - 暂停页面/Option 缺失字母补全
 
@@ -309,7 +309,7 @@ Ver 0.0.1 | 2026-05-06
   Ver 1.0.0 | 2026-05-09
   v0.x.x 全部内容的稳定归档
   源代码：space_shooting ver1.0.0.cpp
-  封装：Shooter ver1.0.0.app / Shooter ver1.0.0.zip
+  封装：Huntress: Echoes from the Well ver1.0.0.app / Huntress: Echoes from the Well ver1.0.0.zip
   最低系统要求：macOS 11.0
 
 ================================================================
@@ -441,7 +441,7 @@ Ver 1.0.1 | 2026-05-08
 
     - 代码文件：space_shooting ver2.0.0 developing.cpp
 
-    - 封装：Shooter ver1.1.0.app / Shooter ver1.1.0.zip
+    - 封装：Huntress: Echoes from the Well ver1.1.0.app / Huntress: Echoes from the Well ver1.1.0.zip
 
     - macOS 11.0+ (Apple Silicon 原生)
 
@@ -1247,9 +1247,9 @@ Ver 1.0.1 | 2026-05-08
       （旁白阻塞结束后才落盘；结局段落不覆盖 AUTO 槽）
 
     - 存档位置：优先 ./saves/（开发时在可执行文件旁，与 voice/ 同级），
-      不可写则自动回退 ~/Library/Application Support/StarFoxSpaceShooter/saves/
+      不可写则自动回退 ~/Library/Application Support/HuntressEchoesFromTheWell/saves/
       （发布成 .app 后从 Finder 启动时 cwd=/，且写进 bundle 会破坏签名）；
-      环境变量 SFSS_SAVE_DIR 可强制指定
+      环境变量 HUNTRESS_SAVE_DIR 可强制指定（兼容旧 SFSS_SAVE_DIR）
 
     - OPTIONS 设置持久化：瞄准辅助 / VOICE LANG / BGM·SFX 音量 / 三段 EQ 存入
       saves/settings.dat，改动即落盘，退出前再存一次，启动时自动恢复
@@ -1600,7 +1600,7 @@ Ver 1.0.1 | 2026-05-08
     - 回归：make -Wall -Wextra 零警告；--selftest 全绿（Ch1/Ch2/Boss/Title 音频巡检、
       48 声部限幅、4 个存档场景 frame=OK、第二章 25 项流程）；Asset Studio --verify-all 78/78
 
-    - 发布：Release Version/Shooter ver1.2.27.app + Shooter ver1.2.27.zip；
+    - 发布：Release Version/Huntress: Echoes from the Well ver1.2.27.app + Huntress: Echoes from the Well ver1.2.27.zip；
       Info.plist 1.2.27、内置 SDL2 dylib、183 个语音资源、ad-hoc codesign；解压包内重新运行 selftest PASS
 
   Ver 1.2.28（已发布） | 2026-11-10 | 叙事字体吸收 + 无边框角色对白
@@ -1704,7 +1704,7 @@ Ver 1.0.1 | 2026-05-08
       第二章 25 项全 PASS）；Asset Studio --verify-all 78/78；单元测试 4/4
 
   Ver 1.2.28 | 2026-11-10 | 正式发布
-    - 发布产物：v2.0.0/Release Version/Shooter ver1.2.28.app + Shooter ver1.2.28.zip
+    - 发布产物：v2.0.0/Release Version/Huntress: Echoes from the Well ver1.2.28.app + Huntress: Echoes from the Well ver1.2.28.zip
     - Info.plist 1.2.28、游戏内版本 1.2.28、SAVE_GAME_VERSION 10228；SAVE_FORMAT_VERSION 保持 1
     - 包内含 arm64 主程序、内置 SDL2 dylib、183 个语音资源；ad-hoc codesign 验证通过
     - 解压 zip 后重新执行 --selftest：RESULT PASS，4 个场景 frame=OK / maxdiff=0
@@ -1749,3 +1749,12 @@ Ver 1.0.1 | 2026-05-08
       同步更新 README、流程 TXT 与发布说明中的能量描述。
     - Pulse 清弹不回能修正后的 v1.2.28 zip SHA-256：
       352ade69fa6cf04e1dbe54fc59ff6735c0b3fcca956641e8f16f4d48f54ab573
+
+----------------------------------------------------------------
+
+  Ver 1.2.28 | 2026-11-12 | 品牌重构与重新封装
+    - 游戏正式更名为 Huntress: Echoes from the Well
+    - 开始页重新排版：HUNTRESS 作为唯一主标题（scale 7），ECHOES FROM THE WELL 作为副标题（scale 3，无前导冒号）
+    - 窗口标题、节点存档说明、设计文档、README、发布脚本、Bundle 标识与分发 App 名称同步更新
+    - 重新封装 v1.2.28：Huntress: Echoes from the Well ver1.2.28.app + zip（ad-hoc codesign 通过，--selftest PASS）
+    - SAVE_FORMAT_VERSION 与存档 magic 保持不变，已有存档继续兼容

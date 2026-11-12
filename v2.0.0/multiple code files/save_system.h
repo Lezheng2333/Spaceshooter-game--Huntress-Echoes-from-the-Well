@@ -213,16 +213,17 @@ public:
     static std::string appSupportDir() {
         const char* home = getenv("HOME");
         std::string base = home ? std::string(home) : std::string(".");
-        return base + "/Library/Application Support/StarFoxSpaceShooter";
+        return base + "/Library/Application Support/HuntressEchoesFromTheWell";
     }
 
     // 存档根目录：优先 ./saves（开发时在可执行文件旁），不可写则回退 Application Support
     // （发布成 .app 后从 Finder / DMG 启动时 cwd=/，且写进 bundle 会破坏签名）
-    // 环境变量 SFSS_SAVE_DIR 可强制指定（--selftest 用它把存档写进临时目录，避免污染玩家存档）
+    // 环境变量 HUNTRESS_SAVE_DIR 可强制指定（兼容旧 SFSS_SAVE_DIR；--selftest 用它把存档写进临时目录，避免污染玩家存档）
     static const std::string& baseDir() {
         static std::string cached;
         if (!cached.empty()) return cached;
-        const char* forced = getenv("SFSS_SAVE_DIR");
+        const char* forced = getenv("HUNTRESS_SAVE_DIR");
+        if (!forced || !forced[0]) forced = getenv("SFSS_SAVE_DIR");  // 旧版兼容
         if (forced && forced[0]) {
             std::string dir = forced;
             ensureDir(dir);

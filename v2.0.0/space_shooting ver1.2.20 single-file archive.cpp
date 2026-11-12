@@ -4813,8 +4813,8 @@ private:
         renderer.setColor(0, 0, 0); renderer.clear();
         if (background) background->drawStarsFullscreen(r);
 
-        font.drawString(r, "STAR FOX", CENTER_X - 96, 70, 4);
-        font.drawString(r, "SPACE SHOOTER", CENTER_X - 117, 120, 3);
+        font.drawString(r, "HUNTRESS", CENTER_X - 96, 70, 4);
+        font.drawString(r, "ECHOES FROM THE WELL", CENTER_X - 117, 120, 3);
         SDL_SetRenderDrawColor(r, 100, 100, 100, 255);
         SDL_RenderDrawLine(r, CENTER_X - 200, 140, CENTER_X + 200, 140);
         SDL_RenderDrawLine(r, CENTER_X - 200, 142, CENTER_X + 200, 142);
@@ -6615,7 +6615,7 @@ int main() {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("星际火狐 极简版",
+    SDL_Window* window = SDL_CreateWindow("Huntress: Echoes from the Well",
                                           SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED,
                                           WIN_WIDTH, WIN_HEIGHT,

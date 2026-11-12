@@ -1,5 +1,10 @@
 #pragma once
 
+// ============== 游戏标题 ==============
+static const char* GAME_TITLE = "Huntress: Echoes from the Well";
+static const char* GAME_TITLE_MAIN = "HUNTRESS";
+static const char* GAME_TITLE_SUBTITLE = "ECHOES FROM THE WELL";
+
 // ============== 窗口 & 透视常量 ==============
 const int WIN_WIDTH = 800;
 const int WIN_HEIGHT = 600;

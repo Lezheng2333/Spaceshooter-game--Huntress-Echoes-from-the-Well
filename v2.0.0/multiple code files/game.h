@@ -1744,7 +1744,7 @@ public:
         SaveSystem::ensureDir(dir);
         const NodeDef* table = nodeTable();
         std::string readme;
-        readme += "STAR FOX SPACE SHOOTER — 节点存档说明\n";
+        readme += std::string(GAME_TITLE) + " — 节点存档说明\n";
         readme += "=====================================\n\n";
         readme += "这些存档由 ./shooter --mknodes 自动生成，等价于以前的 TEST 模式跳关，\n";
         readme += "但状态是完整合法的（含飞行中的子弹/敌人/对话进度）。\n\n";
@@ -1903,14 +1903,22 @@ private:
         // 顶部/底部仪器框：给极简标题画面一个"驾驶舱终端"的舞台。
         ArtFX::bracket(r, 30, 24, WIN_WIDTH - 60, WIN_HEIGHT - 48, 26, 72, 190, 116, 120);
 
-        // 标题：深色投影 + 双层荧光，形成明确的视觉中心。
-        int titleW = 8 * 6 * 5;
+        // 标题：HUNTRESS 作为唯一主标题，放大到 scale 7；冒号与副标题
+        // 作为次级信息居中排列，避免新旧两行标题势均力敌。
+        int titleW = (int)strlen(GAME_TITLE_MAIN) * 6 * 7;
         int titleX = CENTER_X - titleW / 2;
-        font.drawStringColor(r, "STAR FOX", titleX + 3, 61, 5, 14, 56, 39, 220);
-        font.drawStringColor(r, "STAR FOX", titleX, 58, 5, 232, 248, 238, 255);
-        int subW = 13 * 6 * 3;
+        font.drawStringColor(r, GAME_TITLE_MAIN, titleX + 4, 62, 7, 8, 45, 31, 220);
+        font.drawStringColor(r, GAME_TITLE_MAIN, titleX, 58, 7, 232, 255, 241, 255);
+
+        int subW = (int)strlen(GAME_TITLE_SUBTITLE) * 6 * 3;
         int subX = CENTER_X - subW / 2;
-        font.drawStringColor(r, "SPACE SHOOTER", subX, 116, 3, 184, 255, 207, 235);
+        font.drawStringColor(r, GAME_TITLE_SUBTITLE, subX + 2, 121, 3, 10, 30, 24, 200);
+        font.drawStringColor(r, GAME_TITLE_SUBTITLE, subX, 118, 3, 176, 255, 211, 240);
+
+        // 主标题两侧短刻线，强化 HUNTRESS 的视觉层级。
+        SDL_SetRenderDrawColor(r, 71, 208, 136, 150);
+        SDL_RenderDrawLine(r, titleX - 36, 83, titleX - 12, 83);
+        SDL_RenderDrawLine(r, titleX + titleW + 12, 83, titleX + titleW + 36, 83);
 
         // 分隔线中央留一个菱形准星。
         SDL_SetRenderDrawColor(r, 54, 168, 108, 180);

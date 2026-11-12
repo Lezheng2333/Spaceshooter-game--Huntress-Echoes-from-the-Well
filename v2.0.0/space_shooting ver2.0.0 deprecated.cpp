@@ -549,7 +549,7 @@ int main(int argc, char* argv[]) {
         SDL_Log("SDL_Init Error: %s", SDL_GetError());
         return 1;
     }
-    SDL_Window* window = SDL_CreateWindow("星际火狐 极简版",
+    SDL_Window* window = SDL_CreateWindow("Huntress: Echoes from the Well",
                                           SDL_WINDOWPOS_CENTERED,
                                           SDL_WINDOWPOS_CENTERED,
                                           WIN_WIDTH, WIN_HEIGHT,
@@ -1890,8 +1890,8 @@ void drawGameOver() {
 
 // ============== 开始界面 ==============
 void drawStartScreen() {
-    drawString("STAR FOX", CENTER_X - 96, 70, 4);
-    drawString("SPACE SHOOTER", CENTER_X - 117, 120, 3);
+    drawString("HUNTRESS", CENTER_X - 96, 70, 4);
+    drawString("ECHOES FROM THE WELL", CENTER_X - 117, 120, 3);
     // 装饰线
     SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
     SDL_RenderDrawLine(renderer, CENTER_X - 200, 140, CENTER_X + 200, 140);
