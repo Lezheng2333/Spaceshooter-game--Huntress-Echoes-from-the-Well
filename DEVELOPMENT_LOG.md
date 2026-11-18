@@ -1834,3 +1834,12 @@ Ver 1.0.1 | 2026-05-08
     - 版本号：开始页 Ver 1.2.28 → 1.2.29；SAVE_GAME_VERSION 10228 → 10229（仅显示，SAVE_FORMAT_VERSION 不变，旧存档兼容）
 
     - 验证：make -Wall -Wextra 零警告；./shooter --selftest RESULT PASS；图标 .icns 10 个 rep 回读通过；macOS squircle alpha bbox = (100,100,924,924)；发布包 Huntress: Echoes from the Well ver1.2.29.app + .zip
+
+----------------------------------------------------------------
+
+  Ver 1.2.29 (补充) | 2026-11-18 | Windows 构建指南 + Windows 图标
+    - 官方发布仍只提供 macOS .app；新增 docs/BUILD_WINDOWS.md：MSYS2 UCRT64 + SDL2 编译、窗口/控制台双构建、Huntress.ico 嵌入、SDL2.dll/voice/ 打包、便携存档 .bat、--selftest 验收、MSVC 移植注意与 AI-agent checklist
+
+    - 新增 art/icon/huntress/Huntress.ico（16–256 共 7 个尺寸）；README 平台说明 / 下载区 / 编译区 / 项目结构 / 图标说明同步补充 Windows 入口
+
+    - 未改游戏源码、存档格式、版本号或已发布 v1.2.29 安装包；本次仅文档与 Windows 图标资产，推送 main

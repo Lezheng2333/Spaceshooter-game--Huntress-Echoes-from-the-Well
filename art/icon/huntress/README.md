@@ -72,6 +72,7 @@ art/icon/huntress/
 ├── huntress_icon.html                可编辑源文件
 ├── huntress_icon_1024.png            1024 方形原稿
 ├── Huntress.icns                     macOS 图标
+├── Huntress.ico                      Windows 图标（7 个尺寸）
 ├── preview/
 │   ├── Huntress_presentation.png     设计板
 │   ├── Huntress_mac_1024.png         macOS squircle

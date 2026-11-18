@@ -23,6 +23,7 @@
   ```
 - **SDL2 安装**：`brew install sdl2`
 - **GitHub 仓库**：`Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well`
+- **平台发布**：官方只发布 macOS `.app`；Windows 无官方二进制，构建指南在 `docs/BUILD_WINDOWS.md`（MSYS2 MinGW-w64 + SDL2），`art/icon/huntress/Huntress.ico` 供 Windows 构建嵌入
 
 ## 配套工具：Asset Studio 素材工坊
 

@@ -26,7 +26,8 @@
 |---|---|
 | **Genre** | 2D / 2.5D vector space shooter |
 | **Chapters** | I — FIRST FLIGHT · II — DEEP SPACE / MOONWELL |
-| **Platform** | macOS 11.0+ (native `.app`; rebuild from source for another architecture) |
+| **Official binary** | macOS 11.0+ (native arm64 `.app`) |
+| **Windows** | **No official `.exe`** — build from source; see [docs/BUILD_WINDOWS.md](docs/BUILD_WINDOWS.md) |
 | **Rendering** | SDL2 primitives, wireframe ships, CRT scanlines, cut-corner glass HUD |
 | **Audio** | 100% procedural — synth BGM + synthesized SFX + bilingual voice-over |
 | **Save system** | pause-save / load the exact frame / AUTO + SLOT 1–6 / free file browser |
@@ -93,7 +94,7 @@
   </tr>
 </table>
 
-- Icon file: [`art/icon/huntress/Huntress.icns`](art/icon/huntress/Huntress.icns)
+- Icon files: [`Huntress.icns`](art/icon/huntress/Huntress.icns) for macOS · [`Huntress.ico`](art/icon/huntress/Huntress.ico) for Windows builds
 - Editable source: [`art/icon/huntress/huntress_icon.html`](art/icon/huntress/huntress_icon.html)
 - Preview set: [`art/icon/huntress/preview/`](art/icon/huntress/preview/)
 
@@ -137,7 +138,14 @@
 
 ## Download / 下载
 
-> macOS 11.0+ · native build (rebuild from source for another architecture)
+> macOS 11.0+ · native arm64 build (rebuild from source for another architecture)
+
+### Windows / 非官方 Windows 构建
+
+There is **no official Windows binary** — the maintainer develops on macOS. Windows players can build the game themselves, or hand this guide to a Windows AI agent:
+
+- **Quick start**: install MSYS2 (UCRT64) + `mingw-w64-ucrt-x86_64-gcc` + `mingw-w64-ucrt-x86_64-SDL2`, then compile `main.cpp`.
+- **Full step-by-step guide**: [`docs/BUILD_WINDOWS.md`](docs/BUILD_WINDOWS.md) — build, embed `Huntress.ico`, package `SDL2.dll`, portable save folder, voice assets, `--selftest`, MSVC portability notes and an AI-agent checklist.
 
 **[Download v1.2.29](https://github.com/Lezheng2333/Spaceshooter-game--Huntress-Echoes-from-the-Well/releases/tag/v1.2.29) — latest**
 
@@ -180,7 +188,20 @@ cd "v2.0.0/multiple code files" && clang++ -std=c++11 \
   -D_THREAD_SAFE main.cpp -o shooter -L/opt/homebrew/lib -lSDL2
 ```
 
-Developer commands:
+### Windows (unofficial, source build)
+
+There is no prebuilt `.exe`. Use **MSYS2 UCRT64** and follow [`docs/BUILD_WINDOWS.md`](docs/BUILD_WINDOWS.md). Quick compile:
+
+```bash
+cd "v2.0.0/multiple code files"
+g++ -std=c++11 -O2 -Wall -Wextra main.cpp -o Huntress.exe \
+  -I/ucrt64/include/SDL2 -L/ucrt64/lib \
+  -lmingw32 -lSDL2main -lSDL2 -mwindows
+```
+
+Package `Huntress.exe` + `SDL2.dll` + `voice/` (optional) + `Huntress.ico`; full packaging, AI-agent checklist and MSVC porting notes are in the guide.
+
+### Developer commands (macOS)
 
 ```bash
 ./shooter              # normal play / 正常游玩
@@ -231,9 +252,10 @@ Features: command palette (⌘K), favorites/recent, frame timeline, real wavefor
 ├── DEVELOPMENT_LOG.md
 ├── CLAUDE.md
 ├── art/
-│   ├── icon/huntress/          # v1.2.29 app icon + Editable HTML + .icns + preview
+│   ├── icon/huntress/          # app icon + Editable HTML + .icns + .ico + preview
 │   ├── posters/                # pixel ship posters
 │   └── readme/                 # README hero, chapter posters, real screenshots
+├── docs/BUILD_WINDOWS.md        # unofficial Windows source-build guide
 ├── v1.0.0/                     # historical archive
 └── v2.0.0/                     # current mainline (v1.2.29)
     ├── multiple code files/    # C++ source (34 headers + main.cpp)
