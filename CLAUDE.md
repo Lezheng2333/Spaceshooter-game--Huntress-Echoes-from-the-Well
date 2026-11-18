@@ -3,7 +3,7 @@
 ## 项目信息
 
 - **语言**：C++11, SDL2
-- **源码**：`v2.0.0/multiple code files/`（33 个头文件 + 1 个 main.cpp = 34 个文件）\
+- **源码**：`v2.0.0/multiple code files/`（34 个头文件 + 1 个 main.cpp = 35 个文件）\
   旧单文件存档：`v2.0.0/space_shooting ver1.2.20 single-file archive.cpp`
 - **编译命令**：
   ```bash
@@ -32,13 +32,17 @@
   ```bash
   tools/asset_studio/studio.sh
   ```
-- **用途**：浏览 / 预览 / 创作游戏全部美术素材（47 个），
+- **用途**：浏览 / 预览 / 创作游戏全部美术素材（50 个）与 BGM / 音效（57 个），
   补回 TEST 模式退役后失去的"素材草稿箱"；存档系统管"从任意节点测玩法"，工坊管"做素材"
+- **画廊 0.2.4（2026-11-18）**：视觉全面重制 + 交互补全，NightElf 定稿 / 训练机·雨燕 / 训练机升级·狮鹫 / 树妖 / 德鲁伊·幽光已入册 —— 命令面板（⌘K）、收藏/最近、
+  逐帧时间轴（`--frame`）、真实波形（`/api/waveform`）、钉住对比、深链分享、
+  零件关系、缓存管理、快捷键；新增 `tests/ui_smoke.py` 无头浏览器 UI 冒烟（`make ui`）
 - **常用命令**：
   ```bash
   cd tools/asset_studio
-  ./assetstudio --verify-all          # 批量自检（所有素材 × 所有状态）
-  python3 registry/scanner.py         # 未登记检查（源码绘制入口 vs 注册表）
+  ./assetstudio --verify-all          # 批量自检（所有图片素材 × 所有状态）
+  ./audiopreview --verify-all         # 批量自检（5 条 BGM + 52 个 SFX 导出）
+  python3 registry/scanner.py         # 未登记检查（绘制 + snd* 音频入口 vs 注册表）
   make server                         # 编译 + 起服务
   ```
 - **文档**：`SPEC.md`（设计与建设过程中的发现）、`DEVELOPMENT_LOG.md`（独立开发日志，从 0.1.0 起）
@@ -53,10 +57,18 @@
 ## 当前开发状态
 
 ### 当前焦点
-- **当前发布版本 v1.2.28：叙事/菜单视觉重制 + 门禁深空背景 + 战斗能量与 Warden 难度调整（2026-11-10）**
+- **2026-11-18 训练机定稿**：默认采用 B 方案「雨燕」（第一章透视 / 第二章侧滚共用一张平面图），D 方案「训练机升级·狮鹫」作为休眠资产 TrainerUpgrade 保留；碰撞盒改为机身中段胶囊（训练机 8/9/4、暗夜精灵 12/22/5），翼尖/长机鼻尖端不再吃弹；素材工坊 0.2.4（总数 107）
+- **2026-11-18 NightElf 机体定稿**：采用评审 C 案（大后掠翼 + 翼尖双发 + 中央主发），名称仍为暗夜精灵；新增休眠资产 Dryad（树妖）与 DruidWraithlight（德鲁伊·幽光），原版 Druid 不动；素材工坊 0.2.2 时期已入册
+- **当前发布版本 v1.2.29：新版 macOS App 图标 + README 视觉化 + 发布流程图标化（2026-11-18）**
+  - App 图标定稿：`art/icon/huntress/Huntress.icns`（02 Echo Array，香槟金中央色块，1024 画布 / 824 内容区 / 185.4 圆角 / 10 个尺寸 rep）；`art/icon/huntress/preview/` 含 macOS 预览、Dock、明暗/小尺寸设计板
+  - 发布脚本 `.claude/skills/release.sh` 已内置：把 `Huntress.icns` 拷进 `Contents/Resources/`、写 `CFBundleIconFile`、校验 .icns 后再签名；`--package-only` 也会带上图标
+  - README 全面视觉化：`art/readme/` 下的实际游戏截图（Ch1 Telamondo / Ch2 gate/sphere/upgrade/Warden / 开始页）、两张新绘构成主义海报（First Flight / Moonwell）、既有像素海报放大版、图标设计板与 Dock
+  - v1.2.29 游戏内容：NightElf 换机金色演出 + 专属 BGM/音效 + 新机体说明卡、NightElf 5 HP、Warden 500 HP；训练机「雨燕」定稿与休眠狮鹫、命中胶囊碰撞盒；素材工坊 107 项
+  - 发布包：`v2.0.0/Release Version/Huntress: Echoes from the Well ver1.2.29.app` + `.zip`
+- **v1.2.28**：叙事/菜单视觉重制 + 门禁深空背景 + 战斗能量与 Warden 难度调整（历史发布，2026-11-10）
   - 第一章 BGM 已移植 demo 的 92 BPM CH1 / 132 BPM Boss 乐句与三层强度；打字机、基地光波、Ch2 球体/碎片/Warden/技能球细节音已重做
   - 玩法、碰撞、输入、生成、流程状态机未改；未新增存档字段，SAVE_FORMAT_VERSION 不变
-  - 发布包：`v2.0.0/Release Version/Huntress: Echoes from the Well ver1.2.28.app` + `.zip`；Asset Studio v0.1.3
+  - 发布包：`v2.0.0/Release Version/Huntress: Echoes from the Well ver1.2.28.app` + `.zip`；Asset Studio v0.2.0（BGM / 音效已进入素材画廊；0.2 重制视觉 + 逐帧/波形/对比/深链等工作流）
   - v1.2.28 内容：吸收 demo stroke font 用于旁白/对白正文；游戏内角色对白去掉文本框，角色名继续用像素字体；全部菜单/章前旁白面板统一为无装饰小字的切角玻璃 HUD 风格；第二章门禁新增独立全屏深空背景，第一/二章星光密度与闪烁强度整体降噪；NightElf 直接命中 +2 能量、摧毁敌弹 +1 能量，白条上限 100；Pulse 释放回复 1 HP；技能球吸收 SHIFT 呼吸提示 + 获得技能后的暂停说明弹窗；玩家血量改为像素爱心；Warden 弹幕密度降低约 20%
 - **2026-11-07 v1.2.25 音频优化**：BGM/音效继续使用纯代码实时合成；三套乐谱安全淡变、流程强度分层、对白 ducking、48 声部与柔性限幅已接入，`--selftest` 包含音频渲染压力巡检。
 - **2026-11-07 v1.2.25 第二章门禁演出升级**：真空大门改为分层硬表面（装甲带/倒角八边形门洞/门柱肩部/夹具/状态灯柱），扫描与开门重做（重启灯柱、红束断续充能锁定、验证转绿、夹具解锁+门板缓动、纵深通道）；动画全部由既有存档字段推导，存档格式未变。
@@ -117,7 +129,7 @@
 
 ## 代码规范
 
-- 多文件架构：33 个头文件（全部 `#pragma once`）+ 1 个 `main.cpp`
+- 多文件架构：34 个头文件（全部 `#pragma once`）+ 1 个 `main.cpp`
 - 每个文件对应一个系统/类，文件即文档
 - 全部实现内联在头文件中（单翻译单元编译，无 .cpp 对应文件除了 main.cpp）
 - OOP 设计：组合优于继承，静态方法替代虚函数
@@ -130,7 +142,8 @@
   audio.h  = AudioEngine         floating_text.h = FloatingTextManager
   dialogue.h = DialogueHistory + DialogueSystem + drawTextLine
   narration.h = NarrationSystem  particles.h = ParticleManager
-  aim_assist.h = AimAssist       player.h = Player + 全部4架子机
+  aim_assist.h = AimAssist       player.h = Player + 7 架子机（4 休眠）
+  ship_art.h = 舰船共用画笔 + NightElf/雨燕/狮鹫/树妖/德鲁伊·幽光绘制
   bullets.h = BulletManager      chapter_manager.h = ChapterManager
   ui.h = UIRenderer + MenuStateMachine + MenuKeys
   save_system.h = SaveArchive + SaveMeta + SaveSystem + FileBrowser + GameSettings（存档格式/IO/设置）
@@ -150,7 +163,7 @@
 main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --selftest / --mknodes 参数解析）
 ```
 
-### 根目录: 共享基础 (19 files)
+### 根目录: 共享基础 (20 files)
 
 | 文件 | 行数 | 内容 |
 |------|------|------|
@@ -164,7 +177,8 @@ main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --s
 | `narration.h` | 157 | NarrationSystem — 中心开幕旁白 |
 | `particles.h` | 140 | ParticleManager — 粒子特效管理 |
 | `aim_assist.h` | 43 | AimAssist — 瞄准辅助组件 |
-| `player.h` | 299 | Player + TrainingPlane + Ch2Trainer + NightElf + Druid[DORMANT] |
+| `player.h` | 328 | Player + TrainingPlane + Ch2Trainer + NightElf + TrainerUpgrade + Druid/Dryad/DruidWraithlight[DORMANT] |
+| `ship_art.h` | 600 | ShipArt::Pen + TrainerView + paintNightElf / paintSwift / paintGryphon / paintDryad / paintDruidWraithlight |
 | `bullets.h` | 192 | BulletManager — addBullet/addBulletSideScrollAt/update/draw |
 | `chapter_manager.h` | 70 | ChapterManager — 章节配置/解锁/切换 |
 | `ui.h` | 185 | UIRenderer + MenuStateMachine + MenuKeys |
@@ -202,7 +216,10 @@ main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --s
 
 | 资产 | 文件 | 激活条件 |
 |------|------|------|
-| Druid | player.h | Chapter 3 开发时激活 |
+| Druid | player.h | Chapter 3 开发时激活（原版保留） |
+| Dryad（树妖） | player.h | 休眠，第三章候选 |
+| DruidWraithlight（德鲁伊·幽光） | player.h | 休眠，原版 Druid 迭代 |
+| TrainerUpgrade（训练机升级·狮鹫） | player.h | 休眠，训练机后续升级 |
 | setStartBgm() | audio.h | 开始画面专属 BGM 设计完成后 |
 | TEST 测试模式（updateTestScreen/drawTestScreen + 预设状态跳转） | game.h | 命令行 `./shooter --test`（主菜单才显示 TEST 项） |
 
@@ -279,6 +296,7 @@ main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --s
 
 每次发布新版本时，按以下步骤操作：
 
+0. **App 图标**：确认 `art/icon/huntress/Huntress.icns` 为当前定稿；发布脚本会复制进 `Contents/Resources/` 并写 `CFBundleIconFile`
 1. **开发日志**：在 `DEVELOPMENT_LOG.md` 末尾写入新版本条目（格式参照已有条目）
 2. **源码版本号**：修改 `font.drawString(r, "Ver X.X.X", ...)` 中的版本号
 3. **README 更新**：
@@ -289,7 +307,7 @@ main.cpp            (82 lines)  #include 所有头文件 + main()（--test / --s
    ```bash
    .claude/skills/release.sh <version> <title> <notes>
    ```
-   脚本自动完成：编译 → .app 封装 → 签名 → zip → git commit/push → gh release
+   脚本自动完成：编译 → .app 封装（含 `Huntress.icns` + `CFBundleIconFile` 校验）→ 签名 → zip → git commit/push → gh release
 
 ### 发布脚本示例
 ```bash

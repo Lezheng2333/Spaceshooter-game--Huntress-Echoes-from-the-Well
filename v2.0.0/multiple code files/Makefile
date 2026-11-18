@@ -1,12 +1,15 @@
 CXX = clang++
-CXXFLAGS = -std=c++11 -I/opt/homebrew/include -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE
+# 开发构建：存档固定写入仓库根目录的 saves/，与启动时 cwd 无关。
+PROJECT_SAVE_DIR := $(abspath ../../saves)
+CXXFLAGS = -std=c++11 -I/opt/homebrew/include -I/opt/homebrew/include/SDL2 -D_THREAD_SAFE \
+           -DSFSS_PROJECT_SAVE_DIR='"$(PROJECT_SAVE_DIR)"'
 LDFLAGS = -L/opt/homebrew/lib -lSDL2
 TARGET = shooter
 
 all: $(TARGET)
 
 $(TARGET): main.cpp types.h constants.h art_fx.h demo_stroke_font.h font.h renderer.h audio.h floating_text.h \
-		dialogue.h narration.h particles.h aim_assist.h player.h bullets.h \
+		dialogue.h narration.h particles.h aim_assist.h player.h ship_art.h bullets.h \
 		ch1/ch1_shockwave.h ch1/ch1_aliens.h ch1/ch1_boss.h ch1/ch1_background.h \
 		ch2/ch2_background.h ch2/ch2_shooter_base.h ch2/ch2_hud.h \
 		ch2/ch2_danmaku.h ch2/ch2_aliens.h ch2/ch2_sphere_boss.h \

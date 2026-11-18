@@ -1750,11 +1750,87 @@ Ver 1.0.1 | 2026-05-08
     - Pulse 清弹不回能修正后的 v1.2.28 zip SHA-256：
       352ade69fa6cf04e1dbe54fc59ff6735c0b3fcca956641e8f16f4d48f54ab573
 
+  Ver 1.2.29 | 2026-11-10 | NightElf 换机演出 + 新机体说明卡 + 血量/Boss 调整（开发中，未发布）
+    - 第二章研究室触碰 NightElf 后的升级演出重做：金色粒子向基座汇聚 → 全屏金色爆闪 → 放射光/贯穿光柱/轨道火花/金色冲击环 → 中央 "NIGHTELF ACQUIRED" 标题，并在最亮帧完成教练机到 NightElf 的换机，避免硬切
+
+    - 新增 NightElf 专用升级 BGM：C# 大调 16 步进约 4.8 秒的程序化 fanfare（低音推进 + 三角波和声 + 高音琶音 + 终段五音上行）；同时新增充能、爆闪、完成三组专用升级音效，整段演出期间持续播放
+
+    - 升级音乐与金色特效结束后才弹出新机体说明卡并冻结世界：展示 5 HP 装甲、白色能量充能规则（直接命中 +2 / 摧毁敌弹 +1）、满条 15 秒三连发，以及保留的 Pulse 技能；ENTER / ESC 关闭，弹窗需松开再按，避免按住 Enter 自动跳过
+
+    - NightElf 初始血量改为 5 点，教练机保持 3 点；HUD 根据当前机体动态显示 3/5 颗像素爱心，Pulse 释放回血上限同步随机体变化；换机完成时血量补满至 5
+
+    - Warden Boss 最大血量 350 → 500，半血狂暴阈值同步 175 → 250，其余弹幕模式、伤害、速度和战斗流程不变
+
+    - 兼容性：升级演出仍由已存档的 labUpgradeState / labUpgradeTimer 推导，弹窗为纯运行时状态；没有新增存档字段，SAVE_FORMAT_VERSION 不变
+
+    - 回归：make -Wall -Wextra 零警告；--selftest RESULT PASS（含 NightElf 5 HP、金色换机帧、说明卡出现/关闭、Warden 500 HP 与狂暴阈值断言）；新增 QA 截图 04c_upgrade_flash.bmp / 04d_nightelf_skillcard.bmp
+
 ----------------------------------------------------------------
 
   Ver 1.2.28 | 2026-11-12 | 品牌重构与重新封装
     - 游戏正式更名为 Huntress: Echoes from the Well
     - 开始页重新排版：HUNTRESS 作为唯一主标题（scale 7），ECHOES FROM THE WELL 作为副标题（scale 3，无前导冒号）
     - 窗口标题、节点存档说明、设计文档、README、发布脚本、Bundle 标识与分发 App 名称同步更新
-    - 重新封装 v1.2.28：Huntress: Echoes from the Well ver1.2.28.app + zip（ad-hoc codesign 通过，--selftest PASS）
+    - 重新封装 v1.2.28：Huntress: Echoes from the Well ver1.2.28.app + zip（ad-hoc codesign 通过）
+    - 分发版存档目录改为 "<游戏名> save files"，与 .app 同级；开发版继续写入项目根目录 saves/
     - SAVE_FORMAT_VERSION 与存档 magic 保持不变，已有存档继续兼容
+
+----------------------------------------------------------------
+
+  Ver 1.2.29 (补充) | 2026-11-18 | NightElf 机体定稿 + 休眠德鲁伊家族
+    - 主美从五套重设计中选定 C 案作为现役 NightElf：大后掠翼 + 翼尖双发 + 中央主发，三股尾焰落在同一条尾线，中轴尖头胶囊座舱；名称仍为暗夜精灵 / NightElf，不采用「三叉戟」
+
+    - 新增 ship_art.h：ShipArt 共用画笔 + paintNightElf / paintDryad / paintDruidWraithlight 三套绘制；player.h 的 NightElf::draw 改为调用 paintNightElf
+
+    - NightElf 机头偏移 32 → 34；三炮炮口由上下翼尖 (29,±8) 改为机鼻 (34,0) + 上下前翼 (28,±6)，与新的三发布局对齐
+
+    - 新增休眠资产 Dryad（树妖，月银飞翼 + 三座短舱）与 DruidWraithlight（德鲁伊·幽光，无尾箭头 + 三缝尾喷）；两者均标 [DORMANT]，未接入 Game，不产生存档字段；原版 Druid 的绘制/行为完全不动
+
+    - 素材工坊 0.2.2：reg_players.h 改用三套真实游戏绘制；A/D 概念稿与临时「暗夜精灵方案」章节删除；NightElf 画廊条目更新为定稿描述；新增树妖 / 德鲁伊·幽光条目（休眠资产）；原德鲁伊条目保留
+
+    - 画廊总数 109 → 106；定稿家族总览 docs/nightelf_final_sheet.png；图片 URL 带构建时间，重建后不会读到 24h 旧图
+
+    - 兼容性：无新增可序列化状态，SAVE_FORMAT_VERSION 不变；旧存档可继续读取
+
+    - 验证：游戏 make 零警告；./shooter --selftest RESULT PASS；素材工坊 --verify-all 82 项通过、UI 冒烟 126 项全绿（106 张素材）
+
+----------------------------------------------------------------
+
+  Ver 1.2.29 (补充) | 2026-11-18 | 训练机·雨燕定稿 + 碰撞盒优化
+    - 训练机默认采用 B 方案「雨燕」：TrainingPlane / Ch2Trainer 改为调用
+      ShipArt::TrainerView + paintSwift；第一章透视与第二章侧滚共用同一张俯视平面图，
+      第二章按 (x,y)->(-y,x) 旋转 90°；游戏内名称仍为 Trainer，补充剧情名为「雨燕」
+
+    - 新增休眠资产 TrainerUpgrade（训练机升级·狮鹫）：D 方案定稿，默认第二章侧滚，
+      drawView(r,false) 可出第一章透视；未接入 Game，不新增存档字段
+
+    - 碰撞盒从"以玩家坐标为中心的 16/14px 大圆"改为机体中段水平胶囊：
+      Player 新增 getHitBack/getHitFront/getHitRadius + hitByCircle；
+      训练机 8/9/4，暗夜精灵 12/22/5；Ch2ShooterBase / Ch2Boss 的玩家受弹判定同步替换；
+      Warden 机体碰撞改为 Boss 圆 vs 玩家胶囊；翼尖/长机鼻尖端/尾焰不再参与判定
+
+    - 素材工坊：训练机两条目改名并直接调用新绘制；新增「训练机升级·狮鹫」休眠条目；
+      A/C/E 概念稿与临时「训练机方案」章节删除；画廊总数 111 → 107；
+      两个 Ch2 玩家条目新增「显示碰撞盒」绿色胶囊叠加层；缩略图与真实 draw 同步
+
+    - 兼容性：无新增可序列化状态，SAVE_FORMAT_VERSION 不变；旧存档可继续读取
+
+    - 验证：make 零警告；./shooter --selftest RESULT PASS（新增 7 项 hitbox 回归）；
+      工坊 --verify-all 84 项、UI 冒烟 126/126（107 张素材）
+
+----------------------------------------------------------------
+
+  Ver 1.2.29 | 2026-11-18 | 发布：Echo Array 图标 + README 视觉化 + 发布流程图标化
+    - 新版 macOS App 图标定稿：02「ECHO ARRAY」/ Echo Array；深空蓝黑底、奶油井沿、绿色回声、红色扫描弦、香槟金实心抽象舰形；只保留 HUNTRESS / ECHOES FROM THE WELL 两行文字；交付 1024 方形稿、macOS squircle 预览、Dock 图与 10 个 rep 的 Huntress.icns
+
+    - 图标设计过程与旧资产清理：art/icon/huntress/ 保留可编辑 huntress_icon.html、_pipeline、preview；其余概念稿与旧 planet_icon 资产已删除；图标中央色块由 09 变体再缩小 10%，下移至井沿视觉中心
+
+    - 发布脚本 .claude/skills/release.sh 增加图标封装：复制 Huntress.icns 到 Contents/Resources/、写入 CFBundleIconFile、校验 icns 与 plist、再签名；--package-only 同样带图标；git add 增加 art/
+
+    - README 全面视觉化：新增 art/readme/hero.png、两张 HTML/SVG 构成主义章节海报、实际游戏截图（开始页、Ch1 TELAMONDO、Moonwell 门禁扫描、Proliferatrix 球体、NightElf 换取金色爆闪、Warden）、像素舰船海报放大版、图标设计板与 Dock；README 下载链接 / What's New / 项目结构 / Asset Studio 版本同步更新
+
+    - --selftest 增加 Chapter I 战斗截图导出（/tmp/sfss_readme_shots/ch1_boss.bmp），仅自检路径，不影响正常游玩
+
+    - 版本号：开始页 Ver 1.2.28 → 1.2.29；SAVE_GAME_VERSION 10228 → 10229（仅显示，SAVE_FORMAT_VERSION 不变，旧存档兼容）
+
+    - 验证：make -Wall -Wextra 零警告；./shooter --selftest RESULT PASS；图标 .icns 10 个 rep 回读通过；macOS squircle alpha bbox = (100,100,924,924)；发布包 Huntress: Echoes from the Well ver1.2.29.app + .zip

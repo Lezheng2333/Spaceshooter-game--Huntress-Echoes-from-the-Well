@@ -27,6 +27,8 @@ REGISTRY = os.path.join(HERE, "asset_registry.h")
 
 # 绘制入口的函数名模式：draw / drawEnemy / drawStars / drawHPBar ...
 DRAW_FN = re.compile(r'\b(?:static\s+)?void\s+(draw[A-Za-z0-9_]*)\s*\(')
+# 音效入口：AudioEngine 内的 void sndXxx()
+SFX_FN = re.compile(r'\bvoid\s+(snd[A-Za-z0-9_]*)\s*\(\s*\)')
 CLASS_DECL = re.compile(r'\b(?:class|struct)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^;{]*)?\{')
 # registry 里 source 字段形如 ".../player.h:215 (NightElf::draw)"
 SRC_TOKEN = re.compile(r'\(([^)]*)\)')
@@ -120,6 +122,26 @@ def scan_file(path, relpath):
     return results
 
 
+def scan_audio_sfx():
+    """扫描 audio.h 里所有无参数 snd* 音效方法。"""
+    path = os.path.join(GAME_DIR, "audio.h")
+    try:
+        raw = open(path, encoding='utf-8', errors='replace').read()
+    except OSError:
+        return []
+    clean = strip_comments(raw)
+    rel = os.path.relpath(path, os.path.dirname(GAME_DIR))
+    out = []
+    seen = set()
+    for m in SFX_FN.finditer(clean):
+        token = "AudioEngine::" + m.group(1)
+        if token in seen:
+            continue
+        seen.add(token)
+        out.append({"token": token, "file": rel, "line": clean.count("\n", 0, m.start()) + 1})
+    return out
+
+
 def scan_game():
     """扫描整个游戏源码目录"""
     entries = []
@@ -191,15 +213,51 @@ def read_registry_entries():
                 "tokens": tokens,
                 "file": rel,
             })
+
+    # 音频登记不写 57 条重复 reg(...)，而是来自 audio_manifest.h 的 X-macro。
+    # 这里按同一份清单反推音频条目，才能和 snd* 方法做覆盖交叉检查。
+    manifest = os.path.join(HERE, "audio_manifest.h")
+    if os.path.isfile(manifest):
+        try:
+            text = open(manifest, encoding="utf-8", errors="replace").read()
+        except OSError:
+            text = ""
+        # X-macro 的换行续行反斜杠不属于字段内容，先合并成一行。
+        text = re.sub(r'\\\s*\n\s*', ' ', text)
+        audio_entry = re.compile(
+            r'X\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*'
+            r'(?:"([^"]+)"|([A-Za-z_][A-Za-z0-9_]*))\s*,\s*([0-9.]+)\s*,\s*'
+            r'"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\)')
+        for m in audio_entry.finditer(text):
+            aid, name, chapter, bgm_key, sfx_key = m.group(1), m.group(2), m.group(3), m.group(4), m.group(5)
+            src = m.group(9)
+            tokens = []
+            if sfx_key:
+                tokens = ["AudioEngine::" + sfx_key]
+            else:
+                tm = SRC_TOKEN.search(src)
+                if tm:
+                    tokens = [t.strip() for t in tm.group(1).split(",") if t.strip()]
+            out.append({
+                "id": aid,
+                "name": name,
+                "chapter": chapter,
+                "category": "audio",
+                "source": src,
+                "tokens": tokens,
+                "file": os.path.relpath(manifest, TOOL_DIR),
+            })
     return out
 
 
 def main():
     game = scan_game()
     regs = read_registry_entries()
+    draw_regs = [r for r in regs if r["category"] != "audio"]
+    audio_regs = [r for r in regs if r["category"] == "audio"]
 
     covered_tokens = set()
-    for r in regs:
+    for r in draw_regs:
         for t in r["tokens"]:
             covered_tokens.add(t)
 
@@ -207,12 +265,28 @@ def main():
 
     uncovered = [e for e in game if e["token"] not in covered_tokens]
 
-    # 注册表指向了源码里已不存在的入口（重构后腐烂）
+    # 注册表指向了源码里已不存在的绘制入口（重构后腐烂）
     stale = []
-    for r in regs:
+    for r in draw_regs:
         for t in r["tokens"]:
             if t not in game_tokens:
                 stale.append({"id": r["id"], "token": t})
+
+    # ---- 音频覆盖检查 ----
+    audio_game = scan_audio_sfx()
+    audio_game_tokens = set(e["token"] for e in audio_game)
+    audio_registered_tokens = set()
+    for r in audio_regs:
+        for t in r["tokens"]:
+            if t.startswith("AudioEngine::snd"):
+                audio_registered_tokens.add(t)
+    audio_uncovered = [e for e in audio_game if e["token"] not in audio_registered_tokens]
+    audio_stale = []
+    for r in audio_regs:
+        for t in r["tokens"]:
+            if t.startswith("AudioEngine::snd") and t not in audio_game_tokens:
+                audio_stale.append({"id": r["id"], "token": t})
+    audio_bgm_count = len([r for r in audio_regs if r["id"].startswith("audio.bgm.")])
 
     as_json = "--json" in sys.argv
 
@@ -220,11 +294,17 @@ def main():
         print(json.dumps({
             "gameDir": GAME_DIR,
             "gameDrawCount": len(game),
-            "registeredCount": len(regs),
+            "registeredCount": len(draw_regs),
             "registeredTokens": sorted(covered_tokens),
             "coveredCount": len([e for e in game if e["token"] in covered_tokens]),
             "uncovered": uncovered,
             "stale": stale,
+            "audioGameSfxCount": len(audio_game),
+            "audioRegisteredSfxCount": len(audio_game_tokens & audio_registered_tokens),
+            "audioBgmCount": audio_bgm_count,
+            "audioTotal": len(audio_regs),
+            "audioUncovered": audio_uncovered,
+            "audioStale": audio_stale,
         }, ensure_ascii=False, indent=2))
         return 0
 
@@ -251,6 +331,19 @@ def main():
     if stale:
         print(f"\n⚠ 注册表指向了已不存在的入口 ({len(stale)} 个) —— 源码重构后需要更新登记：")
         for s in stale:
+            print(f"    {s['id']}  →  {s['token']}")
+
+    print()
+    print(f"音频入口总数: {len(audio_game)} 个 snd* 音效 + {audio_bgm_count} 条 BGM 试听登记")
+    if audio_uncovered:
+        print(f"⚠ 未登记的音频入口 ({len(audio_uncovered)} 个) —— 这些音效在画廊里听不到：")
+        for e in sorted(audio_uncovered, key=lambda x: x["line"]):
+            print(f"    {e['file']}:{e['line']}  {e['token']}")
+    else:
+        print("✓ 所有 snd* 音效都已登记")
+    if audio_stale:
+        print(f"⚠ 音频注册表指向了已不存在的方法 ({len(audio_stale)} 个)：")
+        for s in audio_stale:
             print(f"    {s['id']}  →  {s['token']}")
     print()
 

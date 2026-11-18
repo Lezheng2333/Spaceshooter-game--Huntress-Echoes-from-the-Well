@@ -3,6 +3,7 @@ cache/
 
 # 编译产物
 assetstudio
+audiopreview
 
 # 草稿自动生成的入口文件（由 drafts/gen_drafts.py 生成）
 drafts/_generated.h

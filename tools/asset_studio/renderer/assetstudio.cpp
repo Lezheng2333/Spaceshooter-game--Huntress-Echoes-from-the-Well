@@ -9,6 +9,9 @@
 //   --state <key>          切换状态（如 single / triple）
 //   --param k=v            覆盖参数（可重复）
 //   --frames N             渲染帧数（动画）
+//   --frame N              只写出第 N 帧（0 起；缺省 -1 = 写出全部帧）
+//                          仍会渲染 --frames 帧并沿用全帧并集包围盒，
+//                          因此逐帧输出尺寸一致，且动画状态推进到第 N 帧
 //   --fps F                帧率（仅写进 json 元数据）
 //   --zoom N               整数倍放大（最近邻，默认 1）
 //   --crop / --no-crop     自动裁剪到内容
@@ -57,6 +60,7 @@ struct Options {
     std::string state;
     std::map<std::string, double> params;
     int    frames = 0;          // 0 = 用素材默认
+    int    frame = -1;          // -1 = 写出全部帧；>=0 = 只写出该帧（单文件）
     int    fps = 12;
     int    zoom = 1;
     int    cropOverride = -1;   // -1 用素材默认
@@ -131,6 +135,9 @@ static std::string entryJson(const AssetEntry& e, bool pretty, const std::string
     s += i1 + jstr("crop")     + ": " + (e.crop ? "true" : "false") + "," + nl;
     s += i1 + jstr("frames")   + ": " + jnum(e.frames) + "," + nl;
     s += i1 + jstr("scene")    + ": " + jstr(e.scene) + "," + nl;
+    s += i1 + jstr("media")    + ": " + jstr(e.media) + "," + nl;
+    s += i1 + jstr("audioType")+ ": " + jstr(e.audioType) + "," + nl;
+    s += i1 + jstr("duration") + ": " + jnum(e.duration) + "," + nl;
 
     s += i1 + jstr("tags") + ": [";
     for (size_t i = 0; i < e.tags.size(); ++i) s += (i ? ", " : "") + jstr(e.tags[i]);
@@ -313,7 +320,8 @@ static bool renderAsset(const AssetEntry& e, const Options& o, DrawCtx& ctx,
 static void usage() {
     printf("Asset Studio — 无头素材渲染器\n\n");
     printf("  assetstudio --list [--pretty]\n");
-    printf("  assetstudio --render <素材id> [--state s] [--param k=v]... [--out 路径] [--ascii]\n\n");
+    printf("  assetstudio --render <素材id> [--state s] [--param k=v]... [--out 路径] [--ascii]\n");
+    printf("       --frames N 渲染帧数  --frame N 只写出第 N 帧（单文件，缺省全部）\n\n");
     printf("调色板: %s\n", paletteList().c_str());
 }
 
@@ -338,6 +346,7 @@ int main(int argc, char** argv) {
         else if (a == "--state")      o.state = next("--state");
         else if (a == "--out")        o.outPath = next("--out");
         else if (a == "--frames")     o.frames = atoi(next("--frames").c_str());
+        else if (a == "--frame")      o.frame = atoi(next("--frame").c_str());
         else if (a == "--fps")        o.fps = atoi(next("--fps").c_str());
         else if (a == "--zoom")       o.zoom = atoi(next("--zoom").c_str());
         else if (a == "--pad")        o.pad = atoi(next("--pad").c_str());
@@ -421,6 +430,8 @@ int main(int argc, char** argv) {
 
         for (size_t i = 0; i < all.size(); ++i) {
             AssetEntry& e = all[i];
+            // 音频素材没有绘制帧；它的 WAV 由 audiopreview --verify-all 单独自检。
+            if (e.media == "audio") continue;
             struct VCase { std::string label; std::string state; bool scene; };
             std::vector<VCase> cases;
             if (e.states.empty()) {
@@ -651,12 +662,25 @@ int main(int argc, char** argv) {
     int zoom = o.zoom;
     if (zoom < 1) zoom = 1;
 
+    // --frame N：只写第 N 帧。仍然先渲染全部 --frames 帧，原因有二：
+    //   ① 裁剪用全帧并集包围盒（uni），逐帧输出尺寸才不会跳动；
+    //   ② 动画靠 DrawCtx::priv 跨帧推进状态，必须走过前 N 帧才是真正的第 N 帧。
+    // 输出永远是单文件（不是目录），帧号 clamp 到 0..frames-1。
+    int writeFrame = -1;
+    if (o.frame >= 0 && !out.frames.empty()) {
+        writeFrame = o.frame;
+        if (writeFrame > (int)out.frames.size() - 1) writeFrame = (int)out.frames.size() - 1;
+        if (writeFrame < 0) writeFrame = 0;
+    }
+
     std::vector<std::string> written;
     if (!o.outPath.empty()) {
-        bool multi = out.frames.size() > 1;
+        bool multi = out.frames.size() > 1 && writeFrame < 0;
         if (multi) mkdirs(o.outPath);
 
-        for (size_t f = 0; f < out.frames.size(); ++f) {
+        size_t fBegin = writeFrame >= 0 ? (size_t)writeFrame : 0;
+        size_t fEnd   = writeFrame >= 0 ? (size_t)writeFrame + 1 : out.frames.size();
+        for (size_t f = fBegin; f < fEnd; ++f) {
             std::vector<unsigned char> rgb;
             int ow = 0, oh = 0;
             cropZoomToRgb(&out.frames[f][0], out.W, out.H, cx, cy, cw, ch, zoom, rgb, ow, oh);
@@ -675,7 +699,7 @@ int main(int argc, char** argv) {
     }
 
     // ---- 文本输出 ----
-    size_t midFrame = out.frames.size() / 2;
+    size_t midFrame = writeFrame >= 0 ? (size_t)writeFrame : out.frames.size() / 2;
     if (o.wantAnalysis) {
         printf("素材: %s  (%s)\n", e->name.c_str(), e->id.c_str());
         printf("状态: %s\n", ctx.state.c_str());
@@ -692,12 +716,14 @@ int main(int argc, char** argv) {
     if (o.wantJson) {
         printf("{\"id\":%s,\"state\":%s,\"frames\":%d,\"canvasW\":%d,\"canvasH\":%d,"
                "\"bbox\":[%d,%d,%d,%d],\"crop\":[%d,%d,%d,%d],\"zoom\":%d,"
-               "\"contentPixels\":%d,\"symmetry\":%.4f,\"empty\":%s,\"files\":[",
+               "\"contentPixels\":%d,\"symmetry\":%.4f,\"empty\":%s",
                jstr(e->id).c_str(), jstr(ctx.state).c_str(), (int)out.frames.size(),
                out.W, out.H,
                uni.bboxX, uni.bboxY, uni.bboxW, uni.bboxH,
                cx, cy, cw, ch, zoom,
                uni.contentPixels, uni.symmetry, uni.empty ? "true" : "false");
+        if (writeFrame >= 0) printf(",\"frame\":%d", writeFrame);
+        printf(",\"files\":[");
         for (size_t i = 0; i < written.size(); ++i)
             printf("%s%s", i ? "," : "", jstr(written[i]).c_str());
         printf("]}\n");

@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'AvenirX';src:url('file:///System/Library/Fonts/Avenir Next Condensed.ttc');}
+@font-face{font-family:'DINX';src:url('file:///System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf');}
+html,body{margin:0;padding:0;width:1200px;height:1600px;overflow:hidden;background:#02050A;}
+svg{display:block;width:1200px;height:1600px}
+</style></head><body>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600">
+<defs>
+ <radialGradient id="bg" cx=".5" cy=".44" r=".8"><stop offset="0" stop-color="#0B1820"/><stop offset=".6" stop-color="#050B11"/><stop offset="1" stop-color="#02050A"/></radialGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3E6CB"/><stop offset=".55" stop-color="#E0C9A0"/><stop offset="1" stop-color="#C6AE7E"/></linearGradient>
+ <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" seed="31" result="n"/><feColorMatrix in="n" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer></filter>
+ <filter id="glow"><feGaussianBlur stdDeviation="8"/></filter>
+ <g id="mark"><path d="M 0 0 L -42 20 L -30 6 L -50 0 L -30 -6 L -42 -20 Z" fill="url(#gold)"/></g>
+</defs>
+<rect width="1200" height="1600" fill="url(#bg)"/>
+<!-- dust -->
+<g fill="#E9E2D0"><circle cx="160" cy="320" r="2" opacity=".22"/><circle cx="1050" cy="260" r="1.5" opacity=".2"/><circle cx="1080" cy="1280" r="2" opacity=".18"/><circle cx="150" cy="1240" r="1.5" opacity=".16"/><circle cx="960" cy="640" r="1.2" opacity=".18"/></g>
+<!-- header -->
+<text x="64" y="86" font-family="DINX" font-size="23" letter-spacing="7" fill="#3AD274">HUNTRESS · DEEP SPACE · CHAPTER 02</text>
+<text x="1204" y="86" font-family="DINX" font-size="23" letter-spacing="5" fill="#C8322B" text-anchor="end">02 / MOONWELL</text>
+<text x="58" y="250" font-family="AvenirX" font-weight="900" font-size="154" textLength="1080" lengthAdjust="spacingAndGlyphs" fill="#C8322B" opacity=".16">MOONWELL</text>
+<text x="54" y="246" font-family="AvenirX" font-weight="900" font-size="154" textLength="1080" lengthAdjust="spacingAndGlyphs" fill="#F4EFE0">MOONWELL</text>
+<text x="58" y="304" font-family="DINX" font-size="34" letter-spacing="10" fill="#E9E2D0" opacity=".9">ECHOES FROM THE WELL</text>
+<path d="M 58 340 L 1140 340" stroke="#C8322B" stroke-width="3"/>
+<path d="M 58 352 L 860 352" stroke="#E9E2D0" stroke-width="1" opacity=".4"/>
+
+<!-- emblem -->
+<g transform="translate(600,910)">
+ <circle r="382" fill="none" stroke="#C8322B" stroke-width="1.2" opacity=".24" transform="translate(2,-2)"/>
+ <circle r="380" fill="none" stroke="#E9E2D0" stroke-width="2.5" opacity=".68"/>
+ <circle r="368" fill="none" stroke="#E9E2D0" stroke-width="1" opacity=".2"/>
+ <g stroke="#E9E2D0" stroke-width="2" opacity=".6"><path d="M 0 -380 L 0 -364"/><path d="M 0 380 L 0 364"/><path d="M -380 0 L -364 0"/><path d="M 380 0 L 364 0"/></g>
+ <g fill="none">
+  <circle r="214" stroke="#69FFB4" stroke-width="7" stroke-dasharray="270 96 36 92" opacity=".28" filter="url(#glow)"/>
+  <circle r="214" stroke="#69FFB4" stroke-width="6" stroke-dasharray="270 96 36 92" opacity=".9"/>
+  <circle r="286" stroke="#3AD274" stroke-width="3.4" stroke-dasharray="160 52 28 66" opacity=".55"/>
+ </g>
+ <path d="M -340 300 L 340 -280" stroke="#FF3E3A" stroke-width="2.6" opacity=".82"/>
+ <rect x="330" y="-292" width="20" height="20" transform="rotate(45 340 -282)" fill="#FF3E3A"/>
+ <g opacity=".16" filter="url(#glow)"><g transform="translate(0,-200) rotate(-90) scale(7.2)"><use href="#mark"/></g></g>
+ <g transform="translate(0,-200) rotate(-90) scale(7.2)"><use href="#mark"/></g>
+</g>
+
+<!-- bottom copy -->
+<text x="58" y="1440" font-family="AvenirX" font-weight="900" font-size="74" textLength="1080" lengthAdjust="spacingAndGlyphs" fill="#F4EFE0">THE WELL IS NOT A DOOR</text>
+<text x="58" y="1490" font-family="DINX" font-size="26" letter-spacing="6" fill="#C8322B">IT IS A STOMACH. IT REMEMBERS EVERYTHING.</text>
+<text x="58" y="1552" font-family="DINX" font-size="20" letter-spacing="5" fill="#E9E2D0" opacity=".55">NIGHTELF · NE-02 · PROXIMA ESCORT / HUNTRESS-3</text>
+
+<rect width="1200" height="1600" filter="url(#grain)" opacity=".055" style="mix-blend-mode:screen"/>
+</svg>
+</body></html>

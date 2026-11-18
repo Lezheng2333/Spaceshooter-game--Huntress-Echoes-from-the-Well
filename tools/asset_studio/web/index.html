@@ -2,148 +2,462 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>Asset Studio — 素材工坊</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05070d">
+<meta name="description" content="Asset Studio 素材画廊 — 直接运行《HUNTRESS: ECHOES FROM THE WELL》的真实 C++ 绘制与 audio.h 合成代码，浏览 / 试听 / 逐帧 / 对比全部 104 个素材。">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%230a1420"/><circle cx="16" cy="16" r="9" fill="none" stroke="%236fd3ff" stroke-width="2"/><circle cx="16" cy="16" r="3" fill="%236fd3ff"/></svg>'>
+<title>Asset Studio · 素材画廊 — HUNTRESS: ECHOES FROM THE WELL</title>
 <link rel="stylesheet" href="/web/style.css">
+<script src="/web/app.js" defer></script>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <span class="logo">◈</span>
-    <span class="title">Asset Studio</span>
-    <span class="sub">素材工坊</span>
-  </div>
-  <div class="topbar-spacer"></div>
-  <div class="search-wrap">
-    <input id="search" type="search" placeholder="搜索素材名 / id / 标签…" autocomplete="off">
-  </div>
-  <label class="field">
-    <span>阵营配色</span>
-    <select id="palette">
-      <option value="none">原色（线框白）</option>
-      <option value="friendly">己方 · 白</option>
-      <option value="enemy">敌方 · 红</option>
-      <option value="skill">技能 · 绿</option>
-      <option value="neutral">中立 · 青</option>
-      <option value="gold">金色</option>
-      <option value="violet">紫色</option>
-      <option value="255,60,60,tint">敌方 · 红（亮度保留）</option>
-    </select>
+<!-- ============ 背景氛围层 ============ -->
+<div class="bg-fx" aria-hidden="true">
+  <div class="bg-nebula"></div>
+  <div class="bg-stars"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-vignette"></div>
+</div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="topbar" id="topbar">
+  <a class="brand" href="#/" aria-label="素材工坊首页">
+    <span class="brand-mark">◈</span>
+    <span class="brand-text">
+      <strong>Asset Studio</strong>
+      <em>素材工坊</em>
+    </span>
+    <span class="ver-chip" title="素材画廊版本">v0.2.4</span>
+  </a>
+
+  <label class="search" id="search-wrap">
+    <span class="search-ico" aria-hidden="true">⌕</span>
+    <input id="search" type="search" placeholder="搜索名称 / ID / 标签 / 描述…" autocomplete="off" spellcheck="false" data-test="search" aria-label="搜索素材">
+    <kbd class="search-kbd">/</kbd>
   </label>
-  <label class="field">
-    <span>背景</span>
-    <select id="bg">
-      <option value="0A0C18">深蓝黑</option>
-      <option value="000000">纯黑</option>
-      <option value="141821">浅灰蓝</option>
-      <option value="FFFFFF">白底</option>
-    </select>
-  </label>
-  <button id="btn-refresh" class="btn">重新扫描素材</button>
-  <button id="btn-scan" class="btn btn-warn" title="检查游戏源码里有没有未登记的绘制入口">未登记检查</button>
+
+  <div class="topbar-actions">
+    <button class="icon-btn" id="btn-filters" title="筛选" aria-label="打开筛选" data-test="filters-toggle">☰</button>
+    <button class="icon-btn" id="btn-display" title="显示设置：配色 / 背景 / 动效" aria-label="显示设置" data-test="display-open">◐</button>
+    <button class="icon-btn" id="btn-refresh" title="重新扫描素材" aria-label="重新扫描素材" data-test="refresh">⟳</button>
+    <button class="btn-scan" id="btn-scan" data-test="scan-open" title="扫描游戏源码，检查有没有漏登记的绘制 / 音频入口">
+      <span class="scan-label">未登记检查</span>
+      <span class="scan-dot" id="scan-dot" aria-hidden="true"></span>
+    </button>
+    <button class="icon-btn" id="btn-help" title="快捷键 (?)" aria-label="快捷键" data-test="help-open">?</button>
+  </div>
+
+  <!-- 显示设置气泡 -->
+  <div class="display-pop" id="display-pop" hidden data-test="display-pop">
+    <div class="pop-head">
+      <h4>显示设置</h4>
+      <button class="pop-close" id="display-close" aria-label="关闭">✕</button>
+    </div>
+    <div class="pop-section">
+      <h5>阵营配色</h5>
+      <div class="swatches" id="palette-swatches" role="radiogroup" aria-label="阵营配色"></div>
+    </div>
+    <div class="pop-section">
+      <h5>画布背景</h5>
+      <div class="swatches" id="bg-swatches" role="radiogroup" aria-label="画布背景"></div>
+    </div>
+    <div class="pop-section">
+      <h5>展示</h5>
+      <label class="chk"><input type="checkbox" id="opt-anim-thumbs" checked> 缩略图播放动画<em class="hint-inline">（关闭可提速）</em></label>
+    </div>
+  </div>
 </header>
 
+<!-- ============ Hero ============ -->
+<section class="hero" id="hero">
+  <div class="hero-copy">
+    <p class="eyebrow"><span class="eyebrow-dot"></span>ASSET GALLERY · 美术与声音全景</p>
+    <h1>素材画廊</h1>
+    <p class="hero-sub">游戏的美术不是图片，是代码。<br>这里直接运行与游戏同源的绘制与合成函数 —— 所见即游戏真值。</p>
+    <p class="hero-meta" id="hero-meta" data-test="hero-meta">正在读取素材注册表…</p>
+  </div>
+  <div class="hero-engine" id="hero-engine" data-test="hero-engine">
+    <span class="hero-engine-k">RENDER ENGINE</span>
+    <span class="hero-engine-v"><span class="engine-dot" id="hero-engine-dot"></span><span id="hero-engine-state">检测中…</span></span>
+    <span class="hero-engine-sub" id="hero-engine-sub">C++ · SDL2 无头渲染 · 预览即真值</span>
+  </div>
+
+  <div class="hero-stats" id="hero-stats" data-test="hero-stats">
+    <div class="stat" title="已登记素材总数">
+      <span class="stat-value" id="stat-total">—</span>
+      <span class="stat-label">素材总数</span>
+    </div>
+    <div class="stat" title="由 C++ 绘制代码渲染的素材">
+      <span class="stat-value" id="stat-image">—</span>
+      <span class="stat-label">绘制素材</span>
+    </div>
+    <div class="stat stat-accent" title="BGM 与音效，由 audio.h 实时合成">
+      <span class="stat-value" id="stat-audio">—</span>
+      <span class="stat-label">声音素材</span>
+    </div>
+    <div class="stat stat-warm" title="你在本地收藏的素材（存于浏览器）">
+      <span class="stat-value" id="stat-fav">0</span>
+      <span class="stat-label">我的收藏</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 主体 ============ -->
 <div class="layout">
-  <aside class="sidebar">
-    <section>
+  <aside class="sidebar" id="sidebar" data-test="sidebar">
+    <div class="side-head">
+      <h2>筛选</h2>
+      <button class="link-btn" id="btn-clear-filters" data-test="clear-filters">清空</button>
+    </div>
+
+    <section class="facet-block">
       <h3>章节</h3>
-      <div id="f-chapter" class="facet"></div>
+      <div id="f-chapter" class="facet" data-test="facet-chapter"></div>
     </section>
-    <section>
+
+    <section class="facet-block">
       <h3>类型</h3>
-      <div id="f-category" class="facet"></div>
+      <div id="f-category" class="facet" data-test="facet-category"></div>
     </section>
-    <section>
+
+    <section class="facet-block">
+      <h3>快捷</h3>
+      <div class="quick-filters" id="quick-filters">
+        <button class="quick" data-quick="fav" data-test="quick-fav"><span class="quick-ico">★</span>只看收藏<em id="q-fav">0</em></button>
+        <button class="quick" data-quick="anim" data-test="quick-anim"><span class="quick-ico">▶</span>有动画</button>
+        <button class="quick" data-quick="scene" data-test="quick-scene"><span class="quick-ico">✦</span>可叠场景</button>
+      </div>
+    </section>
+
+    <section class="facet-block">
       <h3>标签</h3>
-      <div id="f-tags" class="facet tags"></div>
+      <div id="f-tags" class="facet tags" data-test="facet-tags"></div>
     </section>
-    <section id="drafts-section" hidden>
+
+    <section class="facet-block" id="drafts-section" hidden>
       <h3>草稿箱</h3>
-      <div id="f-drafts" class="facet"></div>
+      <div id="f-drafts" class="facet" data-test="facet-drafts"></div>
     </section>
+
+    <section class="facet-block" id="recent-section" hidden>
+      <h3>最近浏览 <button class="link-btn tiny" id="btn-clear-recent">清空</button></h3>
+      <div id="f-recent" class="facet" data-test="facet-recent"></div>
+    </section>
+
+    <div class="side-foot">
+      <div class="engine" id="engine-status" data-test="engine-status">
+        <span class="engine-dot" id="engine-dot"></span><span id="engine-text">连接渲染引擎…</span>
+      </div>
+      <a class="side-link" href="#/scan" data-test="scan-link">未登记检查 →</a>
+    </div>
   </aside>
 
-  <main class="main">
-    <div id="status" class="status"></div>
-    <div id="grid" class="grid"></div>
-    <div id="empty" class="empty" hidden>没有符合条件的素材</div>
+  <div class="sidebar-scrim" id="sidebar-scrim" hidden></div>
+
+  <main class="main" id="main">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span id="status" class="status" data-test="status">正在读取素材注册表…</span>
+        <div id="active-chips" class="chips" data-test="active-chips"></div>
+      </div>
+      <div class="toolbar-right">
+        <label class="select-wrap" title="排序方式">
+          <span>排序</span>
+          <select id="sort" data-test="sort">
+            <option value="default">登记顺序</option>
+            <option value="name">名称（拼音）</option>
+            <option value="chapter">按章节</option>
+            <option value="category">按类型</option>
+            <option value="frames">动画帧数 ↓</option>
+            <option value="fav">收藏优先</option>
+          </select>
+        </label>
+        <div class="seg" id="view-toggle" role="group" aria-label="视图" data-test="view-toggle">
+          <button class="seg-btn on" data-view="grid" title="网格视图 (G)" aria-label="网格视图">▦</button>
+          <button class="seg-btn" data-view="list" title="列表视图 (L)" aria-label="列表视图">☰</button>
+        </div>
+        <label class="select-wrap" title="卡片尺寸">
+          <span>尺寸</span>
+          <select id="density" data-test="density">
+            <option value="sm">紧凑</option>
+            <option value="md" selected>标准</option>
+            <option value="lg">大图</option>
+          </select>
+        </label>
+        <button class="btn-ghost" id="btn-export-list" title="导出当前列表清单（JSON）" data-test="export-list">⤓ 清单</button>
+      </div>
+    </div>
+
+    <div id="grid" class="grid" data-test="grid"></div>
+
+    <div id="skeleton" class="grid skeleton-grid" aria-hidden="true"></div>
+
+    <div id="empty" class="empty" hidden data-test="empty">
+      <div class="empty-orb">◌</div>
+      <h3>没有符合条件的素材</h3>
+      <p>换个关键词，或者把筛选器清空看看全部 104 个素材。</p>
+      <button class="btn btn-accent" id="btn-empty-reset">清空筛选</button>
+    </div>
+
+    <footer class="page-foot">
+      <span>ASSET STUDIO · <b>所见即游戏真值</b></span>
+      <span class="page-foot-dim">按 <kbd>?</kbd> 看快捷键 · <kbd>⌘K</kbd> 命令面板</span>
+    </footer>
   </main>
 </div>
 
 <!-- ============ 详情面板 ============ -->
-<div id="detail" class="detail" hidden>
-  <div class="detail-panel">
-    <button id="detail-close" class="detail-close" title="关闭">✕</button>
+<div id="detail" class="modal detail-modal" hidden data-test="detail">
+  <div class="modal-backdrop" data-close></div>
 
-    <div class="detail-left">
-      <div class="preview-box">
-        <img id="detail-img" alt="素材预览">
-      </div>
-      <div class="preview-tools">
-        <label class="chk"><input type="checkbox" id="t-anim" checked> 动画</label>
-        <label class="chk"><input type="checkbox" id="t-scene"> 真实场景</label>
-        <label class="chk"><input type="checkbox" id="t-grid"> 网格</label>
-        <label class="chk"><input type="checkbox" id="t-axes"> 坐标轴</label>
-        <label class="chk"><input type="checkbox" id="t-symmetry"> 对称轴</label>
-        <label class="chk"><input type="checkbox" id="t-bbox"> 包围盒</label>
-        <label class="field compact"><span>放大</span>
-          <select id="t-zoom">
-            <option value="1">1×</option><option value="2">2×</option>
-            <option value="3">3×</option><option value="4">4×</option>
-            <option value="6">6×</option><option value="8">8×</option>
-          </select>
-        </label>
-      </div>
-      <div id="detail-analysis" class="analysis"></div>
-    </div>
-
-    <div class="detail-right">
-      <h2 id="detail-name"></h2>
-      <div id="detail-id" class="mono dim"></div>
-      <p id="detail-desc" class="desc"></p>
-      <div id="detail-tags" class="tags-row"></div>
-
-      <div id="detail-states-wrap" class="block" hidden>
-        <h3>状态</h3>
-        <div id="detail-states" class="state-row"></div>
-      </div>
-
-      <div id="detail-params-wrap" class="block" hidden>
-        <h3>参数 <button id="btn-reset-params" class="btn btn-mini">恢复默认</button></h3>
-        <div id="detail-params"></div>
-      </div>
-
-      <div class="block">
-        <h3>操作</h3>
-        <div class="action-row">
-          <button id="btn-save-draft" class="btn btn-accent" hidden>保存草稿参数</button>
-          <button id="btn-copy-code" class="btn">导出代码</button>
-          <button id="btn-download" class="btn">下载 PNG</button>
-          <button id="btn-source" class="btn">查看源码</button>
-          <button id="btn-clone" class="btn btn-accent" title="派生出可自由改造的参数化草稿">克隆为草稿</button>
+  <div class="detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-name">
+    <header class="detail-top">
+      <div class="detail-heading">
+        <p class="detail-kicker" id="detail-kicker"></p>
+        <h2 id="detail-name" data-test="detail-name">—</h2>
+        <div class="detail-id-row">
+          <code id="detail-id" class="mono">—</code>
+          <button class="mini-btn" id="btn-copy-id" title="复制素材 ID">复制 ID</button>
+          <button class="mini-btn" id="btn-share" title="复制可分享的深链（含当前状态）" data-test="share">分享链接</button>
         </div>
-        <div id="action-msg" class="action-msg"></div>
+      </div>
+      <div class="detail-nav">
+        <button class="round-btn" id="btn-fav" title="收藏 / 取消收藏 (F)" aria-label="收藏" data-test="fav">☆</button>
+        <button class="round-btn" id="detail-prev" title="上一个素材 (←)" aria-label="上一个">‹</button>
+        <button class="round-btn" id="detail-next" title="下一个素材 (→)" aria-label="下一个">›</button>
+        <button class="round-btn close" id="detail-close" title="关闭 (Esc)" aria-label="关闭" data-test="detail-close">✕</button>
+      </div>
+    </header>
+
+    <div class="detail-body">
+      <!-- 左：预览舞台 -->
+      <div class="detail-left">
+        <div class="stage" id="stage">
+          <div class="stage-bar">
+            <div class="zoom-controls" id="zoom-controls">
+              <button class="mini-btn" id="zoom-out" title="缩小" aria-label="缩小">−</button>
+              <span class="zoom-value" id="zoom-value">适合</span>
+              <button class="mini-btn" id="zoom-in" title="放大" aria-label="放大">＋</button>
+              <button class="mini-btn" id="zoom-fit" title="重置为适配尺寸">重置</button>
+            </div>
+            <div class="stage-bar-right">
+              <button class="chip-btn" id="btn-compare" title="钉住当前画面，改动参数后拖动分割线对比" data-test="compare-pin">⇄ 钉住对比</button>
+              <button class="chip-btn" id="btn-open-raw" title="在新标签页打开当前渲染图" data-test="open-raw">↗</button>
+            </div>
+          </div>
+
+          <div class="stage-viewport" id="stage-viewport">
+            <div class="stage-canvas" id="stage-canvas">
+              <img id="detail-img" class="stage-img" alt="素材预览" draggable="false">
+              <div class="compare-wrap" id="compare-wrap" hidden>
+                <img id="compare-img" class="stage-img compare-img" alt="钉住的对比画面" draggable="false">
+              </div>
+              <div class="compare-divider" id="compare-divider" hidden><span>⇄</span></div>
+              <div class="compare-tags" id="compare-tags" hidden>
+                <span class="compare-tag tag-pin" id="compare-tag-pin">钉住</span>
+                <span class="compare-tag tag-live" id="compare-tag-live">当前</span>
+              </div>
+            </div>
+            <div class="stage-loading" id="stage-loading" hidden><span class="spinner"></span>渲染中…</div>
+            <div class="stage-empty" id="stage-empty" hidden>这一帧是空白</div>
+          </div>
+
+          <!-- 音频舞台 -->
+          <div class="audio-stage" id="audio-stage" hidden data-test="audio-stage">
+            <div class="audio-orb" id="audio-orb"><span>♫</span></div>
+            <div class="audio-wave-wrap" id="audio-wave-wrap" title="点击波形任意位置跳转">
+              <canvas id="wave-canvas" width="720" height="180" data-test="waveform"></canvas>
+              <div class="audio-progress" id="audio-progress"></div>
+              <div class="audio-cursor" id="audio-cursor"></div>
+            </div>
+            <div class="audio-controls">
+              <button class="round-btn lg" id="audio-play" aria-label="播放 / 暂停" data-test="audio-play">▶</button>
+              <div class="audio-time mono"><span id="audio-current">0:00</span> / <span id="audio-total">0:00</span></div>
+              <label class="chk"><input type="checkbox" id="audio-loop"> 循环</label>
+              <button class="mini-btn" id="audio-restart" title="从头播放">↺</button>
+            </div>
+            <div class="audio-kind mono" id="audio-detail-kind"></div>
+            <div class="audio-hint" id="audio-hint"></div>
+            <audio id="detail-audio" preload="metadata"></audio>
+          </div>
+
+          <!-- 动画时间轴 -->
+          <div class="timeline" id="timeline" hidden data-test="timeline">
+            <button class="round-btn sm" id="btn-play" title="播放 / 暂停动画" aria-label="播放动画">❚❚</button>
+            <input type="range" id="frame-range" min="0" max="15" value="0" step="1" data-test="frame-range">
+            <span class="frame-badge mono" id="frame-badge" data-test="frame-badge">1 / 16</span>
+          </div>
+
+          <div class="stage-foot">
+            <div class="overlay-chips" id="overlay-chips">
+              <label class="chk chip" id="chk-scene-wrap"><input type="checkbox" id="t-scene"> 真实场景</label>
+              <label class="chk chip"><input type="checkbox" id="t-grid"> 网格</label>
+              <label class="chk chip"><input type="checkbox" id="t-axes"> 坐标轴</label>
+              <label class="chk chip"><input type="checkbox" id="t-symmetry"> 对称轴</label>
+              <label class="chk chip"><input type="checkbox" id="t-bbox"> 包围盒</label>
+              <label class="chk chip" id="chk-anim-wrap"><input type="checkbox" id="t-anim"> 动画</label>
+            </div>
+            <label class="select-wrap compact" title="渲染放大倍数（导出文件也按此倍数）">
+              <span>导出倍数</span>
+              <select id="t-zoom">
+                <option value="1">1×</option><option value="2">2×</option><option value="3">3×</option>
+                <option value="4">4×</option><option value="6">6×</option><option value="8">8×</option>
+              </select>
+            </label>
+          </div>
+        </div>
       </div>
 
-      <div id="source-wrap" class="block" hidden>
-        <h3>源码 <button id="btn-source-hide" class="btn btn-mini">收起</button></h3>
-        <pre id="detail-source" class="code"></pre>
+      <!-- 右：信息与操作 -->
+      <div class="detail-right">
+        <nav class="tabs" role="tablist" aria-label="详情分区">
+          <button class="tab on" data-tab="overview" role="tab" data-test="tab-overview">概览</button>
+          <button class="tab" data-tab="params" role="tab" data-test="tab-params">参数 <span class="tab-count" id="tab-param-count"></span></button>
+          <button class="tab" data-tab="analysis" role="tab" data-test="tab-analysis">分析</button>
+          <button class="tab" data-tab="source" role="tab" data-test="tab-source">源码</button>
+        </nav>
+
+        <div class="tab-panes" id="tab-panes">
+          <!-- 概览 -->
+          <section class="tab-pane" id="tab-overview" data-pane="overview">
+            <p class="desc" id="detail-desc"></p>
+            <div class="tags-row" id="detail-tags"></div>
+
+            <div class="meta-grid" id="detail-meta"></div>
+
+            <div class="block" id="related-wrap" hidden>
+              <h3>相关素材</h3>
+              <div class="related" id="related-list"></div>
+            </div>
+
+            <div class="block" id="parts-wrap" hidden>
+              <h3>零件关系</h3>
+              <div class="related" id="parts-list" data-test="parts"></div>
+            </div>
+
+            <div class="block" id="scene-hint-wrap" hidden>
+              <h3>场景上下文</h3>
+              <p class="muted" id="scene-hint"></p>
+            </div>
+          </section>
+
+          <!-- 参数 -->
+          <section class="tab-pane" id="tab-params" data-pane="params" hidden>
+            <div class="block flat" id="detail-states-wrap" hidden>
+              <h3>状态 <span class="muted" id="state-hint"></span></h3>
+              <div id="detail-states" class="state-row" data-test="states"></div>
+            </div>
+
+            <div class="block flat" id="detail-params-wrap" hidden>
+              <h3>可调参数 <button id="btn-reset-params" class="btn-mini" data-test="reset-params">恢复默认</button></h3>
+              <div id="detail-params" data-test="params"></div>
+            </div>
+
+            <div class="params-empty" id="params-empty" hidden>
+              这个素材没有可调参数。想改它？点击下方「克隆为草稿」，在隔离草稿区派生一个参数化版本。
+            </div>
+
+            <p class="params-tip">滑块改动会即时重新渲染真实游戏代码，不会写回主游戏。</p>
+          </section>
+
+          <!-- 分析 -->
+          <section class="tab-pane" id="tab-analysis" data-pane="analysis" hidden>
+            <div class="analysis-head">
+              <h3>像素分析</h3>
+              <button class="mini-btn" id="btn-copy-analysis" data-test="copy-analysis">复制</button>
+            </div>
+            <div class="analysis" id="detail-analysis" data-test="analysis"><span class="muted">正在分析…</span></div>
+            <details class="ascii-wrap" id="ascii-wrap" hidden>
+              <summary>字符画预览</summary>
+              <pre id="detail-ascii"></pre>
+            </details>
+            <p class="params-tip">分析在当前状态下实时计算：包围盒 / 内容像素 / 镜像对称度 / 线宽 / 颜色分布。</p>
+          </section>
+
+          <!-- 源码 -->
+          <section class="tab-pane" id="tab-source" data-pane="source" hidden>
+            <div class="analysis-head">
+              <h3>源码定位 <span class="mono muted" id="source-loc"></span></h3>
+              <div class="analysis-actions">
+                <button class="mini-btn" id="btn-source-copy" data-test="copy-source">复制</button>
+                <button class="mini-btn" id="btn-source-reload">重新定位</button>
+              </div>
+            </div>
+            <pre id="detail-source" class="code" data-test="source"><span class="muted">点击「查看源码」或直接切到此页加载…</span></pre>
+          </section>
+        </div>
+
+        <div class="detail-actions" id="detail-actions">
+          <button id="btn-download" class="btn" data-test="download">下载 PNG</button>
+          <button id="btn-copy-code" class="btn" data-test="copy-code">导出代码</button>
+          <button id="btn-clone" class="btn" data-test="clone">克隆为草稿</button>
+          <button id="btn-source" class="btn" data-test="source-open">查看源码</button>
+          <button id="btn-save-draft" class="btn btn-accent" hidden data-test="save-draft">保存草稿参数</button>
+          <div id="action-msg" class="action-msg" role="status"></div>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ============ 扫描报告 ============ -->
-<div id="scan-modal" class="detail" hidden>
-  <div class="detail-panel scan-panel">
-    <button id="scan-close" class="detail-close">✕</button>
-    <h2>未登记检查</h2>
-    <p class="desc">扫描游戏源码里所有绘制入口，和素材注册表比对。<br>
-       <b>源码里有、注册表里没有</b> = 这个素材在画廊里看不到，需要登记。</p>
-    <div id="scan-body" class="scan-body"></div>
+<!-- ============ 命令面板 ============ -->
+<div id="cmd-modal" class="modal cmd-modal" hidden data-test="cmd-modal">
+  <div class="modal-backdrop" data-close></div>
+  <div class="cmd-panel" role="dialog" aria-modal="true" aria-label="命令面板">
+    <div class="cmd-top">
+      <span class="cmd-icon" aria-hidden="true">⌕</span>
+      <input id="cmd-input" type="text" placeholder="搜索素材，或输入命令（清空筛选 / 扫源码 / 清缓存）…" autocomplete="off" spellcheck="false" data-test="cmd-input">
+      <kbd>esc</kbd>
+    </div>
+    <div class="cmd-list" id="cmd-list" data-test="cmd-list"></div>
+    <div class="cmd-foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>
+      <span><kbd>↵</kbd> 打开</span>
+      <span><kbd>⌘</kbd><kbd>K</kbd> 开关</span>
+      <span class="cmd-count" id="cmd-count"></span>
+    </div>
   </div>
 </div>
 
-<script src="/web/app.js"></script>
+<!-- ============ 快捷键帮助 ============ -->
+<div id="help-modal" class="modal" hidden data-test="help-modal">
+  <div class="modal-backdrop" data-close></div>
+  <div class="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title">
+    <header class="help-head">
+      <h2 id="help-title">快捷键</h2>
+      <button class="round-btn close" id="help-close" data-test="help-close">✕</button>
+    </header>
+    <div class="help-grid" id="help-grid"></div>
+    <p class="help-tip">在输入框里打字时快捷键自动让路；<kbd>Esc</kbd> 永远能关掉最上层。</p>
+  </div>
+</div>
+
+<!-- ============ 未登记检查 ============ -->
+<div id="scan-modal" class="modal" hidden data-test="scan-modal">
+  <div class="modal-backdrop" data-close></div>
+  <div class="scan-panel" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+    <header class="scan-head">
+      <div>
+        <h2 id="scan-title">未登记检查</h2>
+        <p class="muted">扫描游戏源码里所有绘制入口与音频合成入口，和素材注册表交叉比对。<br>
+          <b>源码里有、注册表里没有</b> = 这个素材在画廊里看不到 / 听不到，需要登记。</p>
+      </div>
+      <button class="round-btn close" id="scan-close" data-test="scan-close">✕</button>
+    </header>
+    <div id="scan-body" class="scan-body" data-test="scan-body"><span class="muted">正在扫描…</span></div>
+    <div class="cache-card" id="cache-card">
+      <div class="cache-info">
+        <h3>渲染缓存</h3>
+        <p class="muted" id="cache-text">读取缓存信息…</p>
+      </div>
+      <button class="btn btn-warn" id="btn-cache-clear" data-test="cache-clear">清理缓存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Toast ============ -->
+<div class="toasts" id="toasts" aria-live="polite" data-test="toasts"></div>
+
 </body>
 </html>

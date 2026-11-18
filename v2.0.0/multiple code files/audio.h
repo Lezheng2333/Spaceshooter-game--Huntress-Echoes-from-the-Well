@@ -8,11 +8,11 @@
 
 // ============== AudioEngine 类 ==============
 class AudioEngine {
-    enum MusicMode { MUSIC_SILENT, MUSIC_CH1, MUSIC_CH2, MUSIC_BOSS, MUSIC_TITLE };
+    enum MusicMode { MUSIC_SILENT, MUSIC_CH1, MUSIC_CH2, MUSIC_BOSS, MUSIC_TITLE, MUSIC_UPGRADE };
 
     SDL_AudioDeviceID audioDev;
     std::atomic<int> bgmVolume, sfxVolume, eqLow, eqMid, eqHigh;
-    std::atomic<bool> bossMusicOn, ch2Bgm, bgmOff, startBgm;
+    std::atomic<bool> bossMusicOn, ch2Bgm, bgmOff, startBgm, upgradeMusicOn;
     std::atomic<int> musicIntensity;
     std::vector<ActiveSound> activeSnd;
 
@@ -299,7 +299,68 @@ class AudioEngine {
         lastSeqStep = -1;
     }
 
+    // NightElf 升级主题：C# 大调，16 个 0.30s 步进 ≈ 4.8s。
+    // 低音推进 + 三角波和声 + 高音琶音 + 终段五音上行，做成“获得新装备”的短促 fanfare。
+    void scheduleUpgradeStep(int step) {
+        if (step < 0 || step >= 16) return;
+        static const int MEL[16] = {
+            73, 77, 80, 85, 83, 80, 77, 80,
+            85, 87, 85, 80, 77, 75, 77, 80
+        };
+        static const int CHORD[4][3] = {
+            {49, 53, 56}, {45, 49, 52}, {42, 46, 49}, {44, 48, 51}
+        };
+        int note = MEL[step];
+        triggerMusicVoice(0, midiHz(note), midiHz(note), 0.34f,
+                          0.004f, 0.19f, 0.17f, 0.034f);
+        triggerMusicVoice(1, midiHz(note - 12), midiHz(note - 12), 0.28f,
+                          0.003f, 0.16f, 0.15f, 0.020f);
+        if (step % 2 == 0) {
+            int arp = CHORD[(step / 4) % 4][(step / 2) % 3] + 24;
+            triggerMusicVoice(2, midiHz(arp), midiHz(arp), 0.10f,
+                              0.002f, 0.05f, 0.06f, 0.012f);
+        }
+        if (step == 0 || step == 4 || step == 8 || step == 12) {
+            const int* chord = CHORD[(step / 4) % 4];
+            for (int i = 0; i < 3; ++i) {
+                triggerMusicVoice(1, midiHz(chord[i]), midiHz(chord[i]), 1.10f,
+                                  0.020f, 0.55f, 0.50f, 0.024f);
+                triggerMusicVoice(0, midiHz(chord[i] + 12), midiHz(chord[i] + 12), 0.90f,
+                                  0.030f, 0.60f, 0.45f, 0.010f);
+            }
+            triggerMusicVoice(0, midiHz(chord[0] - 12), midiHz(chord[0] - 12), 0.55f,
+                              0.002f, 0.30f, 0.25f, 0.045f);
+        }
+        if (step == 0 || step == 8 || step == 12) {
+            triggerMusicVoice(4, 2200.0f, 440.0f, 0.28f,
+                              0.001f, 0.10f, 0.18f, 0.035f, 0.0f, 0.55f);
+            triggerMusicVoice(0, 96.0f, 54.0f, 0.38f,
+                              0.002f, 0.16f, 0.30f, 0.065f);
+        }
+        if (step == 12) {
+            static const int FINAL[5] = {85, 89, 92, 97, 101};
+            for (int i = 0; i < 5; ++i)
+                triggerMusicVoice(1, midiHz(FINAL[i]), midiHz(FINAL[i]), 1.50f,
+                                  0.010f, 0.90f, 0.75f, 0.018f, i * 0.06f);
+        }
+    }
+
+    float renderUpgradeMusic() {
+        const int stepSamples = 13230;   // ≈0.30s per step @44.1kHz
+        int seqStep = bgmStepCounter / stepSamples;
+        if (seqStep != lastSeqStep) {
+            lastSeqStep = seqStep;
+            scheduleUpgradeStep(seqStep);
+        }
+        float mix = renderMusicVoices();
+        bgmStepCounter++;
+        if (seqStep > 16) return 0.0f;
+        return mix * 1.55f;
+    }
+
     float renderMusicSample(int mode, int intensity) {
+        if (mode == MUSIC_UPGRADE) return renderUpgradeMusic();
+
         // ---------------- Title: slow, spacious moonwell terminal ----------------
         if (mode == MUSIC_TITLE) {
             static const float ROOT[4]  = {110.00f, 98.00f, 130.81f, 87.31f};
@@ -389,9 +450,10 @@ class AudioEngine {
         int n = len / (int)sizeof(float);
         memset(buf, 0, len);
 
-        int desiredMode = bossMusicOn.load() ? MUSIC_BOSS
+        int desiredMode = upgradeMusicOn.load() ? MUSIC_UPGRADE
+                        : (bossMusicOn.load() ? MUSIC_BOSS
                         : (ch2Bgm.load() ? MUSIC_CH2
-                        : (startBgm.load() ? MUSIC_TITLE : MUSIC_CH1));
+                        : (startBgm.load() ? MUSIC_TITLE : MUSIC_CH1)));
         int intensity = musicIntensity.load();
         int bgmVol = bgmVolume.load();
         float voiceDuck = voiceClips.empty() ? 1.0f : 0.38f;
@@ -491,7 +553,7 @@ class AudioEngine {
 public:
     AudioEngine() : audioDev(0), bgmVolume(7), sfxVolume(7),
                     eqLow(0), eqMid(0), eqHigh(0), bossMusicOn(false),
-                    ch2Bgm(false), bgmOff(false), startBgm(false), musicIntensity(0),
+                    ch2Bgm(false), bgmOff(false), startBgm(false), upgradeMusicOn(false), musicIntensity(0),
                     lastSeqStep(-1), teletypeIndex(0), sphereTickIndex(0), shardIndex(0),
                     voiceGain(0.9f), currentMusicMode(MUSIC_CH1), musicGain(0.0f),
                     bgmPhase(0), bgmPulsePhase(0), bgmHarmonyPhase(0), bgmDrumPhase(0),
@@ -639,6 +701,7 @@ public:
         musicIntensity = level;
     }
     void setStartBgm(bool on) { startBgm = on; }
+    void setUpgradeMusic(bool on) { upgradeMusicOn = on; }
 
     void playSound(float freq, float sweepEnd, int durMs, float vol, int type, int band) {
         if (!audioDev) return;
@@ -871,6 +934,31 @@ public:
         playSound(380.0f, 1100.0f, 380, 0.018f, 6, 2);
     }
 
+    // NightElf 升级演出：充能、爆闪、完成三组专用反馈音。
+    void sndUpgradeStart() {
+        playSound(110.0f, 440.0f, 420, 0.075f, 3, 1);
+        playSound(220.0f, 880.0f, 360, 0.035f, 4, 2);
+        playSound(55.0f, 36.0f, 520, 0.060f, 0, 0);
+    }
+    void sndUpgradeCharge() {
+        static const float TONE[4] = {523.25f, 659.25f, 783.99f, 1046.50f};
+        int k = sphereTickIndex++ & 3;
+        playSound(TONE[k], TONE[k] * 1.08f, 120, 0.028f, 4, 2);
+        playSound(TONE[k] * 0.5f, TONE[k] * 0.54f, 150, 0.018f, 0, 1);
+    }
+    void sndUpgradeBurst() {
+        playSound(62.0f, 28.0f, 620, 0.24f, 0, 0);
+        playSound(1800.0f, 240.0f, 380, 0.075f, 6, 2);
+        playSound(523.25f, 1046.50f, 300, 0.045f, 4, 2);
+        playSound(1046.50f, 2093.00f, 240, 0.020f, 0, 2);
+    }
+    void sndUpgradeComplete() {
+        static const float CHIME[4] = {523.25f, 659.25f, 783.99f, 1046.50f};
+        for (int i = 0; i < 4; ++i)
+            playSound(CHIME[i], CHIME[i] * 1.01f, 420 - i * 35, 0.034f - i * 0.004f, 4, 2);
+        playSound(130.81f, 65.41f, 420, 0.035f, 0, 0);
+    }
+
     // 纯代码离线渲染巡检：覆盖三套乐谱切换与 48 声部压力混音。
     bool runSynthesisSelfTest() {
         if (!audioDev) {
@@ -880,7 +968,7 @@ public:
         SDL_PauseAudioDevice(audioDev, 1);
         SDL_LockAudioDevice(audioDev);
         bool oldBoss = bossMusicOn.load(), oldCh2 = ch2Bgm.load(), oldOff = bgmOff.load();
-        bool oldStart = startBgm.load();
+        bool oldStart = startBgm.load(), oldUpgrade = upgradeMusicOn.load();
         int oldIntensity = musicIntensity.load();
         int oldBgmVol = bgmVolume.load(), oldSfxVol = sfxVolume.load();
         int oldLow = eqLow.load(), oldMid = eqMid.load(), oldHigh = eqHigh.load();
@@ -888,6 +976,7 @@ public:
         activeSnd.clear();
         bgmOff = false;
         startBgm = false;   // 巡检必须精确测量三套战斗乐谱，而不是标题主题
+        upgradeMusicOn = false;
         musicIntensity = 2;
         bgmVolume = 7; sfxVolume = 7;
         eqLow = 0; eqMid = 0; eqHigh = 0;
@@ -941,6 +1030,29 @@ public:
             startBgm = false;
         }
 
+        // NightElf 升级主题单独巡检：短 fanfare 也必须保持可测能量且不削顶。
+        {
+            bossMusicOn = false; ch2Bgm = false; startBgm = false;
+            upgradeMusicOn = true;
+            double energy = 0.0;
+            float peak = 0.0f;
+            int measured = 0;
+            for (int b = 0; b < 28; ++b) {
+                audioCB((Uint8*)block.data(), (int)(block.size() * sizeof(float)));
+                if (b >= 22) for (float sample : block) {
+                    if (!std::isfinite(sample)) ok = false;
+                    float a = fabsf(sample);
+                    if (a > peak) peak = a;
+                    energy += sample * sample;
+                    measured++;
+                }
+            }
+            float upgradeRms = measured ? sqrtf((float)(energy / measured)) : 0.0f;
+            if (upgradeRms < 0.005f || peak > 0.961f) ok = false;
+            printf("[audio] mode=upgrade rms=%.4f peak=%.4f\n", upgradeRms, peak);
+            upgradeMusicOn = false;
+        }
+
         for (int i = 0; i < 48; ++i) {
             ActiveSound s;
             s.freq = 70.0f + i * 31.0f; s.sweepEnd = s.freq * 0.55f;
@@ -962,6 +1074,7 @@ public:
 
         activeSnd.clear();
         bossMusicOn = oldBoss; ch2Bgm = oldCh2; bgmOff = oldOff; startBgm = oldStart;
+        upgradeMusicOn = oldUpgrade;
         musicIntensity = oldIntensity;
         bgmVolume = oldBgmVol; sfxVolume = oldSfxVol;
         eqLow = oldLow; eqMid = oldMid; eqHigh = oldHigh;

@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'AvenirX';src:url('file:///System/Library/Fonts/Avenir Next Condensed.ttc');}
+@font-face{font-family:'DINX';src:url('file:///System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf');}
+html,body{margin:0;padding:0;width:1200px;height:1600px;overflow:hidden;background:#E9E2D0;}
+svg{display:block;width:1200px;height:1600px}
+</style></head><body>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1600">
+<defs>
+ <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="3" seed="23" result="n"/><feColorMatrix in="n" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer></filter>
+ <linearGradient id="greenFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#69FFB4"/><stop offset="1" stop-color="#2AA95F"/></linearGradient>
+ <g id="mark"><path d="M 0 0 L -42 20 L -30 6 L -50 0 L -30 -6 L -42 -20 Z" fill="#121110"/></g>
+</defs>
+<rect width="1200" height="1600" fill="#E9E2D0"/>
+<!-- top strip -->
+<rect width="1200" height="26" fill="#C8322B"/>
+<text x="70" y="92" font-family="DINX" font-size="24" letter-spacing="7" fill="#121110">HUNTRESS · FIRST FLIGHT · CHAPTER 01</text>
+<text x="70" y="300" font-family="AvenirX" font-weight="900" font-size="188" textLength="1000" lengthAdjust="spacingAndGlyphs" fill="#C8322B" opacity=".16">FIRST</text>
+<text x="66" y="296" font-family="AvenirX" font-weight="900" font-size="188" textLength="1000" lengthAdjust="spacingAndGlyphs" fill="#121110">FIRST</text>
+<text x="70" y="472" font-family="AvenirX" font-weight="900" font-size="188" textLength="1000" lengthAdjust="spacingAndGlyphs" fill="#C8322B" opacity=".16">FLIGHT</text>
+<text x="66" y="468" font-family="AvenirX" font-weight="900" font-size="188" textLength="1000" lengthAdjust="spacingAndGlyphs" fill="#121110">FLIGHT</text>
+<text x="1032" y="140" font-family="AvenirX" font-weight="900" font-size="118" fill="#C8322B">01</text>
+<path d="M 70 518 L 1080 518" stroke="#121110" stroke-width="4"/>
+<path d="M 70 530 L 860 530" stroke="#C8322B" stroke-width="2"/>
+<text x="70" y="584" font-family="DINX" font-size="24" letter-spacing="5" fill="#C8322B">DEFEND THE LIFE BASE / PERSPECTIVE DEFENSE</text>
+
+<!-- perspective grid -->
+<g stroke="#121110" stroke-width="1.6" opacity=".22">
+ <path d="M 600 900 L 0 1370"/><path d="M 600 900 L 100 1430"/><path d="M 600 900 L 200 1470"/><path d="M 600 900 L 300 1510"/><path d="M 600 900 L 400 1540"/><path d="M 600 900 L 500 1560"/><path d="M 600 900 L 600 1570"/><path d="M 600 900 L 700 1560"/><path d="M 600 900 L 800 1540"/><path d="M 600 900 L 900 1510"/><path d="M 600 900 L 1000 1470"/><path d="M 600 900 L 1100 1430"/><path d="M 600 900 L 1200 1370"/>
+ <path d="M 0 1010 L 1200 1010"/><path d="M 0 1100 L 1200 1100"/><path d="M 0 1190 L 1200 1190"/><path d="M 0 1280 L 1200 1280"/>
+</g>
+<!-- horizon -->
+<path d="M 0 900 L 1200 900" stroke="#121110" stroke-width="3" opacity=".55"/>
+
+<!-- green shockwave arcs -->
+<g fill="none" stroke="#3AD274" opacity=".9">
+ <path d="M 120 900 Q 600 780 1080 900" stroke-width="4"/>
+ <path d="M 170 940 Q 600 800 1030 940" stroke-width="3" opacity=".7"/>
+ <path d="M 220 980 Q 600 830 980 980" stroke-width="2" opacity=".5"/>
+</g>
+
+<!-- plane -->
+<g transform="translate(600,735) rotate(-90) scale(3.7)">
+ <use href="#mark"/>
+</g>
+<path d="M 170 780 L 1030 780" stroke="#C8322B" stroke-width="2.5" opacity=".75"/>
+
+<!-- green base dome -->
+<path d="M 70 1600 L 70 1420 A 530 170 0 0 1 1130 1420 L 1130 1600 Z" fill="url(#greenFade)"/>
+<path d="M 70 1420 A 530 170 0 0 1 1130 1420" fill="none" stroke="#121110" stroke-width="6"/>
+<g stroke="#0B3B26" stroke-width="3" opacity=".55">
+ <path d="M 250 1430 L 250 1600"/><path d="M 350 1380 L 350 1600"/><path d="M 450 1350 L 450 1600"/><path d="M 550 1340 L 550 1600"/><path d="M 650 1340 L 650 1600"/><path d="M 750 1350 L 750 1600"/><path d="M 850 1380 L 850 1600"/><path d="M 950 1430 L 950 1600"/>
+</g>
+<path d="M 0 1420 L 1200 1420" stroke="#121110" stroke-width="5" opacity=".65"/>
+
+<!-- bottom type -->
+<text x="70" y="1500" font-family="AvenirX" font-weight="900" font-size="64" textLength="760" lengthAdjust="spacingAndGlyphs" fill="#121110">WHITE LINE / GREEN LIGHT</text>
+<text x="70" y="1552" font-family="DINX" font-size="24" letter-spacing="5" fill="#121110">ONE PILOT · ONE BASE · EVERYTHING ELSE IS HUNGRY</text>
+
+<!-- paper grain -->
+<rect width="1200" height="1600" filter="url(#grain)" opacity=".075" style="mix-blend-mode:multiply"/>
+</svg>
+</body></html>

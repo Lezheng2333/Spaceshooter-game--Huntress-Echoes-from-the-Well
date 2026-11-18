@@ -22,7 +22,7 @@
 
 static const char SAVE_MAGIC[8] = {'S', 'F', 'S', 'S', 'A', 'V', 'E', '0'};
 static const uint32_t SAVE_FORMAT_VERSION = 1;    // 结构变更时 +1（旧存档自动判为不兼容）
-static const uint32_t SAVE_GAME_VERSION = 10228;  // 游戏版本：major*10000 + minor*100 + patch（Ver 1.2.28）
+static const uint32_t SAVE_GAME_VERSION = 10229;  // 游戏版本：major*10000 + minor*100 + patch（Ver 1.2.29）
 
 // ============== CRC32 ==============
 static inline uint32_t saveCrc32(const unsigned char* d, size_t n) {
@@ -216,20 +216,31 @@ public:
         return base + "/Library/Application Support/HuntressEchoesFromTheWell";
     }
 
-    // 存档根目录：优先 ./saves（开发时在可执行文件旁），不可写则回退 Application Support
-    // （发布成 .app 后从 Finder / DMG 启动时 cwd=/，且写进 bundle 会破坏签名）
-    // 环境变量 HUNTRESS_SAVE_DIR 可强制指定（兼容旧 SFSS_SAVE_DIR；--selftest 用它把存档写进临时目录，避免污染玩家存档）
+    // 存档根目录优先级：
+    //   1. 环境变量 HUNTRESS_SAVE_DIR（兼容旧变量 SFSS_SAVE_DIR）
+    //   2. 开发构建注入的项目根目录/saves（Makefile 的 SFSS_PROJECT_SAVE_DIR）
+    //   3. 当前工作目录的 ./saves（兼容旧的开发运行方式）
+    //   4. ~/Library/Application Support/HuntressEchoesFromTheWell/saves（便携版兜底）
+    // 项目路径在编译期写入，因此无论从哪个目录启动 shooter，都不会再把存档写到启动目录。
     static const std::string& baseDir() {
         static std::string cached;
         if (!cached.empty()) return cached;
         const char* forced = getenv("HUNTRESS_SAVE_DIR");
-        if (!forced || !forced[0]) forced = getenv("SFSS_SAVE_DIR");  // 旧版兼容
+        if (!forced || !forced[0]) forced = getenv("SFSS_SAVE_DIR");  // 旧启动器兼容
         if (forced && forced[0]) {
             std::string dir = forced;
             ensureDir(dir);
             cached = dir;
             return cached;
         }
+#ifdef SFSS_PROJECT_SAVE_DIR
+        // 路径由 Makefile 以绝对路径注入；拷贝二进制到其他机器导致目录不可写时自动回退。
+        std::string projectSaves = SFSS_PROJECT_SAVE_DIR;
+        if (ensureDir(projectSaves) && writable(projectSaves)) {
+            cached = projectSaves;
+            return cached;
+        }
+#endif
         std::string local = "saves";
         if (ensureDir(local) && writable(local)) { cached = local; return cached; }
         std::string app = appSupportDir();

@@ -20,6 +20,10 @@ import io
 import re
 import json
 import time
+import array
+import wave
+import math
+import platform
 import hashlib
 import shutil
 import subprocess
@@ -32,6 +36,7 @@ from urllib.parse import urlparse, parse_qs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RENDERER = os.path.join(HERE, "assetstudio")
+AUDIO_RENDERER = os.path.join(HERE, "audiopreview")
 CACHE_DIR = os.path.join(HERE, "cache")
 DRAFTS_DIR = os.path.join(HERE, "drafts")
 WEB_DIR = os.path.join(HERE, "web")
@@ -39,7 +44,13 @@ GAME_DIR = os.path.normpath(os.path.join(HERE, "..", "..", "v2.0.0", "multiple c
 
 _cache_lock = threading.Lock()
 _render_lock = threading.Lock()      # C++ 渲染器每次起进程，避免并发轰炸
+_audio_lock = threading.Lock()       # 音频导出同样串行，避免同时合成大 WAV
 _assets_cache = {"t": 0, "data": None, "build": None}
+_waveform_lock = threading.Lock()
+_waveform_cache = {}                 # id -> {"build": audiopreview mtime, "mtime": wav mtime, "data": {...}}
+
+WAVEFORM_BINS = 160                  # 前端波形条数（契约固定 160）
+MAX_FRAME_TOTAL = 120                # 逐帧预览最多渲染帧数
 
 
 # ============================================================
@@ -61,6 +72,8 @@ def get_assets(force=False):
         raise RuntimeError(r.stderr or "渲染器 --list 失败")
     data = json.loads(r.stdout)
     data["gifAvailable"] = importlib.util.find_spec("PIL") is not None
+    # 渲染器构建时间：前端把它拼到图片 URL 上，重建后浏览器不会拿 24h 旧图
+    data["build"] = build
     _assets_cache["data"] = data
     _assets_cache["t"] = now
     _assets_cache["build"] = build
@@ -73,7 +86,256 @@ def cache_key(parts):
     return h.hexdigest()[:16]
 
 
-def build_render_args(q, out_path, want_frames=None):
+def find_asset(asset_id):
+    """按 id 在注册表里找素材；找不到返回 None。"""
+    for a in get_assets()["assets"]:
+        if a["id"] == asset_id:
+            return a
+    return None
+
+
+# ============================================================
+# 逐帧预览：帧总数 / 帧号换算
+# ============================================================
+def requested_frame_count(q, asset):
+    """逐帧预览的帧总数 F。
+
+    q['frames'] 显式指定时 clamp 到 1..120；
+    缺省 min(素材默认帧数或 12, 32)，避免静态素材被渲染成上百帧。
+    """
+    default = min(int(asset.get("frames") or 12), 32)
+    raw = q.get("frames", [str(default)])[0]
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        n = default
+    return max(1, min(MAX_FRAME_TOTAL, n))
+
+
+def requested_frame_index(q, total):
+    """第 N 帧，clamp 到 0..F-1。"""
+    raw = q.get("frame", ["0"])[0]
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        n = 0
+    return max(0, min(total - 1, n))
+
+
+# ============================================================
+# 音频导出（/api/audio 与 /api/waveform 共用）
+# ============================================================
+class AudioRendererMissing(RuntimeError):
+    """audiopreview 尚未编译时的专用错误（HTTP 503）。"""
+
+
+def audio_wav_path(asset):
+    key_parts = {
+        "id": asset["id"],
+        "kind": "audio",
+        "build": os.stat(AUDIO_RENDERER).st_mtime_ns if os.path.isfile(AUDIO_RENDERER) else 0,
+        "v": 1,
+    }
+    return os.path.join(CACHE_DIR, cache_key(key_parts) + ".wav")
+
+
+def ensure_audio_wav(asset):
+    """导出（或复用磁盘缓存）音频素材为 WAV，返回文件路径。
+
+    失败抛 RuntimeError；audiopreview 未编译时抛 AudioRendererMissing。
+    """
+    cache_path = audio_wav_path(asset)
+    if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 44:
+        return cache_path
+    if not os.path.isfile(AUDIO_RENDERER):
+        raise AudioRendererMissing("找不到音频试听器；请先在 tools/asset_studio 执行 make")
+    with _audio_lock:
+        if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 44:
+            return cache_path
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        tmp_path = cache_path + ".tmp.wav"
+        r = subprocess.run([AUDIO_RENDERER, "--render", asset["id"], "--out", tmp_path],
+                           capture_output=True, text=True, timeout=120, cwd=HERE)
+        if r.returncode != 0 or not os.path.isfile(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+            raise RuntimeError(r.stderr or "音频合成失败")
+        os.replace(tmp_path, cache_path)
+    return cache_path
+
+
+def read_wav_samples(path):
+    """读回 WAV：返回 (samples, sampleRate, nframes)。
+
+    只用标准库 wave + array；audiopreview 输出为单声道 16-bit PCM，
+    这里顺带兼容多声道（按均值混合）与 8-bit，避免别处换了格式就崩。
+    """
+    with wave.open(path, "rb") as w:
+        nch = w.getnchannels()
+        sw = w.getsampwidth()
+        sr = w.getframerate()
+        nframes = w.getnframes()
+        raw = w.readframes(nframes)
+    if sw == 2:
+        samples = array.array("h")
+        samples.frombytes(raw[:len(raw) - (len(raw) % 2)])
+        if sys.byteorder == "big":
+            samples.byteswap()
+        values = samples
+    elif sw == 1:
+        values = array.array("B", raw)
+        values = array.array("h", [v - 128 for v in values])
+    else:
+        raise RuntimeError("不支持的 WAV 采样位宽: %d" % sw)
+    if nch > 1:
+        mono = [0] * (len(values) // nch)
+        for i in range(len(mono)):
+            base = i * nch
+            mono[i] = int(sum(values[base:base + nch]) / nch)
+        values = mono
+    return values, sr, nframes
+
+
+def compute_waveform_peaks(samples, bins=WAVEFORM_BINS):
+    """把采样切成 bins 段，每段算 RMS，再归一化到峰值 1（保留 3 位小数）。"""
+    if bins < 1:
+        bins = 1
+    n = len(samples)
+    peaks = []
+    for i in range(bins):
+        start = int(n * i / bins)
+        end = int(n * (i + 1) / bins)
+        if end <= start:
+            end = min(n, start + 1)
+        if start >= n:
+            peaks.append(0.0)
+            continue
+        energy = 0.0
+        count = 0
+        for s in samples[start:end]:
+            energy += float(s) * float(s)
+            count += 1
+        peaks.append(math.sqrt(energy / count) if count else 0.0)
+    top = max(peaks) if peaks else 0.0
+    if top <= 0.0:
+        return [0.0] * bins
+    return [round(min(1.0, p / top), 3) for p in peaks]
+
+
+def waveform_data(asset):
+    """音频素材的波形数据；进程内缓存按 id + audiopreview mtime 失效。"""
+    wav_path = ensure_audio_wav(asset)
+    build = os.stat(AUDIO_RENDERER).st_mtime_ns if os.path.isfile(AUDIO_RENDERER) else 0
+    try:
+        wav_mtime = os.stat(wav_path).st_mtime_ns
+    except OSError:
+        wav_mtime = 0
+    with _waveform_lock:
+        cached = _waveform_cache.get(asset["id"])
+        if cached and cached.get("build") == build and cached.get("mtime") == wav_mtime:
+            return cached["data"]
+
+    samples, sample_rate, nframes = read_wav_samples(wav_path)
+    data = {
+        "id": asset["id"],
+        "duration": round(nframes / float(sample_rate), 3) if sample_rate else 0.0,
+        "sampleRate": sample_rate,
+        "peaks": compute_waveform_peaks(samples),
+    }
+    with _waveform_lock:
+        _waveform_cache[asset["id"]] = {"build": build, "mtime": wav_mtime, "data": data}
+    return data
+
+
+# ============================================================
+# 缓存统计 / 清理（必须读全局 CACHE_DIR：测试会临时替换它）
+# ============================================================
+def cache_stats():
+    files = 0
+    total = 0
+    if os.path.isdir(CACHE_DIR):
+        for root, _dirs, names in os.walk(CACHE_DIR):
+            for name in names:
+                path = os.path.join(root, name)
+                try:
+                    total += os.path.getsize(path)
+                except OSError:
+                    continue
+                files += 1
+    return {"files": files, "bytes": total}
+
+
+def clear_cache():
+    """删除 CACHE_DIR 内的缓存文件 / 帧目录，然后重建目录。
+
+    只动 CACHE_DIR 的直接子项，绝不删除 CACHE_DIR 本身或之外的任何文件；
+    进程内波形缓存一并清掉（底层 WAV 已不存在）。
+    """
+    removed = 0
+    freed = 0
+    if os.path.isdir(CACHE_DIR):
+        for name in os.listdir(CACHE_DIR):
+            path = os.path.join(CACHE_DIR, name)
+            try:
+                if os.path.isdir(path) and not os.path.islink(path):
+                    for root, _dirs, names in os.walk(path):
+                        for fn in names:
+                            try:
+                                freed += os.path.getsize(os.path.join(root, fn))
+                                removed += 1
+                            except OSError:
+                                pass
+                    shutil.rmtree(path, ignore_errors=True)
+                else:
+                    try:
+                        freed += os.path.getsize(path)
+                        removed += 1
+                    except OSError:
+                        pass
+                    os.remove(path)
+            except OSError:
+                pass
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    with _waveform_lock:
+        _waveform_cache.clear()
+    return {"ok": True, "removed": removed, "bytes": freed}
+
+
+# ============================================================
+# 健康检查
+# ============================================================
+def file_built_at(path):
+    try:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(os.path.getmtime(path)))
+    except OSError:
+        return None
+
+
+def pillow_version():
+    try:
+        if importlib.util.find_spec("PIL") is None:
+            return None
+        import PIL
+        return getattr(PIL, "__version__", None)
+    except Exception:  # noqa
+        return None
+
+
+def health_payload():
+    return {
+        "ok": True,
+        "renderer": os.path.isfile(RENDERER),
+        "audioRenderer": os.path.isfile(AUDIO_RENDERER),
+        "builtAt": file_built_at(RENDERER),
+        "audioBuiltAt": file_built_at(AUDIO_RENDERER),
+        "cache": cache_stats(),
+        "versions": {"python": platform.python_version(), "pillow": pillow_version()},
+    }
+
+
+def build_render_args(q, out_path, want_frames=None, want_frame=None):
     """把查询参数翻译成渲染器命令行"""
     args = ["--render", q["id"][0]]
     if out_path:
@@ -106,6 +368,9 @@ def build_render_args(q, out_path, want_frames=None):
     # 动画帧
     if want_frames:
         args += ["--frames", str(want_frames)]
+    # 只写出指定帧（逐帧预览）；仍然渲染完整 --frames 帧以保持并集裁剪
+    if want_frame is not None:
+        args += ["--frame", str(want_frame)]
     return args
 
 
@@ -284,7 +549,7 @@ def read_source(source_field, context=4):
 # HTTP 处理
 # ============================================================
 class Handler(BaseHTTPRequestHandler):
-    server_version = "AssetStudio/0.1"
+    server_version = "AssetStudio/0.2"
 
     def log_message(self, fmt, *args):
         if "--verbose" in sys.argv:
@@ -340,7 +605,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/assets":
                 return self.send_json(get_assets(force=q.get("force", ["0"])[0] == "1"))
             if path == "/api/health":
-                return self.send_json({"ok": True, "renderer": os.path.isfile(RENDERER)})
+                return self.send_json(health_payload())
             if path == "/api/drafts":
                 return self.send_json({"drafts": list_drafts()})
             if path == "/api/scan":
@@ -351,8 +616,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.api_source(q)
             if path == "/api/png":
                 return self.api_png(q)
+            if path == "/api/frame":
+                return self.api_frame(q)
             if path == "/api/gif":
                 return self.api_gif(q)
+            if path == "/api/audio":
+                return self.api_audio(q)
+            if path == "/api/waveform":
+                return self.api_waveform(q)
+            if path == "/api/cache":
+                return self.api_cache()
             if path == "/api/authored":
                 return self.api_authored(q)
             return self.err("未知路径: %s" % path, 404)
@@ -378,6 +651,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json({"ok": ok}, 200 if ok else 404)
         if u.path == "/api/clone":
             return self.api_clone(body)
+        if u.path == "/api/cache/clear":
+            return self.api_cache_clear()
         return self.err("未知路径", 404)
 
     # ---------- API 实现 ----------
@@ -391,6 +666,9 @@ class Handler(BaseHTTPRequestHandler):
     def api_analysis(self, q):
         if "id" not in q:
             return self.err("缺少 id")
+        for a in get_assets()["assets"]:
+            if a["id"] == q["id"][0] and a.get("media") == "audio":
+                return self.err("音频素材没有像素分析", 400)
         args = build_render_args(q, None)
         args += ["--analysis", "--ascii"]
         r = run_renderer(args)
@@ -407,7 +685,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.err("找不到素材", 404)
 
     def _render_cached(self, q, kind):
-        """kind = 'png' 或 'gif'；返回缓存文件路径"""
+        """kind = 'png' / 'gif' / 'frame'；返回缓存文件路径"""
         asset = None
         for a in get_assets()["assets"]:
             if a["id"] == q.get("id", [""])[0]:
@@ -415,9 +693,23 @@ class Handler(BaseHTTPRequestHandler):
                 break
         if not asset:
             raise RuntimeError("找不到素材: %s" % q.get("id"))
+        if asset.get("media") == "audio":
+            raise RuntimeError("音频素材请使用 /api/audio 试听")
 
         params = {k[6:]: v[0] for k, v in q.items() if k.startswith("param.")}
         overlays = {f: q.get(f, ["0"])[0] for f in ("grid", "axes", "symmetry", "bbox")}
+
+        # 先算清帧数 / 帧号：逐帧缓存的 key 必须同时包含 F 和 frame
+        frame_index = None
+        if kind == "gif":
+            frames = max(2, min(120, int(q.get("frames", [str(asset.get("frames") or 12)])[0])))
+        elif kind == "frame":
+            frames = requested_frame_count(q, asset)
+            frame_index = requested_frame_index(q, frames)
+        else:
+            # 静态图固定 1 帧：否则默认帧数 >1 的素材（如背景）会被当目录输出
+            frames = 1
+
         key_parts = {
             "id": asset["id"], "kind": kind,
             "state": q.get("state", [""])[0],
@@ -427,13 +719,14 @@ class Handler(BaseHTTPRequestHandler):
             "scene": q.get("scene", ["0"])[0],
             "scenedim": q.get("scenedim", [""])[0],
             "zoom": q.get("zoom", [""])[0],
-            "frames": q.get("frames", [str(asset.get("frames") or 12)])[0],
+            "frames": str(frames) if kind == "frame" else q.get("frames", [str(asset.get("frames") or 12)])[0],
+            "frame": frame_index,   # 逐帧预览：同素材不同帧必须分开缓存
             "fps": q.get("fps", ["12"])[0],
             "build": os.stat(RENDERER).st_mtime_ns,
-            "v": 4,     # 改这里可以强制刷新所有缓存
+            "v": 5,     # 改这里可以强制刷新所有缓存
         }
         key = cache_key(key_parts)
-        ext = "png" if kind == "png" else "gif"
+        ext = "gif" if kind == "gif" else "png"
         cache_path = os.path.join(CACHE_DIR, "%s.%s" % (key, ext))
 
         # 清理同名残留目录：多帧渲染时渲染器会把 --out 当目录用，
@@ -444,21 +737,17 @@ class Handler(BaseHTTPRequestHandler):
         if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 0:
             return cache_path, asset
 
-        frames = None
-        if kind == "gif":
-            frames = max(2, min(120, int(q.get("frames", [str(asset.get("frames") or 12)])[0])))
-        else:
-            # 静态图固定 1 帧：否则默认帧数 >1 的素材（如背景）会被当目录输出
-            frames = 1
-
         with _render_lock:
             if os.path.isfile(cache_path) and os.path.getsize(cache_path) > 0:
                 return cache_path, asset
             if os.path.isdir(cache_path):
                 shutil.rmtree(cache_path, ignore_errors=True)
-            if kind == "png":
+            if kind in ("png", "frame"):
                 with _cache_lock:
-                    args = build_render_args(q, cache_path, want_frames=frames)
+                    # frame：渲染完整 F 帧但只写出第 N 帧，裁剪用全帧并集包围盒，
+                    # 所以逐帧输出尺寸一致（动画状态也正确推进到第 N 帧）。
+                    args = build_render_args(q, cache_path, want_frames=frames,
+                                             want_frame=frame_index)
                     r = run_renderer(args)
                 if r.returncode != 0 or not os.path.isfile(cache_path):
                     raise RuntimeError(r.stderr or "渲染失败")
@@ -533,11 +822,69 @@ class Handler(BaseHTTPRequestHandler):
         path, _ = self._render_cached(q, "png")
         return self.send_file(path, "image/png")
 
+    def api_frame(self, q):
+        """逐帧预览：返回单个 PNG（第 frame 帧，共 frames 帧）。
+
+        与 /api/png 相同的 state / param.* / palette / bg / zoom / scene /
+        scenedim / grid / axes / symmetry / bbox 语义，额外接受 frames / frame。
+        """
+        if "id" not in q:
+            return self.err("缺少 id")
+        asset = find_asset(q["id"][0])
+        if not asset:
+            return self.err("找不到素材", 404)
+        if asset.get("media") == "audio":
+            return self.err("音频素材没有逐帧渲染", 400)
+        path, _ = self._render_cached(q, "frame")
+        return self.send_file(path, "image/png")
+
     def api_gif(self, q):
         if "id" not in q:
             return self.err("缺少 id")
         path, _ = self._render_cached(q, "gif")
         return self.send_file(path, "image/gif")
+
+    def api_audio(self, q):
+        """导出并在浏览器中试听由游戏真实 audio.h 合成的 BGM / SFX。"""
+        if "id" not in q:
+            return self.err("缺少 id")
+        asset = find_asset(q["id"][0])
+        if not asset:
+            return self.err("找不到素材", 404)
+        if asset.get("media") != "audio":
+            return self.err("该素材不是音频", 400)
+        try:
+            cache_path = ensure_audio_wav(asset)
+        except AudioRendererMissing as e:
+            return self.err(str(e), 503)
+        except RuntimeError as e:
+            return self.err(str(e), 500)
+        return self.send_file(cache_path, "audio/wav", cache=False)
+
+    def api_waveform(self, q):
+        """音频波形：{id, duration, sampleRate, peaks[160]}（0..1 浮点）。"""
+        if "id" not in q:
+            return self.err("缺少 id")
+        asset = find_asset(q["id"][0])
+        if not asset:
+            return self.err("找不到素材", 404)
+        if asset.get("media") != "audio":
+            return self.err("该素材不是音频", 400)
+        try:
+            data = waveform_data(asset)
+        except AudioRendererMissing as e:
+            return self.err(str(e), 503)
+        except Exception as e:  # noqa
+            return self.err("波形计算失败: %s" % e, 500)
+        return self.send_json(data)
+
+    def api_cache(self):
+        stats = cache_stats()
+        stats["mb"] = round(stats["bytes"] / (1024.0 * 1024.0), 2)
+        return self.send_json(stats)
+
+    def api_cache_clear(self):
+        return self.send_json(clear_cache())
 
     def api_authored(self, q):
         """把当前参数导出成可直接粘贴的 C++ 代码"""

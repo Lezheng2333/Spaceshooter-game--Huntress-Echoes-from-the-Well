@@ -46,8 +46,8 @@ protected:
         if (pl.getInvFrames() <= 0) {
             for (auto& eb : bullets) {
                 if (!eb.active) continue;
-                double dx = pl.getX() - eb.x, dy = pl.getY() - eb.y;
-                if (dx*dx + dy*dy < 16.0*16.0) {
+                // 胶囊碰撞：只判定机身中段，不再用 16px 的大圆把翼尖也算进去
+                if (pl.hitByCircle(eb.x, eb.y, 3.0)) {
                     eb.active = false; hpRef--;
                     pl.setInvFrames(60);  // 1 second invincibility
                     particleMgr.spawnExplosion(eb.x, eb.y, 8); audio.sndPlayerHit();

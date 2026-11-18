@@ -19,6 +19,7 @@
 #include "reg_fx.h"
 #include "reg_hud.h"
 #include "reg_backgrounds.h"
+#include "reg_audio.h"
 
 // ---- 草稿区入口（由 drafts/gen_drafts.py 生成，勿手改）----
 #include "_generated.h"
@@ -31,12 +32,13 @@ inline void buildAssetRegistry() {
     if (built) return;
     built = true;
 
-    registerAllPlayers();      // 玩家战机 4 架
+    registerAllPlayers();      // 玩家战机 6 架
     registerAllEnemies();      // 普通敌人 3 种
     registerAllBosses();       // Boss 3 个
     registerAllFx();           // 子弹 / 粒子 / 技能球 / 脉冲 / 冲击波
     registerAllHud();          // HUD / UI / 字体 / 准星
     registerAllBackgrounds();  // 背景 / 场景
+    registerAllAudio();        // BGM / 音效
 
     registerDrafts();          // 草稿区
 }

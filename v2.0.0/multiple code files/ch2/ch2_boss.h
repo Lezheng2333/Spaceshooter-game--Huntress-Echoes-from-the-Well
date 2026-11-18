@@ -37,8 +37,8 @@ public:
     int deathTimer;
     bool defeated;
 
-    static const int MAX_HP = 350;
-    static const int ENRAGE_HP = 175;
+    static const int MAX_HP = 500;
+    static const int ENRAGE_HP = 250;   // 半血进入 ENRAGED
     static const double BODY_RADIUS;   // 48
 
     Ch2WardenBoss() { reset(); }
@@ -223,8 +223,8 @@ public:
 
         // Body vs player collision
         if ((state == FIGHT || state == ENRAGED) && pl.getInvFrames() <= 0) {
-            double dx = pl.getX() - x, dy = pl.getY() - y;
-            if (dx*dx + dy*dy < (BODY_RADIUS + 14.0) * (BODY_RADIUS + 14.0)) {
+            // Boss 圆 vs 玩家胶囊：只让机身中段参与，翼尖擦到不算撞机
+            if (pl.hitByCircle(x, y, BODY_RADIUS)) {
                 hpRef--;
                 pl.setInvFrames(60);
                 pm.spawnExplosion(pl.getX(), pl.getY(), 8);
@@ -238,8 +238,7 @@ public:
         if (state != DYING && pl.getInvFrames() <= 0) {
             for (auto& eb : bullets) {
                 if (!eb.active) continue;
-                double dx = pl.getX() - eb.x, dy = pl.getY() - eb.y;
-                if (dx*dx + dy*dy < 14.0 * 14.0) {
+                if (pl.hitByCircle(eb.x, eb.y, 4.0)) {
                     eb.active = false;
                     hpRef--;
                     pl.setInvFrames(60);

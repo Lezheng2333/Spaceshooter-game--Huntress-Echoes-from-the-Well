@@ -1,0 +1,98 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:'AvenirX';src:url('file:///System/Library/Fonts/Avenir Next Condensed.ttc');}
+@font-face{font-family:'DINX';src:url('file:///System/Library/Fonts/Supplemental/DIN Condensed Bold.ttf');}
+html,body{margin:0;padding:0;width:1024px;height:1024px;overflow:hidden;background:#05070A;}
+svg{display:block;width:1024px;height:1024px;}
+</style></head><body>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<defs>
+  <radialGradient id="space" cx="0.5" cy="0.44" r="0.72">
+    <stop offset="0" stop-color="#0A161D"/>
+    <stop offset="0.55" stop-color="#050B11"/>
+    <stop offset="1" stop-color="#02050A"/>
+  </radialGradient>
+  <radialGradient id="vignette" cx="0.5" cy="0.48" r="0.62">
+    <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+    <stop offset="1" stop-color="#000000" stop-opacity="0.55"/>
+  </radialGradient>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" seed="29" result="n"/><feColorMatrix in="n" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope="0.5"/></feComponentTransfer></filter>
+  <filter id="greenGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9"/></filter>
+  <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+    <feDropShadow dx="0" dy="4" stdDeviation="2.2" flood-color="#02050A" flood-opacity="0.55"/>
+  </filter>
+  <filter id="redGlow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter>
+  <filter id="creamGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+  <linearGradient id="moonGold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#F3E6CB"/><stop offset="0.55" stop-color="#E0C9A0"/><stop offset="1" stop-color="#C6AE7E"/>
+  </linearGradient>
+  <linearGradient id="wordCream" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FCF4E0"/><stop offset="1" stop-color="#E7D8BA"/>
+  </linearGradient>
+  <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+    <rect width="4" height="1" fill="#C8DBD2" opacity="0.028"/>
+  </pattern>
+  <!-- solid abstract huntress mark: one shape, aircraft / beast-track double read -->
+  <g id="huntressMark">
+    <path d="M 0 0 L -42 20 L -30 6 L -50 0 L -30 -6 L -42 -20 Z" fill="url(#moonGold)"/>
+  </g>
+</defs>
+<g>
+  <rect width="1024" height="1024" fill="url(#space)"/>
+
+  <!-- deep-space dust, no star shapes -->
+  <g fill="#E9E2D0">
+    <circle cx="168" cy="238" r="1.8" opacity="0.22"/><circle cx="214" cy="330" r="1.1" opacity="0.16"/>
+    <circle cx="312" cy="178" r="1.4" opacity="0.16"/><circle cx="840" cy="206" r="1.8" opacity="0.20"/>
+    <circle cx="890" cy="340" r="1.1" opacity="0.14"/><circle cx="762" cy="120" r="1.2" opacity="0.12"/>
+    <circle cx="154" cy="706" r="1.4" opacity="0.16"/><circle cx="846" cy="760" r="1.6" opacity="0.18"/>
+    <circle cx="292" cy="864" r="1.1" opacity="0.12"/><circle cx="724" cy="900" r="1.3" opacity="0.12"/>
+    <circle cx="932" cy="560" r="1.2" opacity="0.12"/><circle cx="94" cy="520" r="1.4" opacity="0.14"/>
+  </g>
+
+  <!-- outer well rim: cream ring + red misregistration + technical ticks -->
+  <g fill="none">
+    <circle cx="512" cy="436" r="328" stroke="#C8322B" stroke-width="1.2" opacity="0.28" transform="translate(2.5,-1.5)"/>
+    <circle cx="512" cy="436" r="326" stroke="#E9E2D0" stroke-width="2.4" opacity="0.72"/>
+    <circle cx="512" cy="436" r="318" stroke="#E9E2D0" stroke-width="1" opacity="0.22"/>
+  </g>
+  <g stroke="#E9E2D0" stroke-width="2.2" opacity="0.65">
+    <path d="M 512 110 L 512 126"/><path d="M 512 746 L 512 762"/>
+    <path d="M 174 436 L 190 436"/><path d="M 834 436 L 850 436"/>
+  </g>
+
+  <!-- green echo / life pulse rings -->
+  <g fill="none">
+    <circle cx="512" cy="436" r="188" stroke="#69FFB4" stroke-width="7" stroke-dasharray="250 92 34 88" opacity="0.32" filter="url(#greenGlow)"/>
+    <circle cx="512" cy="436" r="188" stroke="#69FFB4" stroke-width="6" stroke-dasharray="250 92 34 88" opacity="0.92"/>
+    <circle cx="512" cy="436" r="258" stroke="#3AD274" stroke-width="3" stroke-dasharray="150 48 26 62" opacity="0.45"/>
+  </g>
+
+  <!-- red scan beam -->
+  <g>
+    <path d="M 262 646 L 762 226" stroke="#FF3E3A" stroke-width="6" opacity="0.20" filter="url(#redGlow)"/>
+    <path d="M 262 646 L 762 226" stroke="#FF3E3A" stroke-width="2.6" opacity="0.82"/>
+    <path d="M 390 532 L 406 526" stroke="#FF3E3A" stroke-width="2" opacity="0.55"/>
+    <path d="M 560 388 L 576 382" stroke="#FF3E3A" stroke-width="2" opacity="0.55"/>
+    <rect x="752" y="216" width="20" height="20" transform="rotate(45 762 226)" fill="#FF3E3A"/>
+  </g>
+
+  <!-- shadow / lift for the mark -->
+  <g opacity="0.38" filter="url(#creamGlow)" transform="translate(5,8)"><g transform="translate(512,332) rotate(-90) scale(4.185)"><use href="#huntressMark"/></g></g>
+  <g opacity="0.20" filter="url(#creamGlow)"><g transform="translate(512,332) rotate(-90) scale(4.185)"><use href="#huntressMark"/></g></g>
+
+  <!-- the abstract huntress mark -->
+  <g opacity="0.10" filter="url(#creamGlow)"><g transform="translate(512,332) rotate(-90) scale(4.185)"><use href="#huntressMark"/></g></g>
+  <g transform="translate(512,332) rotate(-90) scale(4.185)"><use href="#huntressMark"/></g>
+
+  <!-- wordmark: only the game name -->
+  <text x="516" y="815" font-family="AvenirX" font-weight="900" font-size="124" textLength="630" lengthAdjust="spacingAndGlyphs" fill="#C8322B" text-anchor="middle" opacity="0.15">HUNTRESS</text>
+  <text x="512" y="812" font-family="AvenirX" font-weight="900" font-size="124" textLength="630" lengthAdjust="spacingAndGlyphs" fill="url(#wordCream)" text-anchor="middle" filter="url(#softShadow)">HUNTRESS</text>
+  <text x="512" y="870" font-family="DINX" font-size="28" letter-spacing="0" textLength="630" lengthAdjust="spacing" fill="#DCCCA8" text-anchor="middle" filter="url(#softShadow)">ECHOES FROM THE WELL</text>
+
+  <!-- texture: scanlines, vignette, grain -->
+  <rect width="1024" height="1024" fill="url(#scan)"/>
+  <rect width="1024" height="1024" fill="url(#vignette)"/>
+  <rect width="1024" height="1024" filter="url(#grain)" opacity="0.05" style="mix-blend-mode:screen"/>
+</g>
+</svg>
+</body></html>

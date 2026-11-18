@@ -8,7 +8,7 @@
 #   2. README.md updated (download links, What's New, project structure)
 #   3. Source code version string updated
 #   4. Code compiles cleanly
-# This script handles: compile → package .app → sign → zip → git commit/push → gh release
+# This script handles: compile → package .app (+ icon) → sign → zip → git commit/push → gh release
 
 set -e
 
@@ -26,11 +26,14 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SRC_DIR="$PROJECT_ROOT/v2.0.0"
 RELEASE_DIR="$SRC_DIR/Release Version"
 GAME_NAME="Huntress: Echoes from the Well"
+SAVE_DIR_NAME="${GAME_NAME} save files"
 GITHUB_REPO="Spaceshooter-game--Huntress-Echoes-from-the-Well"
 APP_NAME="${GAME_NAME} ver${VERSION}.app"
 ZIP_NAME="${GAME_NAME} ver${VERSION}.zip"
 SRC_FILE="main.cpp"
 SRC_SUBDIR="multiple code files"
+ICON_SRC="$PROJECT_ROOT/art/icon/huntress/Huntress.icns"
+ICON_NAME="Huntress"
 
 # 从已跟踪的稳定归档提取真正的 SDL2，避免 Homebrew sdl2-compat 引入 SDL3/新系统依赖。
 SDL_TEMP=$(mktemp -d)
@@ -46,6 +49,12 @@ clang++ -std=c++11 -I/opt/homebrew/include -I/opt/homebrew/include/SDL2 \
     "$SDL_LIB"
 echo "Compile OK"
 
+if [ ! -f "$ICON_SRC" ]; then
+    echo "ERROR: App icon not found: $ICON_SRC"
+    exit 1
+fi
+
+
 echo "=== Step 2: Package .app ==="
 APP_DIR="$RELEASE_DIR/$APP_NAME"
 rm -rf "$APP_DIR"
@@ -54,21 +63,34 @@ mkdir -p "$APP_DIR/Contents/Frameworks"
 mkdir -p "$APP_DIR/Contents/Resources"
 
 cp "$RELEASE_BIN" "$APP_DIR/Contents/MacOS/huntress"
-# Finder 启动时 cwd 不固定：启动器进入 Resources，语音相对路径保持有效；存档放用户目录。
+# Finder 启动时 cwd 不固定：启动器进入 Resources，语音相对路径保持有效。
+# 分发版存档固定放在 .app 同级目录的 "Huntress: Echoes from the Well save files" 中，
+# 便于随 app 一起移动；若 app 所在目录不可写（例如安装到 /Applications），才回退到
+# Application Support。
 cat > "$APP_DIR/Contents/MacOS/launch" <<'LAUNCH'
 #!/bin/bash
 set -e
 if [ -z "${HUNTRESS_SAVE_DIR:-}" ]; then
-    export HUNTRESS_SAVE_DIR="$HOME/Library/Application Support/HuntressEchoesFromTheWell/saves"
+    APP_PARENT="$(cd "$(dirname "$0")/../../.." && pwd)"
+    CANDIDATE_SAVE_DIR="$APP_PARENT/@SAVE_DIR_NAME@"
+    if mkdir -p "$CANDIDATE_SAVE_DIR" && [ -w "$CANDIDATE_SAVE_DIR" ]; then
+        export HUNTRESS_SAVE_DIR="$CANDIDATE_SAVE_DIR"
+    else
+        export HUNTRESS_SAVE_DIR="$HOME/Library/Application Support/HuntressEchoesFromTheWell/saves"
+    fi
 fi
 mkdir -p "$HUNTRESS_SAVE_DIR"
 cd "$(dirname "$0")/../Resources"
 exec ../MacOS/huntress "$@"
 LAUNCH
+sed -i '' "s|@SAVE_DIR_NAME@|${SAVE_DIR_NAME}|g" "$APP_DIR/Contents/MacOS/launch"
 chmod +x "$APP_DIR/Contents/MacOS/launch"
 if [ -d voice ]; then
     cp -R voice "$APP_DIR/Contents/Resources/voice"
 fi
+# App icon: 图标源文件在 art/icon/huntress/，随 app 一起分发。
+cp "$ICON_SRC" "$APP_DIR/Contents/Resources/${ICON_NAME}.icns"
+echo "App icon: ${ICON_NAME}.icns"
 cp "$SDL_LIB" "$APP_DIR/Contents/Frameworks/"
 install_name_tool -id @executable_path/../Frameworks/libSDL2-2.0.0.dylib \
     "$APP_DIR/Contents/Frameworks/libSDL2-2.0.0.dylib"
@@ -90,6 +112,8 @@ cat > "$APP_DIR/Contents/Info.plist" << PLEOF
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
+    <key>CFBundleIconFile</key>
+    <string>${ICON_NAME}</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
@@ -100,7 +124,16 @@ cat > "$APP_DIR/Contents/Info.plist" << PLEOF
 </plist>
 PLEOF
 
-echo "=== Step 3: Code Sign ==="
+echo "=== Step 3: Verify icon & Code Sign ==="
+if [ ! -f "$APP_DIR/Contents/Resources/${ICON_NAME}.icns" ]; then
+    echo "ERROR: icon missing in app bundle"
+    exit 1
+fi
+/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$APP_DIR/Contents/Info.plist" | grep -qx "$ICON_NAME" \
+    || { echo "ERROR: CFBundleIconFile mismatch"; exit 1; }
+file "$APP_DIR/Contents/Resources/${ICON_NAME}.icns" | grep -q "Mac OS X icon" \
+    || { echo "ERROR: invalid .icns"; exit 1; }
+echo "Icon verify OK"
 codesign --force --deep --sign - "$APP_DIR"
 echo "Sign OK"
 
@@ -115,7 +148,7 @@ if [ "${4:-}" = "--package-only" ]; then exit 0; fi
 
 echo "=== Step 5: Git commit & push ==="
 cd "$PROJECT_ROOT"
-git add .gitignore DEVELOPMENT_LOG.md README.md CLAUDE.md tools/ \
+git add .gitignore DEVELOPMENT_LOG.md README.md CLAUDE.md tools/ art/ \
     "$SRC_DIR/$SRC_SUBDIR/" "$RELEASE_DIR/$ZIP_NAME" \
     "$SRC_DIR/space_shooting ver1.2.20 single-file archive.cpp"
 # .claude/ 在 .gitignore 里（IDE 目录），但本脚本本身是已跟踪文件，需 -f 强制暂存

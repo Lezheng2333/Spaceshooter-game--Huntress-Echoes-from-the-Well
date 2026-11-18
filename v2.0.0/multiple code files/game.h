@@ -116,7 +116,10 @@ class Game {
     int wallAnimFrame;     // animates lightning/sparks while touching
 
     // Ch2 enemy systems
-    static const int CH2_PLAYER_MAX_HP = 3;
+    static const int CH2_TRAINER_MAX_HP = 3;
+    static const int NIGHTELF_MAX_HP = 5;
+    static const int NIGHTELF_UPGRADE_SWAP_FRAME = 180;
+    static const int NIGHTELF_UPGRADE_SEQUENCE_END = 300;
     int ch2PlayerHP; bool ch2GameOver;
     Ch2AlienManager ch2AlienMgr;
     Ch2DanmakuManager dmMgr;
@@ -133,6 +136,8 @@ class Game {
     bool shiftJustPressed; // true for one frame when Shift first pressed
     bool pulseTutorialActive;   // transient modal; never serialized
     bool pulseTutorialEnterWas; // transient enter edge for the modal
+    bool nightElfInfoPopupActive;   // NightElf 升级后的技能介绍弹窗（纯运行时）
+    bool nightElfInfoPopupEnterWas; // 弹窗确认键边沿，避免按住 Enter 自动关闭
 
     // Ch2 scripted flow state machine
     int ch2Flow;
@@ -213,6 +218,7 @@ public:
           dmFireCooldown(0), sphereBossActive(false), playerHitCount(0), tripleBeepCounter(0),
           pulseOrbDropped(false), shiftWas(true), shiftJustPressed(false),
           pulseTutorialActive(false), pulseTutorialEnterWas(false),
+          nightElfInfoPopupActive(false), nightElfInfoPopupEnterWas(false),
           ch2Flow(C2_GATE), ch2PhaseTimer(0), ch2FadeTimer(0),
           ch2GateInitDone(false), ch2LabInitDone(false),
           labUpgradeState(0), labUpgradeTimer(0), ch2EpilogueStarted(false),
@@ -314,11 +320,14 @@ public:
         paused = false;
         missionComplete = false; missionCompleteShown = false; mcMenuSelection = 0;
         wallFlashTimer = 0; wallContactY = 0; wallAnimFrame = 0;
+        ch2PlayerHP = CH2_TRAINER_MAX_HP; ch2GameOver = false;
         ch2AlienMgr.reset(); dmMgr.reset(); dmFireCooldown = 0;
         sphereBoss.reset(); sphereBossActive = false;
         nightElfEnergy.reset(); playerHitCount = 0; tripleBeepCounter = 0;
         pulseSystem.reset(); skillOrb.reset(); pulseOrbDropped = false; shiftWas = true;
         pulseTutorialActive = false; pulseTutorialEnterWas = false;
+        nightElfInfoPopupActive = false; nightElfInfoPopupEnterWas = false;
+        audio.setUpgradeMusic(false);
         ch2Flow = C2_GATE; ch2PhaseTimer = 0; ch2FadeTimer = 0;
         ch2GateInitDone = false; ch2LabInitDone = false;
         gateScene.reset(); labScene.reset(); wardenBoss.reset();
@@ -384,8 +393,9 @@ public:
             // 从暂停进入 OPTIONS/SOUND 时不重新起标题曲，避免暂停被错误地"解冻"。
             bool startTheme = atStartScreen || atChapterSelect ||
                 ((atOptionScreen || atSoundMenu) && !optionFromPause);
+            bool anyPopup = pulseTutorialActive || nightElfInfoPopupActive;
             bool bgmMuted = atTestSelect || atSaveLoadScreen || paused || gameOver || missionComplete ||
-                pulseTutorialActive ||
+                anyPopup ||
                 ((atOptionScreen || atSoundMenu) && optionFromPause);
             audio.setStartBgm(startTheme);
             audio.setBgmOff(bgmMuted);
@@ -411,7 +421,7 @@ public:
                 // ESC skips entire opening narration
                 narration.reset(); inNarration = false;
                 audio.stopVoice();
-            } else if (escPressed && !pulseTutorialActive && !inNarration && !gameOver && !atStartScreen && !atTestSelect && !atChapterSelect
+            } else if (escPressed && !anyPopup && !inNarration && !gameOver && !atStartScreen && !atTestSelect && !atChapterSelect
                 && !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !missionComplete) {
                 if (paused && countdown == -1) {
                     countdown = 3; countdownFrame = 0;
@@ -428,12 +438,12 @@ public:
             // 菜单、暂停和倒计时冻结世界；旁白由 updateNarration 单独推进背景。
             bool gameplayScreen = !atStartScreen && !atTestSelect && !atChapterSelect &&
                 !atOptionScreen && !atSoundMenu && !atSaveLoadScreen && !gameOver && !inNarration;
-            if (!paused && !pulseTutorialActive && !atSaveLoadScreen && !atOptionScreen && !atSoundMenu && !gameOver && !inNarration) {
+            if (!paused && !anyPopup && !atSaveLoadScreen && !atOptionScreen && !atSoundMenu && !gameOver && !inNarration) {
                 if (background) background->update();
                 if (gameplayScreen && sideBg) sideBg->update();
             }
             // TAB 跳过门禁，ESC 始终保留暂停/恢复功能（包括门禁存档）。
-            if (gameplayScreen && !paused && !pulseTutorialActive && chapterMgr.getConfig().isSideScrolling &&
+            if (gameplayScreen && !paused && !anyPopup && chapterMgr.getConfig().isSideScrolling &&
                 ch2Flow == C2_GATE && !gateScene.isOpen() && keys[SDL_SCANCODE_TAB]) {
                 dialogueSys.reset(); audio.stopVoice();
                 gateScene.skipToOpen();
@@ -473,11 +483,13 @@ public:
                 drawGameplayFrame();
                 if (countdown >= 0) drawCountdown();
                 else if (paused) drawPauseMenu();
-            } else if (pulseTutorialActive) {
-                // 技能说明弹窗：背景游戏完全冻结，只处理弹窗关闭输入。
-                updatePulseTutorial(keys, escPressed);
+            } else if (pulseTutorialActive || nightElfInfoPopupActive) {
+                // 技能 / 新机体说明弹窗：背景游戏完全冻结，只处理弹窗关闭输入。
+                if (nightElfInfoPopupActive) updateNightElfInfoPopup(keys, escPressed);
+                else updatePulseTutorial(keys, escPressed);
                 drawGameplayFrame();
                 if (pulseTutorialActive) drawPulseTutorial();
+                else if (nightElfInfoPopupActive) drawNightElfInfoPopup();
             } else {
                 // ======== GAMEPLAY ========
                 playFrames++;
@@ -763,6 +775,11 @@ public:
         printf("[selftest] scene ch1-boss: bossHp=%d aliens=%d shockwaves=%d particles=%d\n",
                boss.getHp(), alienMgr.countAlive(), (int)shockwaveMgr.all().size(),
                (int)particleMgr.all().size());
+        // README 用的第一章实际战斗截图（仅自检路径，不影响正常游玩）。
+        SaveSystem::ensureDir("/tmp/sfss_readme_shots");
+        shotBegin(); drawGameplayFrame();
+        captureBmp("/tmp/sfss_readme_shots/ch1_boss.bmp");
+        shotEnd();
         failures += selfTestRoundTrip("ch1-boss", keys);
 
         // ---- 场景 5：菜单接线（合成按键驱动真实 stepFrame）----
@@ -826,6 +843,21 @@ public:
         nightElf.setTripleFire(true); nightElf.setInvFrames(60);
         resetGame();
         check(!nightElf.isTripleFire() && nightElf.getInvFrames() == 0, "restart clears NightElf state");
+
+        // 碰撞盒回归：机身中段命中，翼尖/长机鼻尖端不命中。
+        {
+            Ch2Trainer t; t.reset(); t.setX(100); t.setY(300);
+            check(t.hitByCircle(100, 300, 0), "trainer hitbox body center");
+            check(t.hitByCircle(108, 300, 0), "trainer hitbox body forward");
+            check(!t.hitByCircle(100, 312, 0), "trainer hitbox ignores wingtip");
+            check(!t.hitByCircle(116, 300, 0), "trainer hitbox ignores nose tip");
+        }
+        {
+            NightElf n; n.reset(); n.setX(100); n.setY(300);
+            check(n.hitByCircle(120, 300, 0), "NightElf hitbox body");
+            check(!n.hitByCircle(134, 300, 0), "NightElf hitbox ignores nose tip");
+            check(!n.hitByCircle(100, 314, 0), "NightElf hitbox ignores wingtip");
+        }
 
         // 完整顺序流程：门禁演出不跳过；模拟命中经过游戏现有碰撞逻辑。
         // 沿途存下四张门禁阶段截图，便于人工核对开门/扫描动画（/tmp/sfss_ch2_qa/）。
@@ -958,9 +990,47 @@ public:
             nodeRunUntil(k, 300, [this]{ return ch2FadeTimer == 0; });
             nodeStep(k.data());
             snap("04_lab");
+            nodeHealCh2();
             player->setX(Ch2LabScene::PARK_X); player->setY(Ch2LabScene::PARK_Y);
-            bool bossReady = nodeRunUntil(k, 12000, [this]{ return ch2Flow == C2_BOSS; });
+            bool sawUpgradeFlash = false;
+            bool sawNightElfPopup = false;
+            bool bossReady = false;
+            for (int i = 0; i < 12000 && ch2Flow == C2_LAB; ++i) {
+                nodeHealCh2();   // QA 用：清除此前追逐段残留弹幕造成的 game-over
+                if (nightElfInfoPopupActive) {
+                    if (!sawNightElfPopup) {
+                        sawNightElfPopup = true;
+                        if (shotBegin()) {
+                            drawGameplayFrame();
+                            drawNightElfInfoPopup();
+                            captureBmp("/tmp/sfss_ch2_qa/04d_nightelf_skillcard.bmp");
+                            shotEnd();
+                        }
+                        check(ch2PlayerHP == NIGHTELF_MAX_HP, "NightElf initial HP is 5");
+                    }
+                    // 弹窗需要“松开再按”的新鲜确认；这里直接驱动弹窗输入逻辑。
+                    std::vector<Uint8> tk = k;
+                    for (int g = 0; g < 5 && nightElfInfoPopupActive; ++g) {
+                        tk[SDL_SCANCODE_RETURN] = (g % 2 == 0) ? 1 : 0;
+                        updateNightElfInfoPopup(tk.data(), false);
+                    }
+                    k[SDL_SCANCODE_RETURN] = 0;
+                    continue;
+                }
+                nodeStep(k.data());
+                if (!sawUpgradeFlash && labUpgradeState == 1
+                    && labUpgradeTimer >= NIGHTELF_UPGRADE_SWAP_FRAME) {
+                    sawUpgradeFlash = true;
+                    snap("04c_upgrade_flash");
+                    check(player == &nightElf && ch2PlayerHP == NIGHTELF_MAX_HP,
+                          "gold flash swaps trainer to NightElf at 5 HP");
+                }
+                if (ch2Flow == C2_BOSS) { bossReady = true; break; }
+            }
+            check(sawUpgradeFlash, "NightElf upgrade gold-flash sequence played");
+            check(sawNightElfPopup, "NightElf skill card shown after upgrade music/fx");
             check(bossReady && player == &nightElf, "lab upgrades to NightElf and starts Warden");
+            check(wardenBoss.getMaxHp() == 500, "Warden max HP is 500");
             nodeRunUntil(k, 1000, [this]{ return wardenBoss.getState() == Ch2WardenBoss::FIGHT; });
             snap("05_warden");
             wardenBoss.takeDamage(Ch2WardenBoss::ENRAGE_HP);
@@ -1355,7 +1425,7 @@ public:
             alienMgr.pushAlien(a);
         }
     }
-    void nodeHealCh2() { ch2PlayerHP = 3; ch2GameOver = false; gameOver = false; }
+    void nodeHealCh2() { ch2PlayerHP = ch2PlayerMaxHP(); ch2GameOver = false; gameOver = false; }
 
     // ---- 摆出第 i 个节点的状态 ----
     void buildNodeState(int i) {
@@ -1546,6 +1616,7 @@ public:
                 player = &nightElf;
                 nightElf.reset();
                 nightElf.setX(140); nightElf.setY(300);
+                ch2PlayerHP = NIGHTELF_MAX_HP;
                 pulseSystem.unlocked = true;
                 pulseSystem.energy = 12;
                 nightElfEnergy.reset();
@@ -1624,6 +1695,7 @@ public:
         player = &nightElf;
         nightElf.reset();
         nightElf.setX(140); nightElf.setY(300);
+        ch2PlayerHP = NIGHTELF_MAX_HP;
         pulseSystem.unlocked = true;
         pulseSystem.energy = 8;
         autoSpawnScoreBase = score; autoSpawnAliveLast = 0; autoSpawnKillsLast = 0;
@@ -1660,6 +1732,7 @@ public:
         player = &nightElf;
         nightElf.reset();
         nightElf.setX(150); nightElf.setY(300);
+        ch2PlayerHP = NIGHTELF_MAX_HP;
         pulseSystem.unlocked = true;
         pulseSystem.energy = Ch2PulseSystem::MAX_ENERGY;
         autoSpawnPhase = 6;                 // 右侧能量墙重新开启
@@ -1995,7 +2068,7 @@ private:
         const char* help = "W/S SELECT   ENTER CONFIRM   F2 CRT";
         int helpW = (int)strlen(help) * 6 * 2;
         font.drawStringColor(r, help, CENTER_X - helpW / 2, 500, 2, 118, 183, 149, 220);
-        font.drawStringColor(r, "Ver 1.2.28", 55, WIN_HEIGHT - 52, 2, 83, 126, 106, 170);
+        font.drawStringColor(r, "Ver 1.2.29", 55, WIN_HEIGHT - 52, 2, 83, 126, 106, 170);
         SDL_SetRenderDrawColor(r, 83, 238, 141, 195);
         SDL_Rect l1 = {54, 204, 3, 3}; SDL_RenderFillRect(r, &l1);
         SDL_SetRenderDrawColor(r, 238, 164, 76, 160);
@@ -2331,6 +2404,11 @@ private:
         return 2;   // TrainingPlane（第一章）
     }
 
+    // 第二章受伤/回血上限随机体变化：教练机 3 HP，NightElf 5 HP。
+    int ch2PlayerMaxHP() const {
+        return player == (Player*)&nightElf ? NIGHTELF_MAX_HP : CH2_TRAINER_MAX_HP;
+    }
+
     SaveMeta buildMeta() const {
         SaveMeta m;
         m.savedAt = (uint32_t)time(nullptr);
@@ -2492,6 +2570,8 @@ private:
         bkspWas = true;
         shiftWas = true; shiftJustPressed = false;
         pulseTutorialActive = false; pulseTutorialEnterWas = false;
+        nightElfInfoPopupActive = false; nightElfInfoPopupEnterWas = false;
+        audio.setUpgradeMusic(false);
         dialogueSys.suppressEnter();
         narration.suppressEnter();
         if (sphereBossActive) {
@@ -2906,7 +2986,7 @@ private:
                 pulseSystem.release((float)player->getX(), (float)player->getY(), particleMgr, audio);
                 // Pulse is also a small emergency repair: one HP per actual release,
                 // capped at the existing three-heart maximum.
-                if (ch2PlayerHP < CH2_PLAYER_MAX_HP) ch2PlayerHP++;
+                if (ch2PlayerHP < ch2PlayerMaxHP()) ch2PlayerHP++;
             }
 
             // ==== Pulse energy from hits + pulse update + collisions ====
@@ -3803,40 +3883,72 @@ private:
             if (dx*dx + dy*dy < 80.0 * 80.0) {
                 labUpgradeState = 1;
                 labUpgradeTimer = 0;
+                dialogueSys.reset();
+                audio.stopVoice();
+                audio.setUpgradeMusic(true);
                 audio.sndTransitionSwell();
+                audio.sndUpgradeStart();
             }
         } else if (labUpgradeState == 1) {
-            // Upgrade animation: white particles converge on the prototype
+            // 升级演出：金色粒子向基座汇聚 → 强闪光换机 → 金色能量环收束。
+            // 计时全部由已存档的 labUpgradeTimer 推导；音乐在整段演出期间持续。
             labUpgradeTimer++;
-            if (labUpgradeTimer % 18 == 0) audio.sndAbsorbCharge();
-            if (labUpgradeTimer % 3 == 0) {
-                double angle = (rand() % 6283) / 1000.0;
-                double dist = 40 + rand() % 90;
-                double sx = Ch2LabScene::PARK_X + std::cos(angle) * dist;
-                double sy = Ch2LabScene::PARK_Y + std::sin(angle) * dist * 0.6;
-                particleMgr.spawnWhiteParticle(sx, sy,
-                    (Ch2LabScene::PARK_X - sx) * 0.06, (Ch2LabScene::PARK_Y - sy) * 0.06,
-                    15 + rand() % 15);
+            audio.setUpgradeMusic(true);
+            int t = labUpgradeTimer;
+            if (t < NIGHTELF_UPGRADE_SWAP_FRAME) {
+                if (t % 24 == 0) audio.sndUpgradeCharge();
+                if (t % 3 == 0) {
+                    for (int i = 0; i < 2; ++i) {
+                        double angle = t * 0.31 + i * M_PI;
+                        double dist = 140.0 - (t % 90) * 0.55 + i * 24.0;
+                        double sx = Ch2LabScene::PARK_X + std::cos(angle) * dist;
+                        double sy = Ch2LabScene::PARK_Y + std::sin(angle) * dist * 0.62;
+                        particleMgr.spawnGoldParticle(sx, sy,
+                            (Ch2LabScene::PARK_X - sx) * 0.055,
+                            (Ch2LabScene::PARK_Y - sy) * 0.055,
+                            18 + rand() % 14);
+                        if (i == 0)
+                            particleMgr.spawnWhiteParticle(sx + 3, sy - 2,
+                                (Ch2LabScene::PARK_X - sx) * 0.050,
+                                (Ch2LabScene::PARK_Y - sy) * 0.050,
+                                12 + rand() % 10);
+                    }
+                }
             }
-            if (labUpgradeTimer >= 60) {
-                // Swap planes: trainer → NightElf (position carried over)
-                labUpgradeState = 2;
-                labUpgradeTimer = 0;
+            if (t == NIGHTELF_UPGRADE_SWAP_FRAME) {
+                // 全屏金光最亮的一帧完成换机，避免旧机体直接消失的突兀感。
                 int tx = player->getX(), ty = player->getY();
                 player = &nightElf;
                 nightElf.setX(tx); nightElf.setY(ty);
                 nightElf.setTripleFire(false);
                 nightElfEnergy.reset();
                 tripleBeepCounter = 0;
+                ch2PlayerHP = NIGHTELF_MAX_HP;   // NightElf 初始血量：5
+                audio.sndUpgradeBurst();
                 floatingTextMgr.spawn((float)tx + 1, (float)(ty - 25), "NIGHTELF ONLINE", 0, 0, 0);
-                floatingTextMgr.spawn((float)tx, (float)(ty - 26), "NIGHTELF ONLINE", 255, 255, 255);
-                audio.sndTripleOn();
-                if (!dUpgradeQueued) {
-                    dUpgradeQueued = true;
-                    dialogueSys.queueDialogue("Ally (ai copilot)", "NightElf online. Welcome aboard, Martha.");
-                    dialogueSys.queueDialogue("Ally (ai copilot)", "Chain hits to charge white energy. Full bar = triple fire!");
-                    dialogueSys.start();
+                floatingTextMgr.spawn((float)tx, (float)(ty - 26), "NIGHTELF ONLINE", 255, 226, 120);
+                for (int i = 0; i < 48; ++i) {
+                    double angle = i * 2.0 * M_PI / 48.0 + 0.17;
+                    double speed = 2.2 + (i % 7) * 0.55;
+                    particleMgr.spawnGoldParticle(
+                        tx + std::cos(angle) * 12.0,
+                        ty + std::sin(angle) * 8.0,
+                        std::cos(angle) * speed,
+                        std::sin(angle) * speed,
+                        28 + i % 24);
                 }
+                if (!dUpgradeQueued) dUpgradeQueued = true;
+            }
+            if (t >= NIGHTELF_UPGRADE_SEQUENCE_END) {
+                // 音乐与爆闪结束后再弹出“新机体说明卡”，让收获感有明确落点。
+                labUpgradeState = 2;
+                labUpgradeTimer = 0;
+                audio.setUpgradeMusic(false);
+                audio.sndUpgradeComplete();
+                nightElfInfoPopupActive = true;
+                nightElfInfoPopupEnterWas = true;
+                dialogueSys.reset();
+                audio.stopVoice();
             }
         } else {
             // Upgrade done → the Warden blocks the exit
@@ -4117,6 +4229,168 @@ private:
         pulseTutorialEnterWas = confirmNow;
     }
 
+    void updateNightElfInfoPopup(const Uint8* keys, bool escPressed) {
+        bool confirmNow = keys[SDL_SCANCODE_RETURN] || escPressed;
+        if (confirmNow && !nightElfInfoPopupEnterWas) {
+            nightElfInfoPopupActive = false;
+            audio.sndMenuConfirm();
+        }
+        nightElfInfoPopupEnterWas = confirmNow;
+    }
+
+    // NightElf 换机的单次金色爆闪：光柱、放射光、轨道火花、爆闪与中央标题。
+    // 全部由已存档的 labUpgradeTimer 推导，不新增存档字段，读档后演出相位一致。
+    void drawNightElfUpgradeFx() {
+        if (labUpgradeState != 1) return;
+        SDL_Renderer* r = renderer.get();
+        ArtFX::BlendGuard guard(r);
+        const int cx = Ch2LabScene::PARK_X;
+        const int cy = Ch2LabScene::PARK_Y;
+        const int t = labUpgradeTimer;
+        const int SWAP = NIGHTELF_UPGRADE_SWAP_FRAME;
+        const int END = NIGHTELF_UPGRADE_SEQUENCE_END;
+        double charge = ArtFX::clamp01((double)t / (double)SWAP);
+        double settle = (t <= SWAP) ? 0.0 : ArtFX::clamp01((double)(t - SWAP) / (double)(END - SWAP));
+
+        auto fillRect = [r](int x, int y, int w, int h, int cr, int cg, int cb, int a) {
+            if (a <= 0 || w <= 0 || h <= 0) return;
+            SDL_SetRenderDrawColor(r, (Uint8)cr, (Uint8)cg, (Uint8)cb, (Uint8)ArtFX::clampI(a, 0, 255));
+            SDL_Rect rr = {x, y, w, h};
+            SDL_RenderFillRect(r, &rr);
+        };
+        auto ring = [r](int ccx, int ccy, double radius, double squash, int alpha) {
+            if (radius < 2.0 || alpha <= 0) return;
+            int prevX = ccx + (int)radius;
+            int prevY = ccy;
+            for (int i = 1; i <= 32; ++i) {
+                double a = 2.0 * M_PI * i / 32.0;
+                int nx = ccx + (int)(std::cos(a) * radius);
+                int ny = ccy + (int)(std::sin(a) * radius * squash);
+                SDL_SetRenderDrawColor(r, 255, 220, 116, (Uint8)ArtFX::clampI(alpha, 0, 255));
+                SDL_RenderDrawLine(r, prevX, prevY, nx, ny);
+                prevX = nx; prevY = ny;
+            }
+        };
+
+        // 1) 贯穿画面的金色能量柱：换机前收束增亮，换机后缓慢退去。
+        int beamW = (t < SWAP) ? 10 + (int)(56.0 * charge) : 62 + (int)(10.0 * std::sin(t * 0.12));
+        int beamA = (t < SWAP) ? 24 + (int)(76.0 * charge) : (int)(112.0 * (1.0 - settle * 0.72));
+        for (int layer = 0; layer < 4; ++layer) {
+            int w = beamW + layer * 22;
+            fillRect(cx - w / 2, 0, w, WIN_HEIGHT,
+                     255, 210 - layer * 18, 72 + layer * 6, beamA / (layer + 1));
+        }
+
+        // 2) 旋转放射金光：让“获得新装备”的登场更有主角感。
+        double rayLen = (t < SWAP) ? 42.0 + 190.0 * charge : 92.0 + 92.0 * (1.0 - settle);
+        int rayA = (t < SWAP) ? 46 + (int)(124.0 * charge) : (int)(188.0 * (1.0 - settle));
+        for (int i = 0; i < 16; ++i) {
+            double a = i * 2.0 * M_PI / 16.0 + t * 0.018 * ((i & 1) ? -1.0 : 1.0);
+            double inner = 20.0 + (i % 3) * 5.0;
+            double outer = rayLen * (0.72 + ArtFX::hash01(i * 31 + 7) * 0.42);
+            int x0 = cx + (int)(std::cos(a) * inner);
+            int y0 = cy + (int)(std::sin(a) * inner * 0.8);
+            int x1 = cx + (int)(std::cos(a) * outer);
+            int y1 = cy + (int)(std::sin(a) * outer * 0.8);
+            ArtFX::glowLine(r, x0, y0, x1, y1, 255, 218, 104, rayA, 2);
+        }
+
+        // 3) 轨道金色火花：换机前向中心收缩，换机后从爆心向外飞散。
+        for (int i = 0; i < 52; ++i) {
+            double a = i * 2.0 * M_PI / 52.0 + t * 0.035;
+            double orbitR;
+            if (t < SWAP) orbitR = (112.0 + (i % 9) * 12.0) * (1.0 - 0.58 * charge);
+            else orbitR = 46.0 + (i % 11) * 9.0 + (t - SWAP) * (1.25 + (i % 5) * 0.12);
+            int sx = cx + (int)(std::cos(a) * orbitR);
+            int sy = cy + (int)(std::sin(a) * orbitR * 0.68);
+            int twinkle = 120 + (int)(110.0 * ArtFX::hash01(i * 97 + t / 3));
+            int sz = (i % 7 == 0) ? 3 : 2;
+            fillRect(sx - sz / 2, sy - sz / 2, sz, sz,
+                     (i % 4 == 0) ? 255 : 255, (i % 4 == 0) ? 246 : 216,
+                     (i % 4 == 0) ? 206 : 96, twinkle);
+            if (i % 13 == 0)
+                ArtFX::starGlint(r, sx, sy, 2, 255, 234, 168, twinkle);
+        }
+
+        // 4) 换机后的金色冲击环。
+        if (t >= SWAP) {
+            for (int k = 0; k < 4; ++k) {
+                double radius = (double)(t - SWAP) * (4.2 + k * 0.9) + k * 20.0;
+                int a = (int)((1.0 - settle) * (150 - k * 24));
+                ring(cx, cy, radius, 0.64, a);
+            }
+        }
+
+        // 5) 中央白色星芒：爆闪瞬间最亮，之后随收束淡出。
+        int coreGlow = (t < SWAP) ? 5 + (int)(18.0 * charge) : 30 - (int)(20.0 * settle);
+        ArtFX::starGlint(r, cx, cy, coreGlow, 255, 238, 180, (t < SWAP) ? 180 : 230);
+        ArtFX::starGlint(r, cx, cy, coreGlow / 2 + 2, 255, 255, 255, 240);
+
+        // 6) 换机完成标题：爆闪后浮出，和下一帧的信息弹窗形成连续叙事。
+        if (t > SWAP + 7) {
+            int textA = ArtFX::clampI((t - SWAP - 7) * 14, 0, 255);
+            const char* title = "NIGHTELF ACQUIRED";
+            int tw = (int)strlen(title) * 6 * 3;
+            font.drawStringColor(r, title, CENTER_X - tw / 2 + 1, 95, 3, 15, 10, 2, textA / 3);
+            font.drawStringColor(r, title, CENTER_X - tw / 2, 94, 3, 255, 230, 148, textA);
+            const char* sub = "ARMOR +2   //   TRIPLE FIRE ONLINE";
+            int sw = (int)strlen(sub) * 6 * 2;
+            font.drawStringColor(r, sub, CENTER_X - sw / 2, 136, 2, 214, 246, 255, textA);
+        }
+
+        // 7) 全屏金色/白色爆闪：在换机帧达到峰值，遮住机体切换的硬切。
+        double flash = 0.0;
+        if (t >= SWAP - 18 && t <= SWAP + 26) {
+            flash = (t <= SWAP) ? (double)(t - (SWAP - 18)) / 18.0
+                                : 1.0 - (double)(t - SWAP) / 26.0;
+        }
+        if (t >= 104 && t <= 132) {
+            double pre = std::sin((t - 104) * M_PI / 28.0);
+            if (pre * 0.24 > flash) flash = pre * 0.24;
+        }
+        flash = ArtFX::clamp01(flash);
+        if (flash > 0.0) {
+            fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT, 255, 211, 92, (int)(flash * 172.0));
+            fillRect(0, 0, WIN_WIDTH, WIN_HEIGHT, 255, 250, 226, (int)(flash * flash * 128.0));
+            int bandH = 4 + (int)(16.0 * flash);
+            fillRect(0, cy - bandH / 2, WIN_WIDTH, bandH, 255, 255, 244, (int)(flash * 245.0));
+        }
+    }
+
+    void drawNightElfInfoPopup() {
+        SDL_Renderer* r = renderer.get();
+        ArtFX::BlendGuard guard(r);
+        UIRenderer::drawHalfTransparentOverlay(r, 198);
+
+        const int px = 84, py = 112, pw = 632, ph = 374;
+        ArtFX::techPanel(r, px, py, pw, ph, 3, 10, 14, 255, 214, 104, 248);
+        ArtFX::bracket(r, px - 8, py - 8, pw + 16, ph + 16, 20, 255, 214, 104, 210);
+
+        auto centerText = [&](const char* text, int y, int scale, int cr, int cg, int cb) {
+            int w = (int)strlen(text) * 6 * scale;
+            font.drawStringColor(r, text, CENTER_X - w / 2, y, scale, cr, cg, cb, 255);
+        };
+        auto row = [&](const char* label, const char* value, int y) {
+            font.drawStringColor(r, label, px + 58, y, 2, 255, 214, 104, 255);
+            font.drawStringColor(r, value, px + 270, y, 2, 201, 241, 255, 255);
+        };
+
+        centerText("NIGHTELF ACQUIRED", 138, 3, 255, 232, 150);
+        centerText("NEXT-GENERATION PROTOTYPE INTERCEPTOR", 178, 2, 154, 232, 255);
+        SDL_SetRenderDrawColor(r, 255, 214, 104, 150);
+        SDL_RenderDrawLine(r, px + 38, 210, px + pw - 38, 210);
+
+        row("ARMOR", "5 HP  //  trainer: 3", 230);
+        row("WHITE ENERGY", "Hits +2 / bullet kills +1", 266);
+        row("TRIPLE FIRE", "Full bar -> 15s triple cannon", 302);
+        row("PULSE SKILL", "Retained from the sphere core", 338);
+
+        centerText("Built for the Warden. Time to finish this.", 374, 2, 194, 236, 222);
+        SDL_SetRenderDrawColor(r, 255, 214, 104, 100);
+        SDL_RenderDrawLine(r, px + 58, 410, px + pw - 58, 410);
+        centerText("ENTER / ESC: CONTINUE", 436, 2, 255, 220, 132);
+    }
+
     void drawPulseTutorial() {
         SDL_Renderer* r = renderer.get();
         ArtFX::BlendGuard guard(r);
@@ -4249,8 +4523,8 @@ private:
                 // Ch2 HUD: all aligned to rightEdge = WIN_WIDTH - 10
                 HUDBase::drawStatusPanel(renderer.get(), WIN_WIDTH - 10, 4, 60);
                 HUDBase::drawScore(renderer.get(), font, score, WIN_WIDTH - 10, 10);
-                HUDBase::drawHPHearts(renderer.get(), font, ch2PlayerHP, CH2_PLAYER_MAX_HP,
-                                      WIN_WIDTH - 10, 28);
+                HUDBase::drawHPHearts(renderer.get(), font, ch2PlayerHP, ch2PlayerMaxHP(),
+                                      WIN_WIDTH - 10, 28, true);
                 float eFill = pulseSystem.getFill();
                 HUDBase::drawEnergyBar(renderer.get(), WIN_WIDTH - 10, 46, 10*14, 6,
                     eFill, pulseSystem.isFull());
@@ -4281,6 +4555,10 @@ private:
 
             // Floating texts
             drawFloatingTexts();
+
+            // NightElf 换机金光 / 能量环 / 中央爆闪（覆盖 HUD，突出升级瞬间）
+            if (!gameOver && isSide && ch2Flow == C2_LAB && labUpgradeState == 1)
+                drawNightElfUpgradeFx();
 
             // Aim assist
             if (!isSide && aimAssistOn) drawAimAssist();

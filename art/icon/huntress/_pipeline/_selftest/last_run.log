@@ -1,0 +1,120 @@
+==============================================
+ macOS 图标管线自测 · 2026-11-18 15:41:50
+ pipeline: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline
+==============================================
+
+== [1/8] 环境 ==
+Python : /Users/song_jiarui/.dsh/dsh-runtimes/dsh-primary-runtime/dependencies/python/bin/python3
+         3.12.14 · Pillow 12.3.0
+Edge   : Microsoft Edge 157.0.4341.60 
+iconutil: /usr/bin/iconutil
+
+== [2/8] 生成 5 张测试输入（Pillow 绘制） ==
+  test_A  红楔   /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs/test_A.png
+  test_B  蓝环   /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs/test_B.png
+  test_C  绿棱   /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs/test_C.png
+  test_D  紫涡   /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs/test_D.png
+  test_E  金冠   /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs/test_E.png
+  fixtures non_square.png / test_A_512.png（错误路径检查用）
+✅ 5 张测试输入已生成 → /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/inputs
+
+== [3/8] render.sh（Edge 2x 截图 + Pillow 降采样；另测 1x） ==
+✅ render: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/render_2x.png — 1024×1024
+   Edge 2x 截图 2048×2048 → Pillow LANCZOS 缩到 1024×1024
+   source: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/render_test.html
+✅ render: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/render_1x.png — 1024×1024
+   Edge 1x 截图（scale=1）
+   source: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/render_test.html
+
+== [4/8] mac_preview.py（plain / shadow+inner / squircle） ==
+✅ mac_preview: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/preview_A_plain.png
+   1024×1024 RGBA · 内容 824×824 @ (100, 100) · 半径 185.4 · shape=rounded · 蒙版 4× 超采样
+   options: shadow=off inner=off
+✅ mac_preview: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/preview_A_shadow_inner.png
+   1024×1024 RGBA · 内容 824×824 @ (100, 100) · 半径 185.4 · shape=rounded · 蒙版 4× 超采样
+   options: shadow=on inner=on
+✅ mac_preview: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/preview_A_squircle.png
+   1024×1024 RGBA · 内容 824×824 @ (100, 100) · 半径 185.4 · shape=squircle · 蒙版 4× 超采样
+   options: shadow=off inner=on
+
+== [5/8] contact_sheet.py（5 张图三行展示板） ==
+✅ contact_sheet: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/contact_sheet.png — 2200×1297 px
+   5 列 · 原图 397 px · macOS 预览 300 px · 小尺寸 128 + 64
+
+== [6/8] dock_preview.py（仿 macOS Dock，2000×520） ==
+✅ dock_preview: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/dock_preview.png — 2000×520 px · 5 图标 + 2 占位 · 槽位 128 px
+
+== [7/8] make_icns.sh（iconset + iconutil） ==
+▸ 生成 iconset: 10 个尺寸档
+▸ iconutil 打包 → /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/test_A.icns
+✅ make_icns: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out/test_A.icns — 509 KB · 10 个尺寸 · 回读 10 个 rep
+   16/32/64/128/256/512/1024 px（512@2x 用 1024 源图）
+
+== [8/8] 错误路径 + 输入只读检查 ==
+  ✅ mac_preview 拒绝非方形输入（按预期报错）
+  ✅ make_icns 拒绝 512 源图（按预期报错）
+  ✅ contact_sheet 拒绝标签数量不匹配（按预期报错）
+  ✅ render.sh 拒绝非 HTML 输入（按预期报错）
+  ✅ 测试输入与 HTML 均未被修改（只读）
+
+== 机器校验 ==
+verify_outputs.py — 校验目录: /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out
+
+[1] render.sh 产出
+  ✅ render_2x.png 存在
+  ✅ render_1x.png 存在
+  ✅ 2x 输出 1024×1024  ·  1024x1024
+  ✅ 1x 输出 1024×1024  ·  1024x1024
+  ✅ 2x 非空图（stddev>6）  ·  stddev=66.0
+  ✅ 2x 降采样与 1x 直出一致（平均差<8）  ·  mean_diff=0.51
+
+[2] mac_preview.py 产出
+  ✅ preview_A_plain.png 存在
+  ✅ preview_A_shadow_inner.png 存在
+  ✅ preview_A_squircle.png 存在
+  ✅ 画布 1024×1024 RGBA  ·  1024x1024 RGBA
+  ✅ 四角完全透明  ·  corner alpha=0
+  ✅ 中心不透明  ·  alpha=255
+  ✅ 内容区左边界 x=100 不透明  ·  alpha=255
+  ✅ 内容区外 x=98 透明  ·  alpha=0
+  ✅ 内容区底边 y=923 不透明  ·  alpha=255
+  ✅ 内容区外 y=925 透明  ·  alpha=0
+  ✅ 圆角裁切：内容区内侧角 (108,108) 透明  ·  alpha=0
+  ✅ 有效内容 bbox ≈ (100,100,924,924)  ·  bbox=(100, 100, 924, 924)
+  ✅ --shadow 在图标下方产生投影  ·  alpha(512,945)=11
+  ✅ --shadow 不污染画布四角  ·  corner=0
+  ✅ --shadow 与 plain 有可见差异  ·  mean_diff=2.66
+  ✅ --inner 顶部内高光提亮  ·  67.06 > 44.64
+  ✅ --shape squircle 四角比 rounded 更饱满  ·  alpha(140,140)=255
+  ✅ squircle 仍保留 100 边距  ·  alpha(512,102)=255
+
+[3] contact_sheet.py 产出（5 张图排版）
+  ✅ contact_sheet.png 存在
+  ✅ 宽度 2200  ·  2200×1297
+  ✅ 高度在合理区间 1100..1500  ·  高度=1297
+  ✅ 非空图  ·  stddev=41.0
+  ✅ 深灰背景（角落亮度<70）  ·  corner=37.0
+  ✅ 第一行 5 张缩略色相可区分  ·  10/10 对颜色距离>30
+  ✅ 第三行 5 个小尺寸图标可见  ·  亮度 min=45.6
+
+[4] dock_preview.py 产出
+  ✅ dock_preview.png 存在
+  ✅ 尺寸 2000×520  ·  2000×520
+  ✅ 非空图  ·  stddev=23.6
+  ✅ Dock 毛玻璃条可见（亮度高于壁纸）  ·  dock=51.1 wall=39.1
+  ✅ 5 个彩色图标在 Dock 中可见  ·  饱和度=['92', '83', '85', '71', '123']
+  ✅ 2 个灰色占位图标为中性灰  ·  饱和度=['12', '12']
+
+[5] make_icns.sh 产出
+  ✅ test_A.icns 存在
+  ✅ icns magic 正确  ·  magic=b'icns'
+  ✅ icns 体积合理（>50 KB）  ·  521388 bytes
+  ✅ iconutil 可回读 icns
+  ✅ 回读含 10 个尺寸 rep  ·  10 个
+  ✅ 包含 1024 像素（512@2x）  ·  max=1024
+
+✅ ALL PASS  43/43 项通过
+
+==============================================
+ ✅ ALL SELFTEST PASS · 产物在 /Users/song_jiarui/Code/Github/Spaceshooter game--Huntress: Echoes from the Well/art/icon/redesign/_pipeline/_selftest/out
+==============================================

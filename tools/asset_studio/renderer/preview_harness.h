@@ -65,6 +65,11 @@ struct AssetEntry {
     std::string scene;            // 可选的场景上下文素材 id
     std::string source;           // 对应游戏源码位置（供"打开源码"用）
 
+    // 媒体类型：image（默认绘制素材）或 audio（BGM / 音效试听）
+    std::string media = "image";
+    std::string audioType;        // bgm / sfx
+    double      duration = 0.0;   // 音频试听长度（秒）
+
     void (*draw)(DrawCtx&) = nullptr;
     // 叠加层回调：在「内容分析之后」绘制，所以不会污染包围盒/对称度/裁剪
     void (*overlay)(DrawCtx&) = nullptr;
@@ -87,6 +92,10 @@ struct AssetEntry {
     }
     AssetEntry& drawFn(void (*f)(DrawCtx&)) { draw = f; return *this; }
     AssetEntry& overlayFn(void (*f)(DrawCtx&)) { overlay = f; return *this; }
+    AssetEntry& audioClip(const std::string& type, double seconds) {
+        media = "audio"; audioType = type; duration = seconds;
+        return *this;
+    }
 };
 
 // ---------- 全局注册表 ----------

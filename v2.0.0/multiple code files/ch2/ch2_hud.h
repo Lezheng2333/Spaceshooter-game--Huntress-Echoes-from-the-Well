@@ -33,9 +33,12 @@ public:
         SDL_RenderFillRect(r, &accent);
     }
 
-    static void drawHPHearts(SDL_Renderer* r, const Font& font, int hp, int maxHp, int rightEdge, int y) {
+    // forceHearts=true：第二章玩家血条始终使用像素爱心（NightElf 为 5 颗）。
+    // forceHearts=false：沿用第一章基地完整度的绿色分段条。
+    static void drawHPHearts(SDL_Renderer* r, const Font& font, int hp, int maxHp, int rightEdge, int y,
+                             bool forceHearts = false) {
         (void)font;
-        if (maxHp > 3) {
+        if (maxHp > 3 && !forceHearts) {
             // 第一章基地完整度：绿色分段条，比红色星号更接近"基地护盾"。
             const int segW = 9, segH = 5, gap = 4;
             for (int i = 0; i < maxHp; ++i) {
@@ -51,8 +54,8 @@ public:
                 }
             }
         } else {
-            // 第二章玩家生命：回到早期版本一眼可认的像素爱心，但加上清晰的
-            // 暗红描边、亮红填充与左上高光；三个爱心仍严格右对齐在原 HUD 槽位。
+            // 第二章玩家生命：早期版本一眼可认的像素爱心，带暗红描边、
+            // 亮红填充与左上高光；3/5 颗心均严格右对齐在原 HUD 槽位。
             static const char* HEART[7] = {
                 "0220220",
                 "2442342",

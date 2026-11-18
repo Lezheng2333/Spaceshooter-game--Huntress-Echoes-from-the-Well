@@ -53,6 +53,17 @@ public:
         particles.push_back(p);
     }
 
+    // 金色升级火花：沿用 Ch1Particle 现有字段，不改变存档布局。
+    // 三种颜色标记均为 false 时，draw() 会落入暖金色分支。
+    void spawnGoldParticle(double x, double y, double vx, double vy, int life) {
+        Ch1Particle p;
+        p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+        p.life = life; p.active = true;
+        p.whiteParticle = false;
+        p.greenParticle = false; p.redParticle = false;
+        particles.push_back(p);
+    }
+
     void spawnDigitShatter(const Font& font, char digit, int digitScale, int cx, int cy) {
         const FontChar& fc = font.getChar(digit);
         int dw = 5 * digitScale, dh = 7 * digitScale;
