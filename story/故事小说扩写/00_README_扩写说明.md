@@ -1,8 +1,8 @@
 # 剧情扩写说明 · 《星海女猎：井中之声》
 
-> 本目录是对 `故事大纲.txt` 的完整扩写产物。
+> 本目录是对 `故事原始大纲.txt` 的完整扩写产物。
 >
-> **没有修改任何现有项目文件**：源码、存档、README、开发日志、`故事大纲.txt` 均未改动；所有内容只新增在 `story_expansion/` 内。
+> **没有修改任何现有项目文件**：源码、存档、README、开发日志、`故事原始大纲.txt` 均未改动；所有内容只新增在 `story/故事小说扩写/` 内。
 
 ---
 
@@ -159,16 +159,16 @@
 
 ## 五、没有改动的东西
 
-本次工作**只新增** `story_expansion/` 目录下的四个文件，未修改：
+本次工作**只新增** `story/故事小说扩写/` 目录下的四个文件，未修改：
 
-- `故事大纲.txt`（只读）
+- `故事原始大纲.txt`（只读）
 - `v2.0.0/multiple code files/` 下任何源码
 - `narration_scripts.txt` / `narration_scripts.xlsx` / `narration_scripts_flow_analysis.txt`
 - `GAME_DESIGN_DOCUMENT.md` / `README.md` / `DEVELOPMENT_LOG.md`
 - `saves/`、`voice/`、`tools/`、`build/`
 - 任何存档格式、版本号、发布包
 
-> 说明：`git status` 中原本就存在若干 `M`（修改）状态的文件（DEVELOPMENT_LOG、audio.h、ch2_boss.h、ch2_hud.h、game.h、particles.h），这些是本次工作开始前就有的改动，**不是本次产生的**；本次只新增了 `story_expansion/`。`故事大纲.txt` 原本就是未跟踪文件，本次只读、未改动。
+> 说明：`git status` 中原本就存在若干 `M`（修改）状态的文件（DEVELOPMENT_LOG、audio.h、ch2_boss.h、ch2_hud.h、game.h、particles.h），这些是本次工作开始前就有的改动，**不是本次产生的**；本次只新增了 `story/故事小说扩写/`。`故事原始大纲.txt` 原本就是未跟踪文件，本次只读、未改动。
 
 ---
 
@@ -241,4 +241,4 @@
 4. **做一份“台词中英对照 + 配音清单”**（按角色、章节、场景编号）；
 5. **实现 Ch3 垂直切片**（醒来 → 第一枚碎片 → 第一扇门），验证俯视迷宫与共鸣视觉的手感。
 
-> 以上都不需要改动现有游戏文件；可以从 `story_expansion/` 派生新的设计文档，或在分支上实现。
+> 以上都不需要改动现有游戏文件；可以从 `story/故事小说扩写/` 派生新的设计文档，或在分支上实现。
