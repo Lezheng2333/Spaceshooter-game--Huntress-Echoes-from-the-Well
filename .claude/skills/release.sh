@@ -148,8 +148,9 @@ if [ "${4:-}" = "--package-only" ]; then exit 0; fi
 
 echo "=== Step 5: Git commit & push ==="
 cd "$PROJECT_ROOT"
+# 发布包（.app/.zip）不入库：zip 由 Step 6 的 gh release 作为 Release 附件上传
 git add .gitignore DEVELOPMENT_LOG.md README.md CLAUDE.md tools/ art/ \
-    "$SRC_DIR/$SRC_SUBDIR/" "$RELEASE_DIR/$ZIP_NAME" \
+    "$SRC_DIR/$SRC_SUBDIR/" \
     "$SRC_DIR/space_shooting ver1.2.20 single-file archive.cpp"
 # .claude/ 在 .gitignore 里（IDE 目录），但本脚本本身是已跟踪文件，需 -f 强制暂存
 git add -f .claude/skills/release.sh

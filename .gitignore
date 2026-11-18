@@ -1,16 +1,20 @@
 # macOS
 .DS_Store
+
+# 发布二进制（.app 解包产物 / .zip 发行包）不入库；
+# 发行包统一走 GitHub Releases（release.sh 自动上传），仓库只保留源码与文档
 *.app
+*.zip
 
 # 编译产物
 */shooter
 
+# 本地构建草稿 / 中间产物
+build/
+
 # IDE
 .vscode/
 .claude/
-
-# Claude Code
-CLAUDE.md
 
 # Narration scripts
 narration_scripts/
